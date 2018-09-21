@@ -73,6 +73,8 @@ class ROSserver(object):
         self.fromInternet(self.s.recv(4096))
     def fromInternet(self,data):
         data.decode()
+        data = str(data)
+        data = data[2:len(data)-1]
         with self.printLock:
             print(data)
         self.pub.publish(data)
