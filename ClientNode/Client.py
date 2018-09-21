@@ -23,19 +23,24 @@ class ROSserver(object):
         self.printLock = threading.Lock()
         self.server = "localhost"
         self.port = 5555
-        self.connectInternet()
-    def connectInternet(self):
-        self.toSend = ["msg=HandShake"]
+        self.Ready2Send = False
+        self.connectInternet("msg=HandShake")
+    def connectInternet(self,msg):
+        self.Ready2Send = False
+        self.toSend = [msg]
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             with self.printLock:
                 print("Connecting to: "+self.server+":"+str(self.port))
             self.s.connect((self.server,self.port))
+            self.Ready2Send = True
         except socket.error as e:
             with self.printLock:
                 print(str(e))
     def toInternet(self,data):
-        data=str(data)
+        with self.printLock:
+            print(data.data)
+        data=str(data.data)
         data.replace(" ","")
         serPortChanged = False
         Ser = self.valueOf(data,"server")
@@ -46,7 +51,6 @@ class ROSserver(object):
 
         Ser = self.valueOf(data,"port")
         if not Ser == "NULL":
-            Ser = Ser[:len(Ser)-1]
             self.port = int(Ser)
             serPortChanged = True
             data.replace(",port="+Ser,"")
@@ -56,8 +60,9 @@ class ROSserver(object):
                 print("Server addr: "+ self.server+":"+str(self.port))
             with self.senderLock:
                 self.s.close()
-                self.connectInternet();
-        self.toSend.append(data)
+                self.connectInternet(data);
+        else:
+            self.toSend.append(data)
     def sendPck(self):
         if len(self.toSend) >0:
             with self.printLock:
@@ -86,20 +91,28 @@ def sender(void):
     while True:
         try:
             while True:
-                node.sendPck()
+                if node.Ready2Send:
+                    node.sendPck()
         except socket.error as e:
+
             with node.printLock:
                 print("Sending Failed")
                 print(str(e))
+
+RecErrNoLast = -1
 def reciver(void):
+    global RecErrNoLast
     while True:
         try:
             while True:
-                node.recvPck()
+                if node.Ready2Send:
+                    node.recvPck()
         except socket.error as e:
-            with node.printLock:
-                print("Recived Failed")
-                print(str(e))
+            if not e.errno == RecErrNoLast:
+                RecErrNoLast = e.errno
+                with node.printLock:
+                    print("Recived Failed")
+                    print(str(e))
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
