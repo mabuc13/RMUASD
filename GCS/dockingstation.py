@@ -1,4 +1,4 @@
-def dockingstation:
+class dockingstation(object):
 	def __init__(self,ID,latitude,longitude,orientation):
 		self.ID = ID
 		self.latitude = latitude

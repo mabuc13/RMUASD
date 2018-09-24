@@ -1,10 +1,10 @@
-def drone:
+class drone(object):
 	def __init__(self, ID):
 		self.ID = ID
 		self.status = 0		# 0 = free , 1 = occupied
-		self.start_dock
-		self.goal_dock
-		self.path
+		self.start_dock = 0
+		self.goal_dock = 0
+		self.path = 0
 
 	def set_path(self, path):
 		self.path = path
