@@ -1,5 +1,5 @@
-float32[3] GPS
-float32[3] next_goal
+GPS position
+GPS next_goal
 float32[3] velocity
 float32 heading
 float32 battery_SOC
