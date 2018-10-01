@@ -15,7 +15,7 @@ from std_msgs.msg import String
 # List of own drones
 Drones = []
 dockingStations = []
-Jobs_q = queue.queue()
+Jobs_q = queue.Queue()
 
 def String2Dock(text):
 	if isinstance(text,str):
