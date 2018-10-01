@@ -95,6 +95,8 @@ def sender(void):
             while True:
                 if node.Ready2Send:
                     node.sendPck()
+                else:
+                    time.sleep(1)
         except socket.error as e:
 
             with node.printLock:
@@ -109,6 +111,8 @@ def reciver(void):
             while True:
                 if node.Ready2Send:
                     node.recvPck()
+                else:
+                    time.sleep(1)
         except socket.error as e:
             if not e.errno == RecErrNoLast:
                 RecErrNoLast = e.errno
@@ -120,5 +124,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     start_new_thread(sender,(1,))
     start_new_thread(reciver,(1,))
-    while True:
-        rospy.Rate(30).sleep()
+    while not rospy.is_shutdown():
+        time.sleep(1000)

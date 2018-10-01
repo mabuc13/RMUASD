@@ -1,55 +1,90 @@
 #!/usr/bin/env python3
 import rospy
 import numpy as np
+import os
 
 #
-import drone
-import dockingstation
+from stringMsgReader import *
+from drone import *
+from dockingstation import *
+from job import *
 from gcs.msg import *
+from std_msgs.msg import String
 
 # List of own drones
-list_drones = []
-list_docks = []
+Drones = []
+dockingStations = []
 
-# Global variables:
-setup = False
-global_map = []
-no_docks = 0
-no_drones = 0
+def String2Dock(text):
+	if isinstance(text,str):
+		text = csvText(text)
 
-def DroneStatus_handler(msg):
+	if not text.valueOf("name") ==  "NULL" and 		\
+	   not text.valueOf("longitude") == "NULL" and 	\
+	   not text.valueOf("latitude") == "NULL" and 	\
+	   not text.valueOf("altitude") == "NULL":
+	####
+		dockingStations.append( 				\
+			dockingstation(		\
+			text.valueOf("name"), 				\
+			text.valueOf("longitude"), 			\
+			text.valueOf("latitude"), 			\
+			text.valueOf("altitude"), 			\
+			text.valueOf("lab")					\
+			))
+		####
+		return True
+	else:
+		return False
+
+def Web_handler(msg):
+	msg = csvText(str(msg.data))
+	if not msg.valueOf("name") == "NULL":
+		feedBack = String()
+		feedBack = "name=gcs,target="+msg.valueOf(name)
+		if msg.valueOf("register").lower() == "true":
+			if String2Dock(msg):
+				print("DockingStation Registered: " + dockingStations[-1].get_name())
+				feedBack = feedBack + ",register=succes"
+			else:
+				feedBack = feedBack + ",register=failed"
+
+		elif msg.valueOf("Request").lower() == "true":
+			pass
+		WebInfo_pub.publish(feedBack)
 	print(msg)
 
-DroneStatus_sub = rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
-RouteRequest_pub = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=1)
-DroneState_pub = rospy.Publisher('/gcs/StateRequest', DroneState, queue_size=1)
+def DroneStatus_handler(msg):
+	new_drone = True
+	for d in Drones:
+		if msg.drone_id == d.get_ID():
+			new_drone = False
+			continue
+	if new_drone:
+		Drones.append(drone(msg.drone_id,msg.position))
+		print("Drone Registered: " + str(Drones[len(Drones)-1].get_ID()))
 
+DroneStatus_sub = rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
+RouteRequest_pub = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=10)
+DroneState_pub = rospy.Publisher('/gcs/StateRequest', DroneState, queue_size=10)
+WebInfo_sub = rospy.Subscriber('/FromInternet',String, Web_handler)
+WebInfo_pub = rospy.Publisher('/ToInternet', String, queue_size = 10)
 
 def initialize():
 	global no_docks, no_drones
 	rospy.init_node('GroundControlStation')
 	# Create two dockingstations with their location:
-	dock_0 = dockingstation.dockingstation(no_docks, 55.0, 10.0, 0)
-	no_docks = no_docks +1
-	dock_1 = dockingstation.dockingstation(no_docks, 55.0, 10.0, 0)
-	no_docks = no_docks+ 1
-
-	# Create the drones available:
-	drone_0 = drone.drone(no_drones)
-	no_drones = no_drones+ 1
-
-	# Add to lists:
-	list_docks.append(dock_0)
-	list_docks.append(dock_1)
-	list_drones.append(drone_0)
-
-	setup = True
+	path = __file__[:len(__file__)-6]+"/Settings/DockingStationsList.txt"
+	with open(path) as f:
+		content = f.readlines()
+		for line in content:
+			if String2Dock(line):
+				print("DockingStation Registered: " + dockingStations[-1].get_name())
+			else:
+				print("DockingStation Register Failed")
 
 if __name__ == "__main__":
-
-	# Run setup rutine if this is startup:
-	if not setup:
-		initialize()
+	initialize()
 
 	while not rospy.is_shutdown():
 
@@ -61,8 +96,8 @@ if __name__ == "__main__":
 		# Check for new input from user:
 
 			# If new input, find free drone:
-			for d in list_drones:
-				if d.get_status == 0:
+			for d in Drones:
+				if d.isAvailable:
 					# Select this one.
 					pass
 				else:

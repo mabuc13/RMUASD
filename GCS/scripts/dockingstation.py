@@ -1,13 +1,20 @@
-class dockingstation(object):
-	def __init__(self,ID,latitude,longitude,orientation):
-		self.ID = ID
-		self.latitude = latitude
-		self.longitude = longitude
-		self.orientation = orientation
-		self.status = 0
+from gcs.msg import GPS
 
-	def get_id(self):
-		return self.ID
+class dockingstation(object):
+	def __init__(self,Name,latitude,longitude,altitude,isLab):
+		self.Name = Name
+		self.location = GPS()
+		self.location.latitude = latitude
+		self.location.longitude = longitude
+		self.location.altitude = altitude
+		self.status = 0
+		if isinstance(isLab, str):
+			self.isLab = (isLab == "True") or (isLab == "true")
+		else:
+			self.isLab = isLab
+
+	def get_name(self):
+		return self.Name
 
 	def get_location(selv):
 		return self.location
