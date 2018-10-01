@@ -1,3 +1,0 @@
-<launch>
-   <node name="ros_internet" pkg="ros_internet" type="Client.py" output="screen" />
-</launch>

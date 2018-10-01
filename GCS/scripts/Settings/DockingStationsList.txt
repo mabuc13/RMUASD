@@ -1,2 +1,0 @@
-name=HIV Læge Butik,longitude=55.6234235,latitude=43.32352342,altitude=32,Lab=True
-name=Lægernes freds beredskab,longitude=22.6234235,latitude=22.32352342,altitude=32,Lab=False

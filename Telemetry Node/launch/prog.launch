@@ -1,3 +1,0 @@
-<launch>
-   <node name="telemetry_node" pkg="telemetry_node" type="TelemetryNode.py" output="screen" />
-</launch>
