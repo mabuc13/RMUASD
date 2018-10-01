@@ -1,0 +1,9 @@
+# Ignore some of the useless compiled python files
+__pycache__/
+*.pyc
+
+# Ignore pycharm specific files
+.idea/
+
+# Ignore weird virtual environment folder
+venv/
