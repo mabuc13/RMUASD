@@ -1,0 +1,3 @@
+<launch>
+   <node name="gcs" pkg="gcs" type="gcs_node.py" output="screen" />
+</launch>

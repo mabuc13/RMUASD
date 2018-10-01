@@ -1,0 +1,3 @@
+<launch>
+   <node name="internet" pkg="internet" type="internet_node.py" output="screen" />
+</launch>
