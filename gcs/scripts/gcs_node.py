@@ -94,7 +94,7 @@ def initialize():
 	global no_docks, no_drones
 	rospy.init_node('GroundControlStation')
 	# Create two dockingstations with their location:
-	path = __file__[:len(__file__)-6]+"/Settings/DockingStationsList.txt"
+	path = __file__[:len(__file__)-11]+"/Settings/DockingStationsList.txt"
 	with open(path) as f:
 		content = f.readlines()
 		for line in content:
