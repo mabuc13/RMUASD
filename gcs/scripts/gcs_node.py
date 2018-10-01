@@ -4,6 +4,7 @@ import numpy as np
 import os
 
 #
+import queue
 from stringMsgReader import *
 from drone import *
 from dockingstation import *
@@ -14,6 +15,7 @@ from std_msgs.msg import String
 # List of own drones
 Drones = []
 dockingStations = []
+Jobs_q = queue.queue()
 
 def String2Dock(text):
 	if isinstance(text,str):
@@ -49,8 +51,26 @@ def Web_handler(msg):
 			else:
 				feedBack = feedBack + ",register=failed"
 
-		elif msg.valueOf("Request").lower() == "true":
-			pass
+		elif msg.valueOf("request").lower() == "true":
+			Dock = None
+			for dock in dockingStations:
+				if dock.get_name() == msg.valueOf("name"):
+					Dock = dock
+					continue
+			if not Dock == None:
+				aJob = job(Dock)
+				Jobs_q.put(aJob)
+				feedBack = feedBack + ",request=queued"
+			elif   not msg.valueOf("latitude") and \
+				   not msg.valueOf("longtitude") and \
+				   not msg.valueOf("altitude"):
+				####
+				aDock = dockingstation(msg.valueOf("name"),msg.valueOf("latitude"),msg.valueOf("longitude"),msg.valueOf("altitude"),False)
+				aJob = job(aDock)
+				Jobs_q.put(aJob)
+
+
+
 		WebInfo_pub.publish(feedBack)
 	print(msg)
 
@@ -91,7 +111,7 @@ if __name__ == "__main__":
 		# Check new information from UTM server:
 
 			#global_map.append(new_info)
-			# If new information, does current drones need to be redirected?
+			#If new information, does current drones need to be redirected?
 
 		# Check for new input from user:
 
