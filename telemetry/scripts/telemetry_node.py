@@ -5,27 +5,115 @@ import sys
 import rospy
 import time
 
+from mavlink_lora.msg import mavlink_lora_msg
 from gcs.msg import *
+from std_msgs.msg import Int8
+from std_srvs.srv import Trigger, TriggerResponse
+
+# defines
+MAVLINK_MSG_ID_COMMAND_LONG = 76
+MAVLINK_MSG_ID_COMMAND_LONG_LEN = 33
+MAVLINK_MSG_ID_COMMAND_ACK = 77
+
+MAVLINK_CMD_ID_ARM_DISARM = 400
+MAVLINK_CMD_ID_MISSION_START = 300
+MAVLINK_CMD_NAV_RETURN_TO_LAUNCH = 20
+MAVLINK_CMD_NAV_LAND = 21
+MAVLINK_CMD_NAV_TAKEOFF = 22
+MAVLINK_CMD_NAV_LAND_LOCAL = 23
+MAVLINK_CMD_NAV_TAKEOFF_LOCAL = 24
+
+# parameters
+mavlink_lora_sub_topic = '/mavlink_rx'
+mavlink_lora_pub_topic = '/mavlink_tx'
+mavlink_lora_status_sub_topic = '/mavlink_status'
+mavlink_lora_pos_sub_topic = '/mavlink_pos'
+mavlink_lora_atti_sub_topic = '/mavlink_attitude'
+mavlink_lora_keypress_sub_topic = '/keypress'
+update_interval = 10
 
 class Telemetry(object):
 
     def __init__(self):
-        mavlink_lora_sub_topic = '/mavlink_rx'
-        mavlink_lora_pub_topic = '/mavlink_tx'
+        self.request_sent = False
+
+        # Service handler
+        self.arm_service = rospy.Service("/telemetry/arm_drone", Trigger, self.arm_drone, buff_size=10)
+        self.disarm_service = rospy.Service("/telemetry/disarm_drone", Trigger, self.disarm_drone, buff_size=10)
+        self.takeoff_service = rospy.Service("/telemetry/takeoff_drone", Trigger, self.takeoff_drone, buff_size=10)
+        self.land_service = rospy.Service("/telemetry/land_drone", Trigger, self.land_drone, buff_size=10)
+        self.start_mission_service = rospy.Service("/telemetry/start_mission", Trigger, self.start_mission, buff_size=10)
 
         rospy.init_node('mavlink_lora_gcs_simple', disable_signals = True)
-		self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
-		rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
-		rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
-		rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
-		rospy.Subscriber(mavlink_lora_atti_sub_topic, mavlink_lora_attitude, self.on_mavlink_lora_attitude)
-		rospy.Subscriber(mavlink_lora_keypress_sub_topic, Int8, self.on_keypress)
-		self.rate = rospy.Rate(update_interval)
-		rospy.sleep (1) # wait until everything is running
+        self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
+        rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
+        rospy.Subscriber(mavlink_lora_keypress_sub_topic, Int8, self.on_keypress)
+        self.rate = rospy.Rate(update_interval)
+        rospy.sleep (1) # wait until everything is running
 
 
-    def on_mavlink_msg(self, msg):
+    def on_mavlink_msg(self,msg):
+        '''
+        if msg.msg_id == MAVLINK_MSG_ID_PARAM_VALUE:
+            (param_value, param_count, param_index, param_id, param_type) = struct.unpack('<fHH16sB', msg.payload)	
+            print param_id, param_value, param_count
+        '''
         pass
+
+    def on_keypress(self):
+        pass
+
+    def send_mavlink_msg_id_cmd_long(self,params,id,command):
+        msg = mavlink_lora_msg()
+
+        # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
+        msg.header.stamp = rospy.Time.now()
+        msg.msg_id = MAVLINK_MSG_ID_COMMAND_LONG
+        msg.sys_id = 0
+        msg.comp_id = 0
+
+        # Appears to need to be 1,1
+        target_sys = 1
+        target_comp = 1
+
+        # command = MAVLINK_CMD_ID_ARM_DISARM
+        confirmation = 0
+
+        msg.payload_len = MAVLINK_MSG_ID_COMMAND_LONG_LEN
+        msg.payload = struct.pack('<7fHBBB', params[0], params[1], params[2], params[3], params[4], params[5], params[6], command, target_sys, target_comp, confirmation)
+        self.mavlink_msg_pub.publish(msg)
+
+    def arm_drone(self, msg):
+        pass
+
+    def disarm_drone(self, msg):
+        pass
+
+    def takeoff_drone(self, msg):
+        pass
+
+    def land_drone(self, msg):
+        pass
+
+    def start_mission(self, msg):
+        pass
+
+    def shutdownHandler(self):
+        # shutdown services
+        self.arm_service.shutdown()
+        self.disarm_service.shutdown()
+        print("Shutting down")
+
+
+def main():
+    rospy.init_node('telemetry', anonymous=True)
+    rospy.sleep(1)
+
+    tel = Telemetry()
+
+    rospy.on_shutdown(tel.shutdownHandler)
+
+    rospy.spin()
 
 '''
 def signal_handler(signal,somthing):
