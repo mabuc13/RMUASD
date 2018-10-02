@@ -7,7 +7,27 @@ import time
 
 from gcs.msg import *
 
+class Telemetry(object):
 
+    def __init__(self):
+        mavlink_lora_sub_topic = '/mavlink_rx'
+        mavlink_lora_pub_topic = '/mavlink_tx'
+
+        rospy.init_node('mavlink_lora_gcs_simple', disable_signals = True)
+		self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
+		rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
+		rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
+		rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
+		rospy.Subscriber(mavlink_lora_atti_sub_topic, mavlink_lora_attitude, self.on_mavlink_lora_attitude)
+		rospy.Subscriber(mavlink_lora_keypress_sub_topic, Int8, self.on_keypress)
+		self.rate = rospy.Rate(update_interval)
+		rospy.sleep (1) # wait until everything is running
+
+
+    def on_mavlink_msg(self, msg):
+        pass
+
+'''
 def signal_handler(signal,somthing):
     print('You pressed Ctrl+C!')
     sys.exit(0)
@@ -51,3 +71,4 @@ if __name__ == "__main__":
 
         if spins % rate == 0:
             DroneStatus_pub.publish(getDroneStatus())
+'''
