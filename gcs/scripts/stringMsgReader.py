@@ -9,8 +9,9 @@ class csvText(object):
     def valueOf(self,value):
     	ret = 'NULL'
     	for t in self.splitText:
-    			if value in t[0]:
-    			  ret = t[1]
+            if value in t[0]:
+                ret = t[1]
+                break
     	return ret
     def get_text():
-        return self.text    
+        return self.text
