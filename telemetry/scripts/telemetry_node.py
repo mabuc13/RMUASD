@@ -11,6 +11,7 @@ from std_msgs.msg import Int8
 from std_srvs.srv import Trigger, TriggerResponse
 
 # defines
+MAVLINK_MSG_ID_HEARTBEAT = 0
 MAVLINK_MSG_ID_COMMAND_LONG = 76
 MAVLINK_MSG_ID_COMMAND_LONG_LEN = 33
 MAVLINK_MSG_ID_COMMAND_ACK = 77
@@ -71,6 +72,29 @@ class Telemetry(object):
             (param_value, param_count, param_index, param_id, param_type) = struct.unpack('<fHH16sB', msg.payload)	
             print param_id, param_value, param_count
         '''
+                
+        if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
+            (custom_mode, mav_type, autopilot, base_mode, system_status, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
+            main_mode = custom_mode >> 24
+            sub_mode = (custom_mode >> 16) & 0xFF
+
+            # (main_mode, sub_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode))
+            print("Custom Mode: {}, {}".format(hex(custom_mode),bin(custom_mode)))
+            print("Main Mode: {}, {}".format(hex(main_mode),bin(main_mode)))
+            print("Sub Mode: {}, {}".format(hex(sub_mode),bin(sub_mode)))
+            print("MAV type: {}, {}".format(hex(mav_type),bin(mav_type)))
+            print("Autopilot: {}, {}".format(hex(autopilot),bin(autopilot)))
+            print("Base Mode: {}, {}".format(hex(base_mode),bin(base_mode)))
+            print("System Status: {}, {}".format(hex(system_status),bin(system_status)))
+            print("MAVLink Version: {}, {}".format(hex(mavlink_version),bin(mavlink_version)))
+
+            armed = base_mode & 0x80
+            if armed:
+                print("I AM ARMED!")
+            else:
+                print("I AM NOT ARMED!")
+        
+            print("\n")
         pass
 
     def on_mavlink_lora_pos(self,msg):
@@ -83,7 +107,7 @@ class Telemetry(object):
         self.last_heard_sys_status = msg.last_heard_sys_status.secs + msg.last_heard_sys_status.nsecs/1.0e9
         self.batt_volt = msg.batt_volt / 1000.0
 
-    def on_keypress(self):
+    def on_keypress(self, msg):
         pass
 
     def send_mavlink_msg_id_cmd_long(self,params,command,id):
