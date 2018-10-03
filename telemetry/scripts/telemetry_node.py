@@ -24,6 +24,12 @@ MAVLINK_CMD_NAV_TAKEOFF = 22
 MAVLINK_CMD_NAV_LAND_LOCAL = 23
 MAVLINK_CMD_NAV_TAKEOFF_LOCAL = 24
 
+MAVLINK_MAIN_MODE_LOOKUP = {0: "N/A", 1: "Manual", 2: "Altitude Control", 3: "Position Control",
+                            4: "Auto", 5: "Acro", 6: "Offboard", 7: "Stabilized", 8: "Rattitude"}
+
+MAVLINK_SUB_MODE_AUTO_LOOKUP = {0: "", 1: "Ready", 2: "Takeoff", 3: "Loiter", 4: "Mission",
+                                5: "Return to Home", 6: "Land", 7: "RTGS"}
+
 # parameters
 mavlink_lora_sub_topic = '/mavlink_rx'
 mavlink_lora_pub_topic = '/mavlink_tx'
@@ -75,11 +81,15 @@ class Telemetry(object):
                 
         if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
             (custom_mode, mav_type, autopilot, base_mode, system_status, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
-            main_mode = custom_mode >> 24
-            sub_mode = (custom_mode >> 16) & 0xFF
+            
+            # custom_mode_bytes = custom_mode.to_bytes(4,byteorder='big')
+            # (sub_mode, main_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode_bytes))
+            
+            sub_mode = custom_mode >> 24
+            main_mode = (custom_mode >> 16) & 0xFF
 
-            # (main_mode, sub_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode))
-            print("Custom Mode: {}, {}".format(hex(custom_mode),bin(custom_mode)))
+            print("Flight Mode: {}, {}".format( MAVLINK_MAIN_MODE_LOOKUP[main_mode],
+                                                MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode]))
             print("Main Mode: {}, {}".format(hex(main_mode),bin(main_mode)))
             print("Sub Mode: {}, {}".format(hex(sub_mode),bin(sub_mode)))
             print("MAV type: {}, {}".format(hex(mav_type),bin(mav_type)))
