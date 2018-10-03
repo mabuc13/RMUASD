@@ -1,7 +1,0 @@
-<!-- launch file -->
-
-<launch>
- 	<node pkg="mavlink_lora" type="gcs_keypress.py" name="gcs_keypress" output="screen"></node>
- 	<node pkg="mavlink_lora" type="gcs_simple.py" name="gcs_simple" output="screen"></node>
-</launch>
-
