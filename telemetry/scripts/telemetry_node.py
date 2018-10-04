@@ -9,12 +9,15 @@ from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos, mavlink_lora_st
 from gcs.msg import *
 from std_msgs.msg import Int8
 from std_srvs.srv import Trigger, TriggerResponse
+from telemetry.srv import SetMode
 
 # defines
 MAVLINK_MSG_ID_HEARTBEAT = 0
 MAVLINK_MSG_ID_COMMAND_LONG = 76
 MAVLINK_MSG_ID_COMMAND_LONG_LEN = 33
 MAVLINK_MSG_ID_COMMAND_ACK = 77
+MAVLINK_MSG_ID_SET_MODE = 11
+MAVLINK_MSG_ID_SET_MODE_LEN = 6
 
 MAVLINK_CMD_ID_ARM_DISARM = 400
 MAVLINK_CMD_ID_MISSION_START = 300
@@ -23,12 +26,13 @@ MAVLINK_CMD_NAV_LAND = 21
 MAVLINK_CMD_NAV_TAKEOFF = 22
 MAVLINK_CMD_NAV_LAND_LOCAL = 23
 MAVLINK_CMD_NAV_TAKEOFF_LOCAL = 24
+MAVLINK_CMD_DO_SET_MODE = 176
 
 MAVLINK_MAIN_MODE_LOOKUP = {0: "N/A", 1: "Manual", 2: "Altitude Control", 3: "Position Control",
                             4: "Auto", 5: "Acro", 6: "Offboard", 7: "Stabilized", 8: "Rattitude"}
 
 MAVLINK_SUB_MODE_AUTO_LOOKUP = {0: "", 1: "Ready", 2: "Takeoff", 3: "Loiter", 4: "Mission",
-                                5: "Return to Home", 6: "Land", 7: "RTGS"}
+                                5: "Return to Home", 6: "Land", 7: "RTGS", 8: "Follow Me"}
 
 # parameters
 mavlink_lora_sub_topic = '/mavlink_rx'
@@ -61,6 +65,7 @@ class Telemetry(object):
         self.land_service           = rospy.Service("/telemetry/land_drone", Trigger, self.land_drone, buff_size=10)
         self.start_mission_service  = rospy.Service("/telemetry/start_mission", Trigger, self.start_mission, buff_size=10)
         self.return_home_service    = rospy.Service("/telemetry/return_home", Trigger, self.return_home, buff_size=10)
+        self.set_mode_service       = rospy.Service("/telemetry/set_mode", SetMode, self.set_mode, buff_size=10)
 
         # Topic handlers
         self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
@@ -82,6 +87,8 @@ class Telemetry(object):
         if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
             (custom_mode, mav_type, autopilot, base_mode, system_status, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
             
+            self.base_mode = base_mode
+
             # custom_mode_bytes = custom_mode.to_bytes(4,byteorder='big')
             # (sub_mode, main_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode_bytes))
             
@@ -90,13 +97,13 @@ class Telemetry(object):
 
             print("Flight Mode: {}, {}".format( MAVLINK_MAIN_MODE_LOOKUP[main_mode],
                                                 MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode]))
-            print("Main Mode: {}, {}".format(hex(main_mode),bin(main_mode)))
-            print("Sub Mode: {}, {}".format(hex(sub_mode),bin(sub_mode)))
-            print("MAV type: {}, {}".format(hex(mav_type),bin(mav_type)))
-            print("Autopilot: {}, {}".format(hex(autopilot),bin(autopilot)))
-            print("Base Mode: {}, {}".format(hex(base_mode),bin(base_mode)))
-            print("System Status: {}, {}".format(hex(system_status),bin(system_status)))
-            print("MAVLink Version: {}, {}".format(hex(mavlink_version),bin(mavlink_version)))
+            print("Main Mode: {}, {}, {}".format(hex(main_mode),bin(main_mode),main_mode))
+            print("Sub Mode: {}, {}, {}".format(hex(sub_mode),bin(sub_mode),sub_mode))
+            print("MAV type: {}, {}, {}".format(hex(mav_type),bin(mav_type),mav_type))
+            print("Autopilot: {}, {}, {}".format(hex(autopilot),bin(autopilot),autopilot))
+            print("Base Mode: {}, {}, {}".format(hex(base_mode),bin(base_mode),base_mode))
+            print("System Status: {}, {}, {}".format(hex(system_status),bin(system_status),system_status))
+            print("MAVLink Version: {}, {}, {}".format(hex(mavlink_version),bin(mavlink_version),mavlink_version))
 
             armed = base_mode & 0x80
             if armed:
@@ -119,6 +126,19 @@ class Telemetry(object):
 
     def on_keypress(self, msg):
         pass
+
+    def set_mode(self, srv):
+        command = MAVLINK_CMD_DO_SET_MODE
+
+        custom_mode = struct.pack('<BBBB',srv.sub_mode,srv.main_mode,0,0)
+
+        print(custom_mode)
+
+
+        params = (srv.base_mode,srv.main_mode,srv.sub_mode,0,0,0,0)
+
+        self.send_mavlink_msg_id_cmd_long(params,command,1)
+        return True, "Dummy"
 
     def send_mavlink_msg_id_cmd_long(self,params,command,id):
         msg = mavlink_lora_msg()

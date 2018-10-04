@@ -1,0 +1,6 @@
+int16 main_mode
+int16 sub_mode
+int16 base_mode
+---
+bool success   # indicate successful run of triggered service
+string message # informational, e.g. for error messages
