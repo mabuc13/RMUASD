@@ -25,6 +25,7 @@ MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED = 84
 MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_LEN = 51
 MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT = 86
 MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBABL_INT_LEN = 53
+MAVLINK_MSG_ID_STATUSTEXT = 253
 
 MAVLINK_CMD_ID_ARM_DISARM = 400
 MAVLINK_CMD_ID_MISSION_START = 300
@@ -102,7 +103,7 @@ class Telemetry(object):
             
             sub_mode = custom_mode >> 24
             main_mode = (custom_mode >> 16) & 0xFF
-
+           
             print("Flight Mode: {}, {}".format( MAVLINK_MAIN_MODE_LOOKUP[main_mode],
                                                 MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode]))
             print("Main Mode: {}, {}, {}".format(hex(main_mode),bin(main_mode),main_mode))
@@ -112,15 +113,21 @@ class Telemetry(object):
             print("Base Mode: {}, {}, {}".format(hex(base_mode),bin(base_mode),base_mode))
             print("System Status: {}, {}, {}".format(hex(system_status),bin(system_status),system_status))
             print("MAVLink Version: {}, {}, {}".format(hex(mavlink_version),bin(mavlink_version),mavlink_version))
-
+            
             armed = base_mode & 0x80
             if armed:
                 print("I AM ARMED!")
             else:
                 print("I AM NOT ARMED!")
         
-            print("\n")
-        pass
+            #print("\n")
+        elif msg.msg_id == MAVLINK_MSG_ID_COMMAND_ACK:
+            (command, success) = struct.unpack('<HB', msg.payload)
+            print("Cmd: {}, Result: {}".format(command, success))
+        elif msg.msg_id == MAVLINK_MSG_ID_STATUSTEXT:
+            (severity, text) = struct.unpack('<B50s', msg.payload)
+            print("Severity: {}".format(severity))
+            print(text + "\n")
 
     def on_mavlink_lora_pos(self,msg):
         self.lat = msg.lat
@@ -265,7 +272,7 @@ def main():
     rospy.on_shutdown(tel.shutdownHandler)
 
     # Send global setpoint every 0.4 seconds
-    #rospy.Timer(rospy.Duration(0.4),tel.send_global_setpoint)
+   # rospy.Timer(rospy.Duration(0.4),tel.send_global_setpoint)
 
     rospy.spin()
 
