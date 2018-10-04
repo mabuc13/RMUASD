@@ -18,6 +18,13 @@ MAVLINK_MSG_ID_COMMAND_LONG_LEN = 33
 MAVLINK_MSG_ID_COMMAND_ACK = 77
 MAVLINK_MSG_ID_SET_MODE = 11
 MAVLINK_MSG_ID_SET_MODE_LEN = 6
+MAVLINK_MSG_ID_MANUAL_SETPOINT = 81
+MAVLINK_MSG_ID_SET_ATTITUDE_TARGET = 82
+MAVLINK_MSG_ID_ATTITUDE_TARGET = 83
+MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED = 84
+MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_LEN = 51
+MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT = 86
+MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBABL_INT_LEN = 53
 
 MAVLINK_CMD_ID_ARM_DISARM = 400
 MAVLINK_CMD_ID_MISSION_START = 300
@@ -76,6 +83,7 @@ class Telemetry(object):
         self.rate = rospy.Rate(update_interval)
         rospy.sleep (1) # wait until everything is running
 
+        self.boot_time = rospy.Time.now().to_sec() * 1000
 
     def on_mavlink_msg(self,msg):
         '''
@@ -139,6 +147,31 @@ class Telemetry(object):
 
         self.send_mavlink_msg_id_cmd_long(params,command,1)
         return True, "Dummy"
+
+    def send_global_setpoint(self, dummy):
+        msg = mavlink_lora_msg()
+
+        # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
+        msg.header.stamp = rospy.Time.now()
+        msg.msg_id = MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT
+        msg.sys_id = 0
+        msg.comp_id = 0
+
+        # Appears to need to be 1,1
+        target_sys = 1
+        target_comp = 1
+
+        vx, vy, vz, afx, afy, afz, yaw, yaw_rate = 0,0,0,0,0,0,0,0
+        type_mask = 0x3FF
+        coordinate_frame = 0 # WGS84 frame
+        now = rospy.Time.now()
+        time_boot_ms = int(now.to_sec()*1000 - self.boot_time)
+
+        rospy.loginfo(time_boot_ms)
+
+        msg.payload_len = MAVLINK_MSG_ID_COMMAND_LONG_LEN
+        msg.payload = struct.pack('<IiifffffffffHBBB', time_boot_ms, 55, 10, 10, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, target_sys, target_comp, coordinate_frame)
+        self.mavlink_msg_pub.publish(msg)
 
     def send_mavlink_msg_id_cmd_long(self,params,command,id):
         msg = mavlink_lora_msg()
@@ -222,6 +255,7 @@ class Telemetry(object):
         print("Shutting down")
 
 
+
 def main():
     rospy.init_node('telemetry')#, anonymous=True)
     rospy.sleep(1)
@@ -229,6 +263,9 @@ def main():
     tel = Telemetry()
 
     rospy.on_shutdown(tel.shutdownHandler)
+
+    # Send global setpoint every 0.4 seconds
+    #rospy.Timer(rospy.Duration(0.4),tel.send_global_setpoint)
 
     rospy.spin()
 
