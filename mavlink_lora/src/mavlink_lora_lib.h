@@ -92,6 +92,7 @@ Revision
 /* needed because we are not including the official mavlink headers */
 
 #define MAVLINK_MSG_ID_HEARTBEAT 0
+#define MAVLINK_MSG_ID_HEARTBEAT_LEN 8
 
 #define MAVLINK_MSG_ID_SYS_STATUS 1
 #define MAVLINK_MSG_ID_SYS_STATUS_LEN 31
@@ -121,9 +122,16 @@ Revision
 #define MAVLINK_MSG_ID_MISSION_REQUEST_PARTIAL_LIST_LEN 6
 
 #define MAVLINK_MSG_ID_MISSION_ITEM 39
+#define MAVLINK_MSG_ID_MISSION_ITEM_LEN 37
+
+#define MAVLINK_MSG_ID_MISSION_ITEM_INT 73
+#define MAVLINK_MSG_ID_MISSION_ITEM_INT_LEN 37
 
 #define MAVLINK_MSG_ID_MISSION_REQUEST 40
 #define MAVLINK_MSG_ID_MISSION_REQUEST_LEN 4
+
+#define MAVLINK_MSG_ID_MISSION_REQUEST_INT 51
+#define MAVLINK_MSG_ID_MISSION_REQUEST_INT_LEN 4
 
 #define MAVLINK_MSG_ID_MISSION_CURRENT 42
 #define MAVLINK_MSG_ID_MISSION_CURRENT_LEN 2
@@ -132,6 +140,10 @@ Revision
 #define MAVLINK_MSG_ID_MISSION_REQUEST_LIST_LEN 2
 
 #define MAVLINK_MSG_ID_MISSION_COUNT 44
+#define MAVLINK_MSG_ID_MISSION_COUNT_LEN 4
+
+#define MAVLINK_MSG_ID_MISSION_CLEAR_ALL 45
+#define MAVLINK_MSG_ID_MISSION_CLEAR_ALL_LEN 2
 
 #define MAVLINK_MSG_ID_MISSION_ACK 47
 #define MAVLINK_MSG_ID_MISSION_ACK_LEN 3
@@ -141,6 +153,17 @@ Revision
 
 #define MAVLINK_MSG_ID_STATUSTEXT 253
 #define MAVLINK_MSG_ID_STATUSTEXT_LEN 51
+
+#define MAVLINK_MSG_ID_COMMAND_LONG 76
+#define MAVLINK_MSG_ID_COMMAND_LONG_LEN 33
+
+#define MAVLINK_MSG_ID_COMMAND_ACK 77
+#define MAVLINK_MSG_ID_COMMAND_ACK_LEN 3
+
+#define MAVLINK_MSG_ID_COMPONENT_ARM_DISARM 400
+#define MAVLINK_MSG_ID_MISSION_START 300
+#define MAVLINK_MSG_ID_DO_SET_MODE 176
+
 
 typedef struct __mavlink_sys_status_t {
  uint32_t onboard_control_sensors_present; /*< Bitmask showing which onboard controllers and sensors are present. Value of 0: not present. Value of 1: present. Indices defined by ENUM MAV_SYS_STATUS_SENSOR*/
@@ -215,10 +238,69 @@ typedef struct __mavlink_mission_item_t { /* mavlink/common/mavlink_msg_mission_
  uint8_t autocontinue; /*< autocontinue to next wp*/
 } mavlink_mission_item_t;
 
+typedef struct __mavlink_mission_item_int_t { /* mavlink/common/mavlink_msg_mission_item_int.h */
+    float param1; /*< PARAM1, see MAV_CMD enum*/
+    float param2; /*< PARAM2, see MAV_CMD enum*/
+    float param3; /*< PARAM3, see MAV_CMD enum*/
+    float param4; /*< PARAM4, see MAV_CMD enum*/
+    uint32_t x; /*< PARAM5 / local: x position, global: latitude*/
+    uint32_t y; /*< PARAM6 / y position: global: longitude*/
+    float z; /*< PARAM7 / z position: global: altitude (relative or absolute, depending on frame.*/
+    uint16_t seq; /*< Sequence*/
+    uint16_t command; /*< The scheduled action for the waypoint. see MAV_CMD in common.xml MAVLink specs*/
+    uint8_t target_system; /*< System ID*/
+    uint8_t target_component; /*< Component ID*/
+    uint8_t frame; /*< The coordinate system of the waypoint. see MAV_FRAME in mavlink_types.h*/
+    uint8_t current; /*< false:0, true:1*/
+    uint8_t autocontinue; /*< autocontinue to next wp*/
+} mavlink_mission_item_int_t;
+
+typedef struct __mavlink_mission_request_int_t { /* mavlink/common/mavlink_msg_mission_request_int.h */
+    uint16_t seq; /*< Sequence*/
+    uint8_t target_system; /*< System ID*/
+    uint8_t target_component; /*< Component ID*/
+} mavlink_mission_request_int_t;
+
+typedef struct __mavlink_mission_count_t { /* mavlink/common/mavlink_msg_mission_count.h */
+    uint16_t count; /*< number of mission items in the sequence*/
+    uint8_t target_system; /*< System ID*/
+    uint8_t target_component; /*< Component ID*/
+} mavlink_mission_count_t;
+
+typedef struct __mavlink_mission_clear_all_t { /* mavlink/common/mavlink_msg_mission_clear_all */
+    uint8_t target_system; /*< System ID*/
+    uint8_t target_component; /*< Component ID*/
+} mavlink_mission_clear_all_t;
+
+typedef struct __mavlink_mission_ack_T { /* mavlink/common/mavlink_msg_mission_ack.h */
+    uint8_t target_system; /*< System ID*/
+    uint8_t target_component; /*< Component ID*/
+    uint8_t type; /*< Mission Result, check enum: MAV_MISSION_RESULT */
+} mavlink_mission_ack_t;
+
 typedef struct __mavlink_statustext_t {
  uint8_t severity; /*< Severity of status. Relies on the definitions within RFC-5424. See enum MAV_SEVERITY.*/
  char text[50]; /*< Status text message, without null termination character*/
 } mavlink_statustext_t;
+
+typedef struct __mavlink_command_long_t { /* mavlink/common/COMMAND_LONG */
+    uint16_t command; /*<Command ID */
+    float param1; /* < parameter 1 */
+    float param2; /* < parameter 2 */
+    float param3; /* < parameter 3 */
+    float param4; /* < parameter 4 */
+    float param5; /* < parameter 5 */
+    float param6; /* < parameter 6 */
+    float param7; /* < parameter 7 */
+    uint8_t target_system; /*< System ID*/
+    uint8_t target_component; /*< Component ID*/
+    uint8_t confirmation; /*< Confirmation, 0: First transmission of this command. 1-255: Confirmation transmissions (e.g. for kill command) */
+} mavlink_command_long_t;
+
+typedef struct __mavlink_command_ack_t { /* mavlink/common/COMMAND_ACK */
+ uint16_t command; /*<Command ID (of acknowledged command)*/
+ uint8_t result; /*<Result of command */
+} mavlink_command_ack_t;
 
 /***************************************************************************/
 /* global variables */
@@ -244,7 +326,11 @@ mavlink_gps_raw_int_t ml_unpack_msg_gps_raw_int (unsigned char *payload);
 mavlink_global_position_int_t ml_unpack_msg_global_position_int (unsigned char *payload);
 unsigned short ml_unpack_msg_mission_count (unsigned char *payload);
 mavlink_mission_item_t ml_unpack_msg_mission_item (unsigned char *payload);
+mavlink_mission_item_int_t ml_unpack_msg_mission_item_int (unsigned char *payload);
+mavlink_mission_request_int_t ml_unpack_msg_mission_request_int (unsigned char *payload);
+mavlink_mission_ack_t ml_unpack_msg_mission_ack (unsigned char *payload);
 mavlink_statustext_t ml_unpack_msg_statustext (unsigned char *payload);
+mavlink_command_ack_t ml_unpack_msg_command_ack (unsigned char *payload);
 void ml_queue_msg_generic (unsigned char sys_id, unsigned char comp_id, unsigned char msg_id, unsigned char payload_len, unsigned char *payload);
 void ml_queue_msg_param_request_read (char *param_id);
 void ml_queue_msg_param_request_list (void);
@@ -252,6 +338,11 @@ void ml_queue_msg_param_set (char *param_id, float param_value);
 void ml_queue_msg_mission_request (unsigned short seq);
 void ml_queue_msg_mission_request_list (void);
 void ml_queue_msg_mission_ack (void);
+void ml_queue_msg_mission_count (unsigned short count);
+void ml_queue_msg_mission_clear_all (void);
+void ml_queue_msg_mission_item_int (float param1, float param2, float param3, float param4, int32_t x, int32_t y, float z, unsigned short seq, unsigned short command, unsigned char frame, unsigned char current, unsigned char autocontinue);
+void ml_queue_msg_command_long (unsigned short cmd_id, float param1, float param2, float param3, float param4, float param5, float param6, float param7, unsigned int confirmation);
+void ml_queue_msg_heartbeat (void);
 
 /***************************************************************************/
 /* callback functions */

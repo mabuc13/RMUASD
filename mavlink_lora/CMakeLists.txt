@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(mavlink_lora)
 
+set (CMAKE_CXX_STANDARD 11)
+
 find_package(catkin REQUIRED COMPONENTS
   message_generation
   roscpp
@@ -16,6 +18,11 @@ add_message_files(
   mavlink_lora_status.msg
   mavlink_lora_pos.msg
   mavlink_lora_attitude.msg
+  mavlink_lora_mission_item_int.msg
+  mavlink_lora_mission_list.msg
+  mavlink_lora_command_ack.msg
+  mavlink_lora_command_start_mission.msg
+  mavlink_lora_command_set_mode.msg
  )
 
 generate_messages(

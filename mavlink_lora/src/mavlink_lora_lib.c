@@ -269,6 +269,68 @@ mavlink_mission_item_t ml_unpack_msg_mission_item (unsigned char *payload)
 	return item;
 }
 /***************************************************************************/
+mavlink_mission_item_int_t ml_unpack_msg_mission_item_int (unsigned char *payload)
+{
+	/* id=73 */
+	/* mavlink/common/mavlink_msg_mission_item_int.h */
+	mavlink_mission_item_int_t item;
+	float *fp;
+	uint32_t *ui32p;
+
+	fp = (float *) (payload + 0);
+	item.param1 = *fp;
+	fp = (float *) (payload + 4);
+	item.param2 = *fp;
+	fp = (float *) (payload + 8);
+	item.param3 = *fp;
+	fp = (float *) (payload + 12);
+	item.param4 = *fp;
+	ui32p = (uint32_t *) (payload + 16);
+	item.x = *ui32p;
+	ui32p = (uint32_t *) (payload + 20);
+	item.y = *ui32p;
+	fp = (float *) (payload + 24);
+	item.z = *fp;
+
+	item.seq = payload[28] | (payload[29] << 8);
+	item.command = payload[30] | (payload[31] << 8);
+	item.target_system = payload[32];
+	item.target_component = payload[33];
+	item.frame = payload[34];
+	item.current = payload[35];
+	item.autocontinue = payload[36];
+
+	return item;
+}
+/***************************************************************************/
+mavlink_mission_request_int_t ml_unpack_msg_mission_request_int (unsigned char *payload)
+{
+	/* id=51 */
+	/* mavlink/common/mavlink_msg_mission_request_int.h */
+	mavlink_mission_request_int_t item;
+	uint16_t *ui16p;
+
+	ui16p = (uint16_t *) (payload + 0);
+	item.seq = *ui16p;
+	item.target_system = payload[2];
+	item.target_component = payload[3];
+
+	return item;
+}
+/***************************************************************************/
+mavlink_mission_ack_t ml_unpack_msg_mission_ack (unsigned char *payload)
+{
+	/* id=47 */
+	/* mavlink/common/mavlink_mission_ack */
+	mavlink_mission_ack_t ack;
+
+	ack.target_system = payload[0];
+	ack.target_component = payload[1];
+	ack.type = payload[2];
+
+	return ack;
+}
+/***************************************************************************/
 unsigned short ml_unpack_msg_mission_current (unsigned char *payload)
 {
 	/* id=42 */
@@ -302,6 +364,18 @@ mavlink_statustext_t ml_unpack_msg_statustext (unsigned char *payload)
 	memcpy (statustext.text, payload+1, 50);
 
 	return statustext;
+}
+/***************************************************************************/
+mavlink_command_ack_t ml_unpack_msg_command_ack (unsigned char *payload)
+{
+	/* id=77 */
+	/* mavlink/common/mavlink_command_ack */
+	mavlink_command_ack_t ack; 
+
+	ack.command = payload[0] | (payload[1] << 8);
+	ack.result = payload[2];
+	
+	return ack;
 }
 /***************************************************************************/
 short ml_queue_msg (unsigned char *buf)
@@ -509,6 +583,141 @@ void ml_queue_msg_mission_request_list(void)
 	ml_queue_msg(buf);
 }
 /***************************************************************************/
+void ml_queue_msg_mission_item_int (float param1, float param2, float param3, float param4, int32_t x, int32_t y, float z, unsigned short seq, unsigned short command, unsigned char frame, unsigned char current, unsigned char autocontinue)
+{
+	/* id=73 */
+	/* reference: mavlink/common/mavlink_msg_mission_item_int.h */
+	unsigned char i, len;
+	unsigned char *buf = (txbuf + txbuf_cnt);
+    unsigned char *pv;
+
+	/* encode part of the header */
+	buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_MISSION_ITEM_INT_LEN;
+	buf[ML_POS_SYS_ID] = recorded_sysid;
+	buf[ML_POS_COMP_ID] = 0;
+	buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_MISSION_ITEM_INT;
+
+	/* parameters */
+    pv = (unsigned char *) &param1;
+	buf[ML_POS_PAYLOAD + 0] = pv[0];
+	buf[ML_POS_PAYLOAD + 1] = pv[1];
+	buf[ML_POS_PAYLOAD + 2] = pv[2];
+	buf[ML_POS_PAYLOAD + 3] = pv[3];
+
+    pv = (unsigned char *) &param2;
+	buf[ML_POS_PAYLOAD + 4] = pv[0];
+	buf[ML_POS_PAYLOAD + 5] = pv[1];
+	buf[ML_POS_PAYLOAD + 6] = pv[2];
+	buf[ML_POS_PAYLOAD + 7] = pv[3];
+
+    pv = (unsigned char *) &param3;
+	buf[ML_POS_PAYLOAD + 8] = pv[0];
+	buf[ML_POS_PAYLOAD + 9] = pv[1];
+	buf[ML_POS_PAYLOAD + 10] = pv[2];
+	buf[ML_POS_PAYLOAD + 11] = pv[3];
+
+    pv = (unsigned char *) &param4;
+	buf[ML_POS_PAYLOAD + 12] = pv[0];
+	buf[ML_POS_PAYLOAD + 13] = pv[1];
+	buf[ML_POS_PAYLOAD + 14] = pv[2];
+	buf[ML_POS_PAYLOAD + 15] = pv[3];
+
+	/* coordinates */
+    pv = (unsigned char *) &x;
+	buf[ML_POS_PAYLOAD + 16] = pv[0];
+	buf[ML_POS_PAYLOAD + 17] = pv[1];
+	buf[ML_POS_PAYLOAD + 18] = pv[2];
+	buf[ML_POS_PAYLOAD + 19] = pv[3];
+
+    pv = (unsigned char *) &y;
+	buf[ML_POS_PAYLOAD + 20] = pv[0];
+	buf[ML_POS_PAYLOAD + 21] = pv[1];
+	buf[ML_POS_PAYLOAD + 22] = pv[2];
+	buf[ML_POS_PAYLOAD + 23] = pv[3];
+
+    pv = (unsigned char *) &z;
+	buf[ML_POS_PAYLOAD + 24] = pv[0];
+	buf[ML_POS_PAYLOAD + 25] = pv[1];
+	buf[ML_POS_PAYLOAD + 26] = pv[2];
+	buf[ML_POS_PAYLOAD + 27] = pv[3];
+
+	/* sequence */
+	buf[ML_POS_PAYLOAD + 28] = seq & 0xff;
+	buf[ML_POS_PAYLOAD + 29] = (seq>>8) & 0xff;
+
+	/* command */
+	buf[ML_POS_PAYLOAD + 30] = command & 0xff;
+	buf[ML_POS_PAYLOAD + 31] = (command>>8) & 0xff;
+
+	/* system_id (target) */
+	buf[ML_POS_PAYLOAD + 32] = MAV_SYS_ID_UA; /* UA is the target system */
+
+	/* component_id (target) */
+	buf[ML_POS_PAYLOAD + 33] = 0; /* target component, 0 equals ALL */
+
+	/* Frame */
+	buf[ML_POS_PAYLOAD + 34] = frame;
+
+	/* Current */
+	buf[ML_POS_PAYLOAD + 35] = current;
+
+	/* autocontinue */
+	buf[ML_POS_PAYLOAD + 36] = autocontinue;
+
+	/* queue message */
+	ml_queue_msg(buf);
+}
+/***************************************************************************/
+void ml_queue_msg_mission_count (unsigned short count)
+{
+	/* id=44 */
+	/* reference: mavlink/common/mavlink_msg_mission_count.h */
+	unsigned char i, len;
+	unsigned char *buf = (txbuf + txbuf_cnt);
+
+	/* encode part of the header */
+	buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_MISSION_COUNT_LEN;
+	buf[ML_POS_SYS_ID] = recorded_sysid;
+	buf[ML_POS_COMP_ID] = 0;
+	buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_MISSION_COUNT;
+
+	/* count (number of mission items to upload */
+	buf[ML_POS_PAYLOAD + 0] = count & 0xff;
+	buf[ML_POS_PAYLOAD + 1] = (count>>8) & 0xff;
+
+	/* system_id (target) */
+	buf[ML_POS_PAYLOAD + 2] = MAV_SYS_ID_UA; /* UA is the target system */
+
+	/* component_id (target) */
+	buf[ML_POS_PAYLOAD + 3] = 0; /* target component */
+
+	/* queue message */
+	ml_queue_msg(buf);
+}
+/***************************************************************************/
+void ml_queue_msg_mission_clear_all(void)
+{
+    /* id=45 */
+    /* reference: mavlink/common/mavlink_msg_mission_clear_all.h */
+    unsigned char i, len;
+    unsigned char *buf = (txbuf + txbuf_cnt);
+
+    /* encode part of the header */
+    buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_MISSION_CLEAR_ALL_LEN;
+    buf[ML_POS_SYS_ID] = recorded_sysid;
+    buf[ML_POS_COMP_ID] = 0;
+    buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_MISSION_CLEAR_ALL;
+
+    /* system_id (target) */
+    buf[ML_POS_PAYLOAD + 0] = MAV_SYS_ID_UA; /* UA is the target system */
+
+    /* component_id (target) */
+    buf[ML_POS_PAYLOAD + 1] = 0; /* target component */
+
+    /* queue message */
+    ml_queue_msg(buf);
+}
+/***************************************************************************/
 void ml_queue_msg_mission_ack(void)
 {
 	/* id=47 */
@@ -528,7 +737,7 @@ void ml_queue_msg_mission_ack(void)
 	/* component_id (target) */
 	buf[ML_POS_PAYLOAD + 1] = 0; /* target component */
 
-	/* component_id (target) */
+	/* type */
 	buf[ML_POS_PAYLOAD + 2] = 0; /* type (MAVLINK_MISSION_RESULT enum) */
 
 	/* queue message */
@@ -564,6 +773,112 @@ void ml_queue_request_data_streem(void)
 
 	/* queue message */
 	ml_queue_msg(buf);
+}
+/***************************************************************************/
+void ml_queue_msg_command_long(unsigned short cmd_id, float param1, float param2, float param3, float param4, float param5, float param6, float param7, unsigned int confirmation )
+{
+	/* id=76 */
+	/* reference: mavlink/common/mavlink_msg_command_long */
+	unsigned char *buf = (txbuf + txbuf_cnt);
+    unsigned char *pv;
+
+	/* encode part of the header */
+	buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_COMMAND_LONG_LEN;
+	buf[ML_POS_SYS_ID] = recorded_sysid;
+	buf[ML_POS_COMP_ID] = 0;
+	buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_COMMAND_LONG;
+
+	/* param_value */
+    pv = (unsigned char *) &param1;
+	buf[ML_POS_PAYLOAD + 0]  = pv[0];
+	buf[ML_POS_PAYLOAD + 1]  = pv[1];
+	buf[ML_POS_PAYLOAD + 2]  = pv[2];
+	buf[ML_POS_PAYLOAD + 3]  = pv[3];
+
+    pv = (unsigned char *) &param2;
+	buf[ML_POS_PAYLOAD + 4]  = pv[0];
+	buf[ML_POS_PAYLOAD + 5]  = pv[1];
+	buf[ML_POS_PAYLOAD + 6]  = pv[2];
+	buf[ML_POS_PAYLOAD + 7]  = pv[3];
+
+    pv = (unsigned char *) &param3;
+	buf[ML_POS_PAYLOAD + 8]  = pv[0];
+	buf[ML_POS_PAYLOAD + 9]  = pv[1];
+	buf[ML_POS_PAYLOAD + 10]  = pv[2];
+	buf[ML_POS_PAYLOAD + 11]  = pv[3];
+
+    pv = (unsigned char *) &param4;
+	buf[ML_POS_PAYLOAD + 12] = pv[0];
+	buf[ML_POS_PAYLOAD + 13] = pv[1];
+	buf[ML_POS_PAYLOAD + 14] = pv[2];
+	buf[ML_POS_PAYLOAD + 15] = pv[3];
+
+    pv = (unsigned char *) &param5;
+	buf[ML_POS_PAYLOAD + 16] = pv[0];
+	buf[ML_POS_PAYLOAD + 17] = pv[1];
+	buf[ML_POS_PAYLOAD + 18] = pv[2];
+	buf[ML_POS_PAYLOAD + 19] = pv[3];
+
+    pv = (unsigned char *) &param6;
+	buf[ML_POS_PAYLOAD + 20] = pv[0];
+	buf[ML_POS_PAYLOAD + 21] = pv[1];
+	buf[ML_POS_PAYLOAD + 22] = pv[2];
+	buf[ML_POS_PAYLOAD + 23] = pv[3];
+
+    pv = (unsigned char *) &param7;
+	buf[ML_POS_PAYLOAD + 24] = pv[0];
+	buf[ML_POS_PAYLOAD + 25] = pv[1];
+	buf[ML_POS_PAYLOAD + 26] = pv[2];
+	buf[ML_POS_PAYLOAD + 27] = pv[3];
+
+	/* command_id */
+	buf[ML_POS_PAYLOAD + 28] = cmd_id & 0xff;
+	buf[ML_POS_PAYLOAD + 29] = (cmd_id>>8) & 0xff;
+	
+	/* system_id (target) */
+	buf[ML_POS_PAYLOAD + 30] = MAV_SYS_ID_UA; /* UA is the target system */
+
+	/* component_id (target) */
+	buf[ML_POS_PAYLOAD + 31] = 0; /* target component */
+	
+	/* confirmation */
+	buf[ML_POS_PAYLOAD + 32] = confirmation;
+
+	/* queue message */
+	ml_queue_msg(buf);
+}
+/***************************************************************************/
+void ml_queue_msg_heartbeat(void)
+{
+    /* id=0 */
+    /* reference: mavlink/common/mavlink_msg_heartbeat */
+    unsigned char *buf = (txbuf + txbuf_cnt);
+
+    /* encode part of the header */
+    buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_HEARTBEAT_LEN;
+    buf[ML_POS_SYS_ID] = recorded_sysid;
+    buf[ML_POS_COMP_ID] = 0;
+    buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_HEARTBEAT;
+
+    /* pack message with no data, as no data is needed, but need to pack properly for correct msg format */
+
+    /* custom mode */
+    buf[ML_POS_PAYLOAD + 0] = 0;
+
+	/* type. 6 = MAV_TYPE_GCS */
+	buf[ML_POS_PAYLOAD + 4] = 6;
+
+	/* autopilot */
+	buf[ML_POS_PAYLOAD + 5] = 8;
+
+	/* base_mode */
+	buf[ML_POS_PAYLOAD + 6] = 1;
+
+	/* system_status */
+	buf[ML_POS_PAYLOAD + 7] = 4;
+
+	/* queue message */
+    ml_queue_msg(buf);
 }
 /***************************************************************************/
 short ml_rx_update(unsigned long now, unsigned char *rxbuf_new, short rxbuf_new_cnt)
