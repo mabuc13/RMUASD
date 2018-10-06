@@ -1,0 +1,10 @@
+uint8 system_id
+uint8 component_id
+string timestamp
+string main_mode
+string sub_mode
+bool armed
+string autopilot
+uint8 base_mode
+string mav_state
+uint8 mavlink_version

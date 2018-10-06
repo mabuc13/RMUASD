@@ -4,43 +4,16 @@ import signal
 import sys
 import rospy
 import time
+import struct
 
 from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos, mavlink_lora_status
-from gcs.msg import *
+# from gcs.msg import *
 from std_msgs.msg import Int8
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.srv import SetMode
-
-# defines
-MAVLINK_MSG_ID_HEARTBEAT = 0
-MAVLINK_MSG_ID_COMMAND_LONG = 76
-MAVLINK_MSG_ID_COMMAND_LONG_LEN = 33
-MAVLINK_MSG_ID_COMMAND_ACK = 77
-MAVLINK_MSG_ID_SET_MODE = 11
-MAVLINK_MSG_ID_SET_MODE_LEN = 6
-MAVLINK_MSG_ID_MANUAL_SETPOINT = 81
-MAVLINK_MSG_ID_SET_ATTITUDE_TARGET = 82
-MAVLINK_MSG_ID_ATTITUDE_TARGET = 83
-MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED = 84
-MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_LEN = 51
-MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT = 86
-MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBABL_INT_LEN = 53
-MAVLINK_MSG_ID_STATUSTEXT = 253
-
-MAVLINK_CMD_ID_ARM_DISARM = 400
-MAVLINK_CMD_ID_MISSION_START = 300
-MAVLINK_CMD_NAV_RETURN_TO_LAUNCH = 20
-MAVLINK_CMD_NAV_LAND = 21
-MAVLINK_CMD_NAV_TAKEOFF = 22
-MAVLINK_CMD_NAV_LAND_LOCAL = 23
-MAVLINK_CMD_NAV_TAKEOFF_LOCAL = 24
-MAVLINK_CMD_DO_SET_MODE = 176
-
-MAVLINK_MAIN_MODE_LOOKUP = {0: "N/A", 1: "Manual", 2: "Altitude Control", 3: "Position Control",
-                            4: "Auto", 5: "Acro", 6: "Offboard", 7: "Stabilized", 8: "Rattitude"}
-
-MAVLINK_SUB_MODE_AUTO_LOOKUP = {0: "", 1: "Ready", 2: "Takeoff", 3: "Loiter", 4: "Mission",
-                                5: "Return to Home", 6: "Land", 7: "RTGS", 8: "Follow Me"}
+from telemetry.msg import telemetry_statustext, telemetry_heartbeat_status, telemetry_mav_mode
+from mavlink_defines import *
+from datetime import datetime
 
 # parameters
 mavlink_lora_sub_topic = '/mavlink_rx'
@@ -50,8 +23,6 @@ mavlink_lora_pos_sub_topic = '/mavlink_pos'
 mavlink_lora_atti_sub_topic = '/mavlink_attitude'
 mavlink_lora_keypress_sub_topic = '/keypress'
 update_interval = 10
-
-
 
 class Telemetry(object):
 
@@ -66,6 +37,10 @@ class Telemetry(object):
         self.lon = 0.0
         self.alt = 0.0
 
+        rospy.sleep (1) # wait until everything is running
+
+        self.boot_time = rospy.Time.now().to_sec() * 1000
+
         # Service handlers
         self.arm_service            = rospy.Service("/telemetry/arm_drone", Trigger, self.arm_drone, buff_size=10)
         self.disarm_service         = rospy.Service("/telemetry/disarm_drone", Trigger, self.disarm_drone, buff_size=10)
@@ -77,14 +52,14 @@ class Telemetry(object):
 
         # Topic handlers
         self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
+        self.statustext_pub = rospy.Publisher("/telemetry/mavlink_statustext", telemetry_statustext, queue_size=0)
+        self.heartbeat_status_pub = rospy.Publisher("telemetry/mavlink_heartbeat_status", telemetry_heartbeat_status, queue_size=0)
+        self.mav_mode_pub = rospy.Publisher("telemetry/mavlink_mav_mode", telemetry_mav_mode, queue_size=0)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
         rospy.Subscriber(mavlink_lora_keypress_sub_topic, Int8, self.on_keypress)
         self.rate = rospy.Rate(update_interval)
-        rospy.sleep (1) # wait until everything is running
-
-        self.boot_time = rospy.Time.now().to_sec() * 1000
 
     def on_mavlink_msg(self,msg):
         '''
@@ -94,40 +69,65 @@ class Telemetry(object):
         '''
                 
         if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
-            (custom_mode, mav_type, autopilot, base_mode, system_status, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
+            (custom_mode, mav_type, autopilot, base_mode, mav_state, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
             
-            self.base_mode = base_mode
-
             # custom_mode_bytes = custom_mode.to_bytes(4,byteorder='big')
-            # (sub_mode, main_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode_bytes))
-            
+            # (sub_mode, main_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode_bytes))             
             sub_mode = custom_mode >> 24
             main_mode = (custom_mode >> 16) & 0xFF
-           
-            print("Flight Mode: {}, {}".format( MAVLINK_MAIN_MODE_LOOKUP[main_mode],
-                                                MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode]))
-            print("Main Mode: {}, {}, {}".format(hex(main_mode),bin(main_mode),main_mode))
-            print("Sub Mode: {}, {}, {}".format(hex(sub_mode),bin(sub_mode),sub_mode))
-            print("MAV type: {}, {}, {}".format(hex(mav_type),bin(mav_type),mav_type))
-            print("Autopilot: {}, {}, {}".format(hex(autopilot),bin(autopilot),autopilot))
-            print("Base Mode: {}, {}, {}".format(hex(base_mode),bin(base_mode),base_mode))
-            print("System Status: {}, {}, {}".format(hex(system_status),bin(system_status),system_status))
-            print("MAVLink Version: {}, {}, {}".format(hex(mavlink_version),bin(mavlink_version),mavlink_version))
-            
-            armed = base_mode & 0x80
-            if armed:
-                print("I AM ARMED!")
-            else:
-                print("I AM NOT ARMED!")
-        
-            #print("\n")
+
+            heartbeat_msg = telemetry_heartbeat_status(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=datetime.now().isoformat(),
+                main_mode=MAVLINK_MAIN_MODE_LOOKUP[main_mode],
+                sub_mode=MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode],
+                armed=bool(base_mode & 0x80),
+                autopilot=MAVLINK_AUTOPILOT_TYPE_LOOKUP[autopilot],
+                base_mode=base_mode,
+                mav_state=MAVLINK_MAV_STATE_LOOKUP[mav_state],
+                mavlink_version=mavlink_version
+            )
+
+            mav_mode_msg = telemetry_mav_mode(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=datetime.now().isoformat(),
+                armed=bool(base_mode & 0x80),
+                manual_input=bool(base_mode & 0x40),
+                HIL_simulation=bool(base_mode & 0x20),
+                stabilized_mode=bool(base_mode & 0x10),
+                guided_mode=bool(base_mode & 0x08),
+                auto_mode=bool(base_mode & 0x04),
+                test_mode=bool(base_mode & 0x02),
+                custom_mode=bool(base_mode & 0x01)
+            )
+
+            self.heartbeat_status_pub.publish(heartbeat_msg)
+            self.mav_mode_pub.publish(mav_mode_msg)
+
         elif msg.msg_id == MAVLINK_MSG_ID_COMMAND_ACK:
-            (command, success) = struct.unpack('<HB', msg.payload)
-            print("Cmd: {}, Result: {}".format(command, success))
+            pass
+            # (command, success) = struct.unpack('<HB', msg.payload)
+            # print("Cmd: {}, Result: {}".format(command, success))
         elif msg.msg_id == MAVLINK_MSG_ID_STATUSTEXT:
             (severity, text) = struct.unpack('<B50s', msg.payload)
-            print("Severity: {}".format(severity))
-            print(text + "\n")
+
+            # Convert bytestream to string and remove 0-padding
+            text = text.decode("utf-8")
+            text = text.rstrip('\0')
+
+
+            status_msg = telemetry_statustext(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=datetime.now().isoformat(),
+                severity_level=severity,
+                severity=MAVLINK_SEVERITY_LOOKUP[severity],
+                text=text)
+
+            rospy.logwarn(text)
+            self.statustext_pub.publish(status_msg)
 
     def on_mavlink_lora_pos(self,msg):
         self.lat = msg.lat
@@ -174,7 +174,7 @@ class Telemetry(object):
         now = rospy.Time.now()
         time_boot_ms = int(now.to_sec()*1000 - self.boot_time)
 
-        rospy.loginfo(time_boot_ms)
+        # rospy.loginfo(time_boot_ms)
 
         msg.payload_len = MAVLINK_MSG_ID_COMMAND_LONG_LEN
         msg.payload = struct.pack('<IiifffffffffHBBB', time_boot_ms, 55, 10, 10, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, target_sys, target_comp, coordinate_frame)
@@ -272,7 +272,7 @@ def main():
     rospy.on_shutdown(tel.shutdownHandler)
 
     # Send global setpoint every 0.4 seconds
-   # rospy.Timer(rospy.Duration(0.4),tel.send_global_setpoint)
+    rospy.Timer(rospy.Duration(0.4),tel.send_global_setpoint)
 
     rospy.spin()
 
