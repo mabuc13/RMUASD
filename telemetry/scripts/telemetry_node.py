@@ -61,13 +61,7 @@ class Telemetry(object):
         rospy.Subscriber(mavlink_lora_keypress_sub_topic, Int8, self.on_keypress)
         self.rate = rospy.Rate(update_interval)
 
-    def on_mavlink_msg(self,msg):
-        '''
-        if msg.msg_id == MAVLINK_MSG_ID_PARAM_VALUE:
-            (param_value, param_count, param_index, param_id, param_type) = struct.unpack('<fHH16sB', msg.payload)	
-            print param_id, param_value, param_count
-        '''
-                
+    def on_mavlink_msg(self,msg):                
         if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
             (custom_mode, mav_type, autopilot, base_mode, mav_state, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
             
@@ -86,6 +80,7 @@ class Telemetry(object):
                 autopilot=MAVLINK_AUTOPILOT_TYPE_LOOKUP[autopilot],
                 base_mode=base_mode,
                 mav_state=MAVLINK_MAV_STATE_LOOKUP[mav_state],
+                mav_type=MAVLINK_MAV_TYPE_LOOKUP[mav_type],
                 mavlink_version=mavlink_version
             )
 
@@ -128,6 +123,25 @@ class Telemetry(object):
 
             rospy.logwarn(text)
             self.statustext_pub.publish(status_msg)
+
+        elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
+            # (time_boot_ms, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IfffffffffffHB', msg.payload)
+
+            # print("time_boot_ms: {}".format(time_boot_ms))
+            # print("x: {}".format(x))
+            # print("y: {}".format(y))
+            # print("z: {}".format(z))
+            # print("vx: {}".format(vx))
+            # print("vy: {}".format(vy))
+            # print("vz: {}".format(vz))
+            # print("afx: {}".format(afx))
+            # print("afy: {}".format(afy))
+            # print("afz: {}".format(afz))
+            # print("yaw: {}".format(yaw))
+            # print("yaw_rate: {}".format(yaw_rate))
+            # print("type_mask: {}".format(hex(type_mask)))
+            # print("coordinate frame: {}".format(coordinate_frame))
+            pass
 
     def on_mavlink_lora_pos(self,msg):
         self.lat = msg.lat
@@ -174,10 +188,34 @@ class Telemetry(object):
         now = rospy.Time.now()
         time_boot_ms = int(now.to_sec()*1000 - self.boot_time)
 
-        # rospy.loginfo(time_boot_ms)
+        lat = int(self.lat * 1e7)
+        lon = int(self.lon * 1e7)
 
-        msg.payload_len = MAVLINK_MSG_ID_COMMAND_LONG_LEN
-        msg.payload = struct.pack('<IiifffffffffHBBB', time_boot_ms, 55, 10, 10, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, target_sys, target_comp, coordinate_frame)
+        msg.payload_len = MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBABL_INT_LEN
+        msg.payload = struct.pack('<IiifffffffffHBBB', time_boot_ms, lat, lon, 5, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, target_sys, target_comp, coordinate_frame)
+        self.mavlink_msg_pub.publish(msg)
+
+    def send_local_setpoint(self, dummy):
+        msg = mavlink_lora_msg()
+
+        # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
+        msg.header.stamp = rospy.Time.now()
+        msg.msg_id = MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED
+        msg.sys_id = 0
+        msg.comp_id = 0
+
+        # Appears to need to be 1,1
+        target_sys = 1
+        target_comp = 1
+
+        vx, vy, vz, afx, afy, afz, yaw, yaw_rate = 0,0,0,0,0,0,0,0
+        type_mask = 0x3FF
+        coordinate_frame = 1 # Local Frame
+        now = rospy.Time.now()
+        time_boot_ms = int(now.to_sec()*1000 - self.boot_time)
+
+        msg.payload_len = MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_LEN
+        msg.payload = struct.pack('<IiifffffffffHBBB', time_boot_ms, 0, 0, 5, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, target_sys, target_comp, coordinate_frame)
         self.mavlink_msg_pub.publish(msg)
 
     def send_mavlink_msg_id_cmd_long(self,params,command,id):
@@ -272,7 +310,7 @@ def main():
     rospy.on_shutdown(tel.shutdownHandler)
 
     # Send global setpoint every 0.4 seconds
-    rospy.Timer(rospy.Duration(0.4),tel.send_global_setpoint)
+    rospy.Timer(rospy.Duration(0.4),tel.send_local_setpoint)
 
     rospy.spin()
 

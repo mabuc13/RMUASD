@@ -7,4 +7,5 @@ bool armed
 string autopilot
 uint8 base_mode
 string mav_state
+string mav_type
 uint8 mavlink_version
