@@ -125,7 +125,7 @@ if __name__ == "__main__":
     ax = fig.add_axes([0.025, 0.025, 0.95, 0.95])
 
     #plt.axes([0.025, 0.025, 0.95, 0.95])
-    # plt.quiver(X, Y, U, V, R, alpha=.5)
+    #plt.quiver(X, Y, U, V, R, alpha=.5)
     #circle1 = patches.Circle((8, 2), 0.3, fc='r', alpha=0.5, picker=True)
     #circle1 = patches.Circle((2, -3), 0.3, fc='r', alpha=0.5, picker=True)
     #circle = patches.Circle((-2, 3), 0.3, fc='b', alpha=0.5, picker=True)
