@@ -3,16 +3,14 @@
   <name>internet</name>
   <version>0.0.0</version>
   <description>Node to control connections to the internet</description>
-
-  <!-- One maintainer tag required, multiple allowed, one person per tag -->
-  <!-- Example:  -->
-  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="hemi@mmmi.sdu.dk">Henrik Skov Midtiby</maintainer>
+  <maintainer email="kalor14@student.sdu.dk">Henrik Skov Midtiby</maintainer>
 
 
   <license>MIT</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>message_runtime</run_depend>
 
   <export>
 

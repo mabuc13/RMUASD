@@ -2,11 +2,12 @@
 #define DRONES_AND_DOCKS_H 0
 
 #include <deque>
+#include <vector>
 #include <string>
 #include <gcs/GPS.h>
 
 #define ID_t unsigned int
-#define PATH_t deque<gcs::GPS>
+#define PATH_t std::vector<gcs::GPS>
 #define uint8 unsigned char
 
 using namespace std;
@@ -34,6 +35,7 @@ public:
   uint8 getStatus(void);
   drone* getDrone(void);
   dock* getQuestHandler(void);
+  dock* getGoal(void);
 
   void setDrone(drone* theDrone);
   void setGoal(dock* goal);
@@ -46,10 +48,10 @@ public:
   static const uint8 queued = 1;
 
 private:
-  dock* goal;
-  dock* QuestGiver;
+  dock* goal= NULL;
+  dock* QuestGiver = (NULL);
   uint8 status;
-  drone* worker;
+  drone* worker = (NULL);
 
 
 
@@ -61,22 +63,22 @@ public:
   drone(ID_t ID, gcs::GPS position);
   ID_t getID(void);
   gcs::GPS getPosition(void);
-  PATH_t getPath(void);
+  std::vector<gcs::GPS> getPath(void);
   bool isAvailable(void);
   job* getJob(void);
 
 
   void setAvailable(bool avail);
-  void setPath(PATH_t path);
+  void setPath(const std::vector<gcs::GPS> &path);
   void setJob(job* aJob);
   void setPosition(gcs::GPS position);
 
 private:
-  job* currentJob;
+  job* currentJob = (NULL);
   bool isFree;
   gcs::GPS position;
   ID_t ID;
-  PATH_t thePath;
+  std::vector<gcs::GPS> thePath;
 
 };
 
