@@ -143,6 +143,37 @@ class Telemetry(object):
             # print("coordinate frame: {}".format(coordinate_frame))
             pass
 
+        elif msg.msg_id == MAVLINK_MSG_ID_RC_CHANNELS_SCALED:
+            print(len(msg.payload))
+            (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port, rssi) = struct.unpack('<IhhhhhhhhBB', msg.payload)
+
+            print("Port: {}".format(port))
+            print("Channel 1: {}".format(ch1))
+            print("Channel 2: {}".format(ch2))
+            print("Channel 3: {}".format(ch3))
+            print("Channel 4: {}".format(ch4))
+            print("Channel 5: {}".format(ch5))
+            print("Channel 6: {}".format(ch6))
+            print("Channel 7: {}".format(ch7))
+            print("Channel 8: {}".format(ch8))
+            print("RSSI: {}".format(rssi))
+
+        elif msg.msg_id == 36:
+            (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port) = struct.unpack('<IHHHHHHHHB', msg.payload)
+
+            if port == 0:
+                print("Port: {}".format(port))
+                print("Channel 1: {}".format(ch1))
+                print("Channel 2: {}".format(ch2))
+                print("Channel 3: {}".format(ch3))
+                print("Channel 4: {}".format(ch4))
+                print("Channel 5: {}".format(ch5))
+                print("Channel 6: {}".format(ch6))
+                print("Channel 7: {}".format(ch7))
+                print("Channel 8: {}".format(ch8))
+        
+        # print(msg.msg_id)
+
     def on_mavlink_lora_pos(self,msg):
         self.lat = msg.lat
         self.lon = msg.lon
@@ -244,6 +275,7 @@ class Telemetry(object):
         params = (1,0,0,0,0,0,0)
 
         self.send_mavlink_msg_id_cmd_long(params,command,1)
+        self.enable_rc_channels()
 
         # TODO Handle responses properly
         return True, "Dummy message"
@@ -299,6 +331,30 @@ class Telemetry(object):
         self.disarm_service.shutdown()
         print("Shutting down")
 
+    def enable_rc_channels(self):
+        msg = mavlink_lora_msg()
+
+        # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
+        msg.header.stamp = rospy.Time.now()
+        msg.msg_id = 66 # request data stream
+        msg.sys_id = 0
+        msg.comp_id = 0
+
+        # command = 511
+        # params = (34,500000,0,0,0,0,0)
+
+        # self.send_mavlink_msg_id_cmd_long(params,command,1)
+
+        # Appears to need to be 1,1
+        target_sys = 1
+        target_comp = 1
+        req_stream_id = 3 # rc channel stream
+        req_message_rate = 1
+        start_stop = 0
+
+        msg.payload_len = 6
+        msg.payload = struct.pack('<HBBBB', req_message_rate, target_sys, target_comp, req_stream_id, start_stop)
+        self.mavlink_msg_pub.publish(msg)
 
 
 def main():
@@ -308,9 +364,9 @@ def main():
     tel = Telemetry()
 
     rospy.on_shutdown(tel.shutdownHandler)
-
+    tel.enable_rc_channels()
     # Send global setpoint every 0.4 seconds
-    rospy.Timer(rospy.Duration(0.4),tel.send_local_setpoint)
+    # rospy.Timer(rospy.Duration(0.4),tel.send_local_setpoint)
 
     rospy.spin()
 
