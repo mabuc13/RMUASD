@@ -122,6 +122,7 @@ bool appendDockingStation(string textIn){
         return false;
     }
 }
+
 dock* closestLab(drone* theDrone){ // TODO
     for(size_t i = 0; i < Docks.size(); i++){
         if(Docks[i].isLab()){
@@ -130,6 +131,25 @@ dock* closestLab(drone* theDrone){ // TODO
     }
     return NULL;
 }
+std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
+    std::vector<gcs::GPS> ret = {start,end};
+    return ret;
+}
+int ETA(job* aJob){
+    return 3600;
+}
+
+void webMsg(dock* reciver, string msg){
+    std_msgs::String msgOut;
+    string m;
+    m+= "name=gcs,target=";
+    m+=reciver->getName();
+    m+=",";
+    m+=msg;
+    msgOut.data=m;
+    WebInfo_pub.publish(msgOut);
+}
+
 
 void DroneStatus_Hangler(gcs::DroneInfo msg){
     bool isANewDrone = true;
@@ -168,19 +188,23 @@ void WebInfo_Handler(std_msgs::String msg_in){
                 feedback += ",register=failed";
             }
         }else if(msg.hasValue("request")){  // ##########  REQUEST ##############
+            cout << "request recived" << endl;
             dock* goalDock;
             string dockName = msg.getValue("name");
             for(size_t i = 0; i < Docks.size(); i++){
                 if(Docks[i].getName() == dockName){
+                    cout << "Dock found" << endl;
                     goalDock = &Docks[i];
                 }
             }
             if(goalDock != NULL){
+                cout << "making job" << endl;
                 jobQ.push_back(job(goalDock));
                 feedback+= ",request=queued";
             }else{
                 feedback+= ",request=No Dockingstation named " + msg.getValue("name");
             }
+            cout << "request end" << endl;
         }else if(msg.hasValue("return")){  // ##########  RETURN ###############
             job* theJob;
             for(size_t i = 0; i < activeJobs.size();i++){
@@ -222,7 +246,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
 
 void initialize(void){
     nh = new ros::NodeHandle();
-    DroneStatus_sub = nh->subscribe("/Telemetry/DroneStatus",100,DroneStatus_Hangler);
+    DroneStatus_sub = nh->subscribe("/telemetry/DroneStatus",100,DroneStatus_Hangler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/PathRequest",100);
     WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
@@ -251,10 +275,55 @@ void initialize(void){
 int main(int argc, char** argv){
     ros::init(argc,argv,"gcs");
     initialize();
-
+    unsigned long spins;
 
     while(ros::ok()){
         ros::spinOnce();
+        if(jobQ.size() != 0){
+            for(size_t i = 0; i < Drones.size();i++){
+                if(Drones[i].isAvailable()){
+                    cout << "Error here " << endl;
+                    activeJobs.push_back(new job(jobQ.front()));
+                    cout << "Error end" << endl;
+                    jobQ.pop_front();
+                    Drones[i].setJob(activeJobs.back());
+                    Drones[i].setAvailable(false);
+                    Drones[i].getJob()->setStatus(job::wait4pathplan);
+                    webMsg(Drones[i].getJob()->getQuestHandler(),"request=pathplaning");
+                }
+            }
+        }
+        for(size_t i = 0; i < activeJobs.size();i++){
+            if(activeJobs[i]->getStatus()==job::wait4pathplan){
+                std::vector<gcs::GPS> path =
+                        pathPlan(activeJobs[i]->getDrone()->getPosition(),
+                                       activeJobs[i]->getGoal()->getPosition()
+                                 );
+
+                gcs::DronePath msg;
+                msg.Path = path;
+                msg.DroneID = activeJobs[i]->getDrone()->getID();
+
+                RouteRequest_pub.publish(msg);
+                activeJobs[i]->setStatus(job::ready4takeOff);
+                activeJobs[i]->getDrone()->setPath(path);
+
+                webMsg(activeJobs[i]->getQuestHandler(),"request=ready for takeoff");
+
+            }
+        }
+        if(spins == 10000){
+            spins =0;
+            for(size_t i = 0; i < activeJobs.size(); i++){
+                if(activeJobs[i]->getStatus()==job::ongoing){
+                    webMsg(activeJobs[i]->getGoal(),
+                           "request=ongoing,ETA="+
+                           std::to_string(ETA(activeJobs[i]))
+                           );
+                }
+            }
+        }
+        spins++;
     }
 
     delete nh;

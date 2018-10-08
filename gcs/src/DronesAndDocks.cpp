@@ -1,5 +1,6 @@
 
 #include "DronesAndDocks.hpp"
+#include <iostream>
 
 dock::dock(string name,double latitude, double longitude, double altitude, bool isLab):
   name(name),isALab(isLab){
@@ -17,11 +18,11 @@ bool dock::isLab(void){
   return isALab;
 }
 
-job::job(dock* station):status(1){
+job::job(dock* station):status(1),worker(NULL){
     goal = station;
     QuestGiver = station;
 }
-job::job(const job &ajob){
+job::job(const job &ajob):worker(NULL){
     this ->goal = ajob.goal;
     this-> QuestGiver = ajob.QuestGiver;
     this->status = ajob.status;
@@ -37,7 +38,12 @@ drone* job::getDrone(void){
 dock* job::getQuestHandler(void){
     return QuestGiver;
 }
+dock* job::getGoal(void){
+    return this->goal;
+}
+
 void job::setDrone(drone* theDrone){
+
     if(worker != NULL){
         worker ->setJob(NULL);
     }
@@ -55,14 +61,19 @@ void job::setStatus(uint8 status){
     this->status = status;
 }
 
-drone::drone(ID_t ID, gcs::GPS position):ID(ID),position(position),isFree(true){}
+drone::drone(ID_t ID, gcs::GPS position):
+    ID(ID),
+    position(position),
+    isFree(true),
+    currentJob(NULL)
+{}
 ID_t drone::getID(void){
     return this->ID;
 }
 gcs::GPS drone::getPosition(void){
     return this->position;
 }
-PATH_t drone::getPath(void){
+std::vector<gcs::GPS> drone::getPath(void){
     return this->thePath;
 }
 bool drone::isAvailable(void){
@@ -71,8 +82,14 @@ bool drone::isAvailable(void){
 job* drone::getJob(void){
     return currentJob;
 }
-void setAvailable(bool avail);
-void setPath(PATH_t path);
+void drone::setAvailable(bool avail){
+    this->isFree = avail;
+}
+
+void drone::setPath(const std::vector<gcs::GPS> &path){
+    this->thePath = path;
+}
+
 void drone::setJob(job* aJob){
     if (this->currentJob != NULL){
         this->currentJob->setDrone(NULL);
