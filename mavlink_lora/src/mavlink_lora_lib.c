@@ -868,13 +868,13 @@ void ml_queue_msg_heartbeat(void)
 	/* type. 6 = MAV_TYPE_GCS */
 	buf[ML_POS_PAYLOAD + 4] = 6;
 
-	/* autopilot */
+	/* autopilot type 8 = Invalid */
 	buf[ML_POS_PAYLOAD + 5] = 8;
 
-	/* base_mode */
+	/* base_mode type 1 = custom mode enabled */
 	buf[ML_POS_PAYLOAD + 6] = 1;
 
-	/* system_status */
+	/* system_status type 4 = active */
 	buf[ML_POS_PAYLOAD + 7] = 4;
 
 	/* queue message */
