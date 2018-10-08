@@ -173,7 +173,7 @@ class tranmerc():
         tmd = tmdo + (northing - self.false_n) / self.scale  # origin
         sr = self.sphsr(0.0)  # first estimate
         ftphi = tmd / sr
-        for i in xrange(5):
+        for i in range(5):
             t10 = self.sphtmd(ftphi)
             sr = self.sphsr(ftphi)
             ftphi += (tmd - t10) / sr

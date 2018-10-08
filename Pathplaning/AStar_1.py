@@ -4,13 +4,27 @@
 
 import numpy
 from heapq import *
+from math import sqrt
 
 def heuristic(a, b):
-    return (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2
+    return (((b[0] - a[0]) ** 2) + ((b[1] - a[1]) ** 2))
 
 def astar(array, start, goal):
 
-    neighbors = [(0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1)]
+    #1-layer:
+    #neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+    #2-layer:
+    neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1),
+                 (0, 2), (0, -2), (2, 0), (-2, 0), (2, 2), (2, -2), (-2, 2), (-2, -2),
+                 (1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1)]
+    #3-layer
+    #neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1),
+    #             (0, 2), (0, -2), (2, 0), (-2, 0), (2, 2), (2, -2), (-2, 2), (-2, -2),
+    #             (1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1),
+    #             (3, -3), (3, -2), (3, -1), (3, 0), (3, 1), (3, 2), (3, 3),
+    #             (-3, -3), (-3, -2), (-3, -1), (-3, 0), (-3, 1), (-3, 2), (-3, 3),
+    #             (-2, 3), (-1, 3), (0, 3), (1, 3), (2, 3),
+    #             (-2, -3), (-1, -3), (0, -3), (1, -3), (2, -3)]
 
     close_set = set()
     came_from = {}
@@ -49,7 +63,7 @@ def astar(array, start, goal):
             if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
                 continue
                 
-            if  tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
+            if tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
                 came_from[neighbor] = current
                 gscore[neighbor] = tentative_g_score
                 fscore[neighbor] = tentative_g_score + heuristic(neighbor, goal)
