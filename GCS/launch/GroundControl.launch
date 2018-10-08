@@ -1,5 +1,0 @@
-<launch>
- <include file="$(find ros_internet)/prog.launch" />
- <include file="$(find gcs)/prog.launch" />
- <include file="$(find telemetry_node)/prog.launch" />	
-</launch>
