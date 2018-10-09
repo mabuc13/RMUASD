@@ -4,6 +4,8 @@ import numpy as np
 from coordinate import coordinate
 from AStar_1 import astar
 from exportkml import kmlclass
+#from beginner_tutorials.srv import *
+#import rospy
 #from gcs.msg import GPS
 
 # Global variables
@@ -83,11 +85,12 @@ def compute_path_with_astar(start, goal):
     return path_real
 
 if __name__ == "__main__":
-    # start_pos = coordinate(lat=55.471574, lon=10.315330)
-    # goal_pos = coordinate(lat=55.481202, lon=10.344599)
 
-    start_pos = coordinate(lat=55.481202, lon=10.344599)
-    goal_pos = coordinate(lat=55.479722, lon=10.336553)
+    #start_pos = coordinate(lat=55.462070, lon=10.285944)
+    #goal_pos = coordinate(lat=55.481202, lon=10.344599)
+
+    #start_pos = coordinate(lat=55.481202, lon=10.344599)
+    #goal_pos = coordinate(lat=55.479722, lon=10.336553)
 
     path = compute_path_with_astar(start_pos, goal_pos)
 
@@ -99,8 +102,8 @@ if __name__ == "__main__":
 
     print("waypoints: ", len(path))
 
-    # for i in path:
-    #    print("Northing: ", i.northing, "Easting: ", i.easting)
+    for i in path:
+       print("Northing: ", i.northing, "Easting: ", i.easting)
 
     # width: defines the line width, use e.g. 0.1 - 1.0
     kml = kmlclass()
