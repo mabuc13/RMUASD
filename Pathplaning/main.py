@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import numpy as np
-from coordinate import coordinate
+from coordinate import Coordinate
 from AStar_1 import astar
 from exportkml import kmlclass
 #from beginner_tutorials.srv import *
@@ -10,14 +10,15 @@ from exportkml import kmlclass
 
 # Global variables
 # Default position at HCA Airport: lat=55.470415, lon=10.329449
-global_bottom_left = coordinate(lat=55.470415, lon=10.329449)
-global_top_right = coordinate(lat=55.470415, lon=10.329449)
+global_bottom_left = Coordinate(lat=55.470415, lon=10.329449)
+global_top_right = Coordinate(lat=55.470415, lon=10.329449)
 global_map_width = 0
 global_map_height = 0
 path = []
 
 # Global constants
 map_padding = 100               # padding on top, bottom, left and right of map
+
 
 # Helper functions
 def set_global_coordinates(start, goal):
@@ -52,8 +53,10 @@ def set_global_coordinates(start, goal):
     global_map_width = int(global_top_right.easting - global_bottom_left.easting)
     global_map_height = int(global_top_right.northing - global_bottom_left.northing)
 
+
 def make_map_zeros():
     return np.zeros((global_map_height, global_map_width), dtype=np.int)
+
 
 def compute_rel_pos_and_map(start, goal):
     set_global_coordinates(start, goal)
@@ -66,14 +69,16 @@ def compute_rel_pos_and_map(start, goal):
 
     return map_zeros, rel_start_pos, rel_goal_pos
 
+
 def convert_from_rel_pos_to_real_coord(path, start, goal):
     path_real = []
     path_real.append(start)
     for j in reversed(path):
-        path_real.append(coordinate(northing=(j[0] + global_bottom_left.northing),
+        path_real.append(Coordinate(northing=(j[0] + global_bottom_left.northing),
                                     easting=(j[1] + global_bottom_left.easting)))
     path_real.append(goal)
     return path_real
+
 
 def compute_path_with_astar(start, goal):
     map_zeros, rel_start_pos, rel_goal_pos = compute_rel_pos_and_map(start, goal)
@@ -84,13 +89,14 @@ def compute_path_with_astar(start, goal):
 
     return path_real
 
+
 if __name__ == "__main__":
 
-    #start_pos = coordinate(lat=55.462070, lon=10.285944)
-    #goal_pos = coordinate(lat=55.481202, lon=10.344599)
+    #start_pos = Coordinate(lat=55.462070, lon=10.285944)
+    #goal_pos = Coordinate(lat=55.481202, lon=10.344599)
 
-    #start_pos = coordinate(lat=55.481202, lon=10.344599)
-    #goal_pos = coordinate(lat=55.479722, lon=10.336553)
+    #start_pos = Coordinate(lat=55.481202, lon=10.344599)
+    #goal_pos = Coordinate(lat=55.479722, lon=10.336553)
 
     path = compute_path_with_astar(start_pos, goal_pos)
 

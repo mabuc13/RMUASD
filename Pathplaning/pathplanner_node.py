@@ -1,20 +1,28 @@
 #!/usr/bin/env python
 
 import numpy as np
-from coordinate import coordinate
+from coordinate import Coordinate
 from AStar_1 import astar
 from exportkml import kmlclass
 import rospy
-#from gcs.msg import GPS
+from gcs.msg import GPS, DronePath
+
+
+coord = GPS(longitude=,
+            latitude=,
+            altidute=)
+
+msg = DronePath(Path=)
+
 
 class PathPlanner(object):
-    def __init__(self, start, goal):
-        self.start = start
-        self.goal = goal
+    def __init__(self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)):
+        self.start = Coordinate(lat=start.latitude, lon=start.longitude)
+        self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
 
         # Default position at HCA Airport: lat=55.470415, lon=10.329449
-        self.global_bottom_left = coordinate(lat=55.470415, lon=10.329449)
-        self.global_top_right = coordinate(lat=55.470415, lon=10.329449)
+        self.global_bottom_left = Coordinate(lat=55.470415, lon=10.329449)
+        self.global_top_right = Coordinate(lat=55.470415, lon=10.329449)
         self.global_map_width = 0
         self.global_map_height = 0
         self.path = []
@@ -62,6 +70,10 @@ class PathPlanner(object):
         self.map_padding = new_padding
         self.set_global_coordinates()
 
+    def set_start_and_goal(self, start, goal):
+        self.start = Coordinate(lat=start.latitude, lon=start.longitude)
+        self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
+
     def compute_path(self):
         rel_start_pos = (int(self.start.northing - self.global_bottom_left.northing),
                          int(self.start.easting - self.global_bottom_left.easting))
@@ -70,16 +82,18 @@ class PathPlanner(object):
         rel_path = astar(self.map_zeros, rel_start_pos, rel_goal_pos)
 
         self.path.clear()
+
+        #TODO: Convert this to the GPS format that Kasper made
         self.path.append(self.start)
         for j in reversed(rel_path):
-            self.path.append(coordinate(northing=(j[0] + self.global_bottom_left.northing),
+            self.path.append(Coordinate(northing=(j[0] + self.global_bottom_left.northing),
                                         easting=(j[1] + self.global_bottom_left.easting)))
         self.path.append(self.goal)
 
     def export_kml_path(self, name):
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
-        kml.begin(name, 'Example', 'Example on the use of kmlclass', 0.1)
+        kml.begin(name+'klm', 'Example', 'Example on the use of kmlclass', 0.1)
         # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
         # altitude: use 'absolute' or 'relativeToGround'
         kml.trksegbegin('', '', 'red', 'absolute')
@@ -91,3 +105,12 @@ class PathPlanner(object):
     def get_path(self):
         self.compute_path()
         return self.path
+
+if __name__ == '__main__':
+    rospy.init_node('pathplan')
+    rospy.sleep(1)
+
+    drone_path_planner = PathPlanner()
+
+    rospy.spin()
+

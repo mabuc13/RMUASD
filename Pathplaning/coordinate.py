@@ -1,7 +1,7 @@
 from utm import utmconv
 
-class coordinate(object):
 
+class Coordinate(object):
 	def __init__(self, lat=0, lon=0, northing=0, easting=0):
 		self.lat = lat
 		self.lon = lon
