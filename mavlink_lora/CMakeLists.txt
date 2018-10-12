@@ -23,6 +23,9 @@ add_message_files(
   mavlink_lora_command_ack.msg
   mavlink_lora_command_start_mission.msg
   mavlink_lora_command_set_mode.msg
+  mavlink_lora_new_local_pos_sp.msg
+  mavlink_lora_new_local_vel_sp.msg
+  mavlink_lora_new_local_acc_sp.msg
  )
 
 generate_messages(

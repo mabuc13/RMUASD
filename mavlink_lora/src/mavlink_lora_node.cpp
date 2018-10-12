@@ -48,6 +48,9 @@ Revision
 #include <mavlink_lora/mavlink_lora_command_ack.h>
 #include <mavlink_lora/mavlink_lora_command_start_mission.h>
 #include <mavlink_lora/mavlink_lora_command_set_mode.h>
+#include <mavlink_lora/mavlink_lora_new_local_pos_sp.h>
+#include <mavlink_lora/mavlink_lora_new_local_vel_sp.h>
+#include <mavlink_lora/mavlink_lora_new_local_acc_sp.h>
 
 
 extern "C"
@@ -85,6 +88,21 @@ std::vector<mavlink_lora::mavlink_lora_mission_item_int> missionlist; /*< list o
 bool mission_uploading = false; /*< Are we uploading a mission atm. Needed to know what messages/timeouts to react to*/
 ros::Timer mission_up_timeout;// = ros::NodeHandle::createTimer(ros::Duration(DEFAULT_TIMEOUT_TIME), mission_up_timeout_callback, true, false); /*< Timer for timeouts when doing mission transmissions */
 int mission_retries = 0;
+
+/* Offboard related variables */
+uint16_t local_sp_typemask = 0x03F8;
+uint8_t local_sp_frame = 1;
+float local_sp_x = 0;
+float local_sp_y = 0;
+float local_sp_z = -5;
+float local_sp_vx = 0;
+float local_sp_vy = 0;
+float local_sp_vz = 0;
+float local_sp_ax = 0;
+float local_sp_ay = 0;
+float local_sp_az = 0;
+float local_sp_yaw = 0;
+float local_sp_yaw_rate = 0;
 
 /* Command Protocol */
 unsigned int confirmation = 0; // increments for each timeout of same command. Useful to monitor if a command should be killed
@@ -568,6 +586,67 @@ void ml_send_heartbeat()
     //update last sent
     heartbeat_msg_sent = ros::Time::now();
 }
+
+/***************************** OFFBOARD ************************************/
+void ml_offboard_new_local_pos_sp_callback(const mavlink_lora::mavlink_lora_new_local_pos_sp::ConstPtr& msg)
+{
+    local_sp_x = msg->x;
+    local_sp_y = msg->y;
+    local_sp_z = msg->z;
+    local_sp_yaw = msg->yaw;
+    local_sp_yaw_rate = msg->yaw_rate;   
+    local_sp_frame = msg->coordinate_frame;
+    local_sp_typemask = 0x03F8; // ignore velocity and acceleration
+}
+
+void ml_offboard_new_local_vel_sp_callback(const mavlink_lora::mavlink_lora_new_local_vel_sp::ConstPtr& msg)
+{
+    local_sp_vx = msg->vx;
+    local_sp_vy = msg->vy;
+    local_sp_vz = msg->vz;
+    local_sp_yaw = msg->yaw;
+    local_sp_yaw_rate = msg->yaw_rate;   
+    local_sp_frame = msg->coordinate_frame;
+    local_sp_typemask = 0x03C7; // ignore position and acceleration
+}
+
+void ml_offboard_new_local_acc_sp_callback(const mavlink_lora::mavlink_lora_new_local_acc_sp::ConstPtr& msg)
+{
+    local_sp_ax = msg->ax;
+    local_sp_ay = msg->ay;
+    local_sp_az = msg->az;
+    local_sp_yaw = msg->yaw;
+    local_sp_yaw_rate = msg->yaw_rate;   
+    local_sp_frame = msg->coordinate_frame;
+    local_sp_typemask = 0x023F; // ignore position and velocity
+}
+
+void send_local_setpoint_callback(const ros::TimerEvent&)
+{
+    auto now = ros::Time::now();
+    uint32_t time_boot_ms = now.sec*1000 + now.nsec/1000;
+    //queue setpoint message
+    ml_queue_msg_set_position_target_local_ned(
+        time_boot_ms, 
+        local_sp_frame, 
+        local_sp_typemask, 
+        local_sp_x, 
+        local_sp_y, 
+        local_sp_z, 
+        local_sp_vx,
+        local_sp_vy,
+        local_sp_vz,
+        local_sp_ax,
+        local_sp_ay,
+        local_sp_az,
+        local_sp_yaw,
+        local_sp_yaw_rate
+        );
+
+    //update tx
+    ml_tx_update();
+}
+
 /******************************* MAIN **************************************/
 int main (int argc, char** argv)
 {
@@ -597,6 +676,9 @@ int main (int argc, char** argv)
     ros::Subscriber command_arm_disarm_sub = n.subscribe("mavlink_interface/command/arm_disarm", 1, ml_command_arm_disarm_callback);
     ros::Subscriber command_start_mission_sub = n.subscribe("mavlink_interface/command/start_mission", 1, ml_command_start_mission_callback);
     ros::Subscriber command_set_mode_sub = n.subscribe("mavlink_interface/command/set_mode", 1, ml_command_set_mode_callback);
+    ros::Subscriber local_pos_sp_sub = n.subscribe("mavlink_interface/offboard/new_pos_sp", 1, ml_offboard_new_local_pos_sp_callback);
+    ros::Subscriber local_vel_sp_sub = n.subscribe("mavlink_interface/offboard/new_vel_sp", 1, ml_offboard_new_local_vel_sp_callback);
+    ros::Subscriber local_acc_sp_sub = n.subscribe("mavlink_interface/offboard/new_acc_sp", 1, ml_offboard_new_local_acc_sp_callback);
 
     /* Interface publishers */
     mission_ack_pub = n.advertise<std_msgs::String>("mavlink_interface/mission/ack", 1);
@@ -615,6 +697,8 @@ int main (int argc, char** argv)
 	ml_init();
 	ml_set_monitor_all();
 
+    ros::Timer timer = n.createTimer(ros::Duration(0.2), send_local_setpoint_callback);
+
 	/* ros main loop */
 	ros::Rate loop_rate(100);
 	while(ros::ok())
@@ -626,7 +710,7 @@ int main (int argc, char** argv)
 		    ml_send_status_msg();
 
 		/* check if time to emit heartbeat */
-		if (heartbeat_msg_sent + ros::Duration(1) <= ros::Time::now())
+		if (heartbeat_msg_sent + ros::Duration(0.2) <= ros::Time::now())
 		    ml_send_heartbeat();
 
 		int cnt = ser_receive (ser_ref, rx_buffer, RX_BUFFER_SIZE);

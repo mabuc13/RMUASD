@@ -160,6 +160,9 @@ Revision
 #define MAVLINK_MSG_ID_COMMAND_ACK 77
 #define MAVLINK_MSG_ID_COMMAND_ACK_LEN 3
 
+#define MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED 84
+#define MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED_LEN 53
+
 #define MAVLINK_MSG_ID_COMPONENT_ARM_DISARM 400
 #define MAVLINK_MSG_ID_MISSION_START 300
 #define MAVLINK_MSG_ID_DO_SET_MODE 176
@@ -343,6 +346,7 @@ void ml_queue_msg_mission_clear_all (void);
 void ml_queue_msg_mission_item_int (float param1, float param2, float param3, float param4, int32_t x, int32_t y, float z, unsigned short seq, unsigned short command, unsigned char frame, unsigned char current, unsigned char autocontinue);
 void ml_queue_msg_command_long (unsigned short cmd_id, float param1, float param2, float param3, float param4, float param5, float param6, float param7, unsigned int confirmation);
 void ml_queue_msg_heartbeat (void);
+void ml_queue_msg_set_position_target_local_ned(uint32_t time_boot_ms, uint8_t frame, uint16_t type_mask, float x, float y, float z, float vx, float vy, float vz, float ax, float ay, float az, float yaw, float yaw_rate);
 
 /***************************************************************************/
 /* callback functions */

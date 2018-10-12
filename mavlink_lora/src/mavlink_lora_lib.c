@@ -884,6 +884,114 @@ void ml_queue_msg_heartbeat(void)
     ml_queue_msg(buf);
 }
 /***************************************************************************/
+void ml_queue_msg_set_position_target_local_ned(uint32_t time_boot_ms, uint8_t frame, uint16_t type_mask, float x, float y, float z, float vx, float vy, float vz, float ax, float ay, float az, float yaw, float yaw_rate)
+{
+	/* id=84 */
+	/* reference: mavlink/common/mavlink_msg_set_position_target_local_ned */
+	unsigned char *buf = (txbuf + txbuf_cnt);
+    unsigned char *pv;
+
+	/* encode part of the header */
+	buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED_LEN;
+	buf[ML_POS_SYS_ID] = recorded_sysid;
+	buf[ML_POS_COMP_ID] = 0;
+	buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED;
+
+	/* time_boot_ms */
+    pv = (unsigned char *) &time_boot_ms;
+	buf[ML_POS_PAYLOAD + 0]  = pv[0];
+	buf[ML_POS_PAYLOAD + 1]  = pv[1];
+	buf[ML_POS_PAYLOAD + 2]  = pv[2];
+	buf[ML_POS_PAYLOAD + 3]  = pv[3];
+
+	/* 	position	*/
+    pv = (unsigned char *) &x;
+	buf[ML_POS_PAYLOAD + 4]  = pv[0];
+	buf[ML_POS_PAYLOAD + 5]  = pv[1];
+	buf[ML_POS_PAYLOAD + 6]  = pv[2];
+	buf[ML_POS_PAYLOAD + 7]  = pv[3];
+
+    pv = (unsigned char *) &y;
+	buf[ML_POS_PAYLOAD + 8]  = pv[0];
+	buf[ML_POS_PAYLOAD + 9]  = pv[1];
+	buf[ML_POS_PAYLOAD + 10]  = pv[2];
+	buf[ML_POS_PAYLOAD + 11]  = pv[3];
+
+    pv = (unsigned char *) &z;
+	buf[ML_POS_PAYLOAD + 12] = pv[0];
+	buf[ML_POS_PAYLOAD + 13] = pv[1];
+	buf[ML_POS_PAYLOAD + 14] = pv[2];
+	buf[ML_POS_PAYLOAD + 15] = pv[3];
+
+	/* 	velocity	*/
+    pv = (unsigned char *) &vx;
+	buf[ML_POS_PAYLOAD + 16] = pv[0];
+	buf[ML_POS_PAYLOAD + 17] = pv[1];
+	buf[ML_POS_PAYLOAD + 18] = pv[2];
+	buf[ML_POS_PAYLOAD + 19] = pv[3];
+
+    pv = (unsigned char *) &vy;
+	buf[ML_POS_PAYLOAD + 20] = pv[0];
+	buf[ML_POS_PAYLOAD + 21] = pv[1];
+	buf[ML_POS_PAYLOAD + 22] = pv[2];
+	buf[ML_POS_PAYLOAD + 23] = pv[3];
+
+    pv = (unsigned char *) &vz;
+	buf[ML_POS_PAYLOAD + 24] = pv[0];
+	buf[ML_POS_PAYLOAD + 25] = pv[1];
+	buf[ML_POS_PAYLOAD + 26] = pv[2];
+	buf[ML_POS_PAYLOAD + 27] = pv[3];
+
+	/* 	acceleration	*/
+    pv = (unsigned char *) &ax;
+	buf[ML_POS_PAYLOAD + 28] = pv[0];
+	buf[ML_POS_PAYLOAD + 29] = pv[1];
+	buf[ML_POS_PAYLOAD + 30] = pv[2];
+	buf[ML_POS_PAYLOAD + 31] = pv[3];
+
+    pv = (unsigned char *) &ay;
+	buf[ML_POS_PAYLOAD + 32] = pv[0];
+	buf[ML_POS_PAYLOAD + 33] = pv[1];
+	buf[ML_POS_PAYLOAD + 34] = pv[2];
+	buf[ML_POS_PAYLOAD + 35] = pv[3];
+
+    pv = (unsigned char *) &az;
+	buf[ML_POS_PAYLOAD + 36] = pv[0];
+	buf[ML_POS_PAYLOAD + 37] = pv[1];
+	buf[ML_POS_PAYLOAD + 38] = pv[2];
+	buf[ML_POS_PAYLOAD + 39] = pv[3];
+
+	/* 	yaw		*/
+    pv = (unsigned char *) &yaw;
+	buf[ML_POS_PAYLOAD + 40] = pv[0];
+	buf[ML_POS_PAYLOAD + 41] = pv[1];
+	buf[ML_POS_PAYLOAD + 42] = pv[2];
+	buf[ML_POS_PAYLOAD + 43] = pv[3];
+
+    pv = (unsigned char *) &yaw_rate;
+	buf[ML_POS_PAYLOAD + 44] = pv[0];
+	buf[ML_POS_PAYLOAD + 45] = pv[1];
+	buf[ML_POS_PAYLOAD + 46] = pv[2];
+	buf[ML_POS_PAYLOAD + 47] = pv[3];
+
+	/* type_mask */
+    pv = (unsigned char *) &type_mask;
+	buf[ML_POS_PAYLOAD + 48] = pv[0];
+	buf[ML_POS_PAYLOAD + 49] = pv[1];
+	
+	/* system_id (target) */
+	buf[ML_POS_PAYLOAD + 50] = MAV_SYS_ID_UA; /* UA is the target system */
+
+	/* component_id (target) */
+	buf[ML_POS_PAYLOAD + 51] = 0; /* target component */
+	
+	/* coordinate frame */
+	buf[ML_POS_PAYLOAD + 52] = frame;
+
+	/* queue message */
+	ml_queue_msg(buf);
+}
+/***************************************************************************/
 short ml_rx_update(unsigned long now, unsigned char *rxbuf_new, short rxbuf_new_cnt)
 {
 	char result = 0;

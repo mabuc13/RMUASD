@@ -61,7 +61,7 @@ class Telemetry(object):
         self.statustext_pub = rospy.Publisher("/telemetry/mavlink_statustext", telemetry_statustext, queue_size=0)
         self.heartbeat_status_pub = rospy.Publisher("telemetry/mavlink_heartbeat_status", telemetry_heartbeat_status, queue_size=0)
         self.mav_mode_pub = rospy.Publisher("/telemetry/mavlink_mav_mode", telemetry_mav_mode, queue_size=0)
-        rospy.Subscriber('/telemetry/local_setpoint', local_setpoint, self.on_new_local_setpoint)
+        # rospy.Subscriber('/telemetry/local_setpoint', local_setpoint, self.on_new_local_setpoint)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
@@ -361,7 +361,7 @@ def main():
     rospy.on_shutdown(tel.shutdownHandler)
     # tel.enable_rc_channels()
     # Send global setpoint every 0.4 seconds
-    rospy.Timer(rospy.Duration(0.2),tel.send_local_setpoint)
+    # rospy.Timer(rospy.Duration(0.2),tel.send_local_setpoint)
 
     rospy.spin()
 
