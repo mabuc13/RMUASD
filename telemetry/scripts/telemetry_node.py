@@ -180,19 +180,6 @@ class Telemetry(object):
     def on_keypress(self, msg):
         pass
 
-    def on_mavlink_lora_pos(self,msg):
-        self.lat = msg.lat
-        self.lon = msg.lon
-        self.alt = msg.alt
-
-    def on_mavlink_lora_status (self, msg):
-        self.last_heard = msg.last_heard.secs + msg.last_heard.nsecs/1.0e9
-        self.last_heard_sys_status = msg.last_heard_sys_status.secs + msg.last_heard_sys_status.nsecs/1.0e9
-        self.batt_volt = msg.batt_volt / 1000.0
-
-    def on_keypress(self):
-        pass
-
     def set_mode(self, srv):
         command = MAVLINK_CMD_DO_SET_MODE
 
