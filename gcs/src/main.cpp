@@ -1,12 +1,6 @@
 #include <iostream>
 #include <deque>
 #include <vector>
-<<<<<<< HEAD
-//#include <gcs/GPS.h>
-//#include <gcs/DroneInfo.h>
-//#include <gcs/DronePath.h>
-//#include <gcs/DroneState.h>
-=======
 #include <string>
 #include <fstream>
 #include <map>
@@ -21,7 +15,6 @@
 #include <gcs/DronePath.h>
 #include <gcs/DroneState.h>
 #include <std_msgs/String.h>
->>>>>>> ccd9e50f0601b1519c82551cfbd2ad08f04ad8b7
 
 #include <DronesAndDocks.hpp>
 
