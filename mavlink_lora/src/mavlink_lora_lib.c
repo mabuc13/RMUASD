@@ -864,6 +864,9 @@ void ml_queue_msg_heartbeat(void)
 
     /* custom mode */
     buf[ML_POS_PAYLOAD + 0] = 0;
+    buf[ML_POS_PAYLOAD + 1] = 0;
+    buf[ML_POS_PAYLOAD + 2] = 0;
+    buf[ML_POS_PAYLOAD + 3] = 0;
 
 	/* type. 6 = MAV_TYPE_GCS */
 	buf[ML_POS_PAYLOAD + 4] = 6;
