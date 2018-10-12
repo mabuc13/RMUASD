@@ -1,12 +1,14 @@
 #ifndef  DRONES_AND_DOCKS_H
 #define DRONES_AND_DOCKS_H 0
 
-#include <dequeue>
+#include <deque>
+#include <vector>
 #include <string>
-#include <gcs/GPS>
+#include <gcs/GPS.h>
 
 #define ID_t unsigned int
-#define PATH_t dequeue<GPS>
+#define PATH_t std::vector<gcs::GPS>
+#define uint8 unsigned char
 
 using namespace std;
 
@@ -15,58 +17,70 @@ class drone;
 class dock{
 public:
   dock(string name,double latitude, double longitude, double altitude, bool isLab);
-  GPS getPosition(void);
+  gcs::GPS getPosition(void);
   string getName(void);
   bool isLab(void);
 
 private:
-  GPS position;
+  gcs::GPS position;
   string name;
   bool isALab;
 
-}
+};
 
 class job{
 public:
-  job(dock station);
+  job(dock* station);
+  job(const job &aJob);
   uint8 getStatus(void);
   drone* getDrone(void);
   dock* getQuestHandler(void);
+  dock* getGoal(void);
 
-  void setDrone(drone theDrone);
-  void setGoal(dock goal);
+  void setDrone(drone* theDrone);
+  void setGoal(dock* goal);
+  void setStatus(uint8 status);
 
+  static const uint8 ready4takeOff = 5;
+  static const uint8 wait4pathplan = 4;
+  static const uint8 onhold = 3;
+  static const uint8 ongoing = 2;
+  static const uint8 queued = 1;
 
-
-  ~job();
 private:
+  dock* goal= NULL;
+  dock* QuestGiver = (NULL);
+  uint8 status;
+  drone* worker = (NULL);
 
 
 
-}
+
+};
 
 class drone{
 public:
-  drone(ID_t ID, GPS position);
+  drone(ID_t ID, gcs::GPS position);
   ID_t getID(void);
-  GPS getPosition(void);
-  PATH_t getPath(void);
+  gcs::GPS getPosition(void);
+  std::vector<gcs::GPS> getPath(void);
   bool isAvailable(void);
-  job getJob(void);
+  job* getJob(void);
 
 
   void setAvailable(bool avail);
-  void setPath(PATH_t path);
+  void setPath(const std::vector<gcs::GPS> &path);
   void setJob(job* aJob);
+  void setPosition(gcs::GPS position);
 
 private:
-  job* currentJob;
+  job* currentJob = (NULL);
   bool isFree;
-  GPS position;
+  gcs::GPS position;
   ID_t ID;
-  PATH_t thePath
+  std::vector<gcs::GPS> thePath;
 
-}
+};
 
 
 
