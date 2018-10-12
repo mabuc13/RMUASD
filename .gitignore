@@ -4,6 +4,7 @@ __pycache__/
 
 # Ignore pycharm specific files
 .idea/
+cmake-build-*/
 
 # Ignore vscode specific files
 .vscode/

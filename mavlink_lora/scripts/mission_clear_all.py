@@ -1,6 +1,8 @@
-/****************************************************************************
-# Serial driver
-# Copyright (c) 2004-2018 Kjeld Jensen <kjeld@cetus.dk>
+#!/usr/bin/env python
+#/***************************************************************************
+# MavLink LoRa node (ROS) clear mission example script
+# Copyright (c) 2018, Kjeld Jensen <kjen@mmmi.sdu.dk> <kj@kjen.dk>
+# SDU UAS Center, http://sdu.dk/uas
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,35 +26,46 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 #****************************************************************************
-# Project: Serial driver for linux
-# Documentation: See serial.c
-# Author: Kjeld Jensen <kjeld@cetus.dk>
-****************************************************************************/
-/* system includes */
-#include <stdlib.h>
-#include <termios.h>
+'''
+This example script shows how to clear a mission on a drone.
 
-/***************************************************************************/
-/* function prototypes */
+It has been tested using a Pixhawk 2.1 flight controller running PX4 and on
+an AutoQuad flight controller. Please remember to set the correct
+target_system value below.
 
-/* initializes the serial port, returns 0 if everything is ok */
-int ser_open (
-	int *serRef,			/* returned reference to the port */
-	struct termios *oldtio,	/* placeholder for old port settings*/
-	char *devName,			/* eg. "/dev/ttyS0" */
-	long baudRate);
+Revision
+2018-06-13 FMA First published version
+'''
+# parameters
+mavlink_lora_pub_topic = 'mavlink_interface/mission/mavlink_clear_all'
 
-int ser_send (int serRef, void *buffer, int numBytes);
+# defines
 
-/* retrieves up to numBytes bytes from the serial port, returns the number
-   of retrieved bytes, 0 if no bytes retrieved or -1 if an error occurs */
-int ser_receive (int serRef, void *buffer, int numBytes);
+# imports
+import rospy
+import struct
+import std_msgs.msg._Empty
 
-/* flushes the input buffer */
-void ser_flush (int serRef);
+# variables
+target_sys = 0 # reset by first message
+target_comp = 0
+home_lat = 55.4720252
+home_lon = 10.4146084
 
-void ser_close (int serRef, struct termios oldtio);
+# launch node
+rospy.init_node('mavlink_lora_mission_clear_all')
+mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, std_msgs.msg.Empty, queue_size=0) # mavlink_msg publisher
 
-/***************************************************************************/
+rospy.sleep (1) # wait until everything is running
+
+# send command
+msg = std_msgs.msg.Empty()
+mavlink_msg_pub.publish(msg)
+
+# loop until shutdown
+while not (rospy.is_shutdown()):
+
+	# do stuff
+	rospy.sleep(5)
+
