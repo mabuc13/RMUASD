@@ -10,7 +10,7 @@ from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos, mavlink_lora_st
 from gcs.msg import *
 from std_msgs.msg import Int8
 from std_srvs.srv import Trigger, TriggerResponse
-from telemetry.srv import SetMode, Origin, OriginResponse
+from telemetry.srv import SetMode, Origin, OriginResponse, ChangeSpeed, ChangeSpeedResponse
 from telemetry.msg import telemetry_statustext, telemetry_heartbeat_status, telemetry_mav_mode, local_setpoint
 from mavlink_defines import *
 from datetime import datetime
@@ -60,6 +60,7 @@ class Telemetry(object):
         self.gps_origin_service     = rospy.Service("/telemetry/gps_origin", Origin, self.set_gps_global_origin, buff_size=10)
         self.guided_enable_service  = rospy.Service("/telemetry/guided_enable", Trigger, self.guided_enable, buff_size=10)
         self.guided_disable_service = rospy.Service("/telemetry/guided_disable", Trigger, self.guided_disable, buff_size=10)
+        self.change_speed_service   = rospy.Service("/telemetry/change_speed", ChangeSpeed, self.change_speed, buff_size=10)
 
         # Topic handlers
         self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
@@ -331,6 +332,14 @@ class Telemetry(object):
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
+
+    def change_speed(self, srv):
+        command = MAVLINK_CMD_DO_CHANGE_SPEED
+        params = (srv.speed_type,srv.speed,srv.throttle,srv.abs_rel,0,0,0)
+
+        self.send_mavlink_msg_id_cmd_long(params,command,1)
+
+        return ChangeSpeedResponse()
 
     def enable_rc_channels(self):
         msg = mavlink_lora_msg()

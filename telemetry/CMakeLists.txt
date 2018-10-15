@@ -60,6 +60,8 @@ add_service_files(
    FILES
    SetMode.srv
    Origin.srv
+   ChangeSpeed.srv
+   UploadFromFile.srv
 )
 
 ## Generate actions in the 'action' folder

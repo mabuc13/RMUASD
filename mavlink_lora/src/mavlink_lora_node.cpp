@@ -218,10 +218,10 @@ void ml_parse_msg(unsigned char *msg)
 	// handle state messages
 	if	(m.msg_id == MAVLINK_MSG_ID_SYS_STATUS)
 	{
-	sys_status_last_heard = last_heard; 
+	    sys_status_last_heard = last_heard; 
 		mavlink_sys_status_t sys_status = ml_unpack_msg_sys_status (&m.payload.front());
-	sys_status_voltage_battery = sys_status.voltage_battery;
-	ml_send_status_msg();
+        sys_status_voltage_battery = sys_status.voltage_battery;
+        ml_send_status_msg();
 	}
 
 	//Handle Mission upload messages
@@ -292,6 +292,7 @@ void ml_parse_msg(unsigned char *msg)
         //DEBUG
         ROS_INFO_STREAM(ack_msg.result_text);
     }
+
 }
 /***************************************************************************/
 void ml_tx_update (void)
