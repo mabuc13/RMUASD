@@ -144,6 +144,9 @@ add_executable(${PROJECT_NAME}_node src/main.cpp src/DronesAndDocks.cpp src/Text
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+# needed because the message file needs to be maked before the node using it
+add_dependencies(${PROJECT_NAME}_node gcs_generate_messages_cpp)
+
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
