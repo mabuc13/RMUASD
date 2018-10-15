@@ -42,6 +42,9 @@ class Telemetry(object):
         self.local_lon = 0.0
         self.local_alt = -5.0
 
+        self.current_mission_no = 0
+        self.last_mission_no = 0
+
         rospy.sleep (1) # wait until everything is running
 
         self.boot_time = rospy.Time.now().to_sec() * 1000
@@ -129,34 +132,50 @@ class Telemetry(object):
             rospy.logwarn(text)
             self.statustext_pub.publish(status_msg)
 
-        elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
-            # (time_boot_ms, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IfffffffffffHB', msg.payload)
+        # elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
+        #     (time_boot_ms, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IfffffffffffHB', msg.payload)
 
-            # print("x: {}".format(x))
-            # print("y: {}".format(y))
-            # print("z: {}".format(z))
-            # print("frame: {}".format(coordinate_frame))
-            # print("mask: {}".format(type_mask))
-            pass
+        #     print("x: {}".format(x))
+        #     print("y: {}".format(y))
+        #     print("z: {}".format(z))
+        #     print("frame: {}".format(coordinate_frame))
+        #     print("mask: {}".format(type_mask))
+        #     pass
 
-        elif msg.msg_id == MAVLINK_MSG_ID_RC_CHANNELS_SCALED:
-            print(len(msg.payload))
-            (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port, rssi) = struct.unpack('<IhhhhhhhhBB', msg.payload)
+        # elif msg.msg_id == MAVLINK_MSG_ID_RC_CHANNELS_SCALED:
+        #     print(len(msg.payload))
+        #     (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port, rssi) = struct.unpack('<IhhhhhhhhBB', msg.payload)
 
-            print("Port: {}".format(port))
-            print("Channel 1: {}".format(ch1))
-            print("Channel 2: {}".format(ch2))
-            print("Channel 3: {}".format(ch3))
-            print("Channel 4: {}".format(ch4))
-            print("Channel 5: {}".format(ch5))
-            print("Channel 6: {}".format(ch6))
-            print("Channel 7: {}".format(ch7))
-            print("Channel 8: {}".format(ch8))
-            print("RSSI: {}".format(rssi))
+        #     print("Port: {}".format(port))
+        #     print("Channel 1: {}".format(ch1))
+        #     print("Channel 2: {}".format(ch2))
+        #     print("Channel 3: {}".format(ch3))
+        #     print("Channel 4: {}".format(ch4))
+        #     print("Channel 5: {}".format(ch5))
+        #     print("Channel 6: {}".format(ch6))
+        #     print("Channel 7: {}".format(ch7))
+        #     print("Channel 8: {}".format(ch8))
+        #     print("RSSI: {}".format(rssi))
 
-        elif msg.msg_id == 36:
-            # (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port) = struct.unpack('<IHHHHHHHHB', msg.payload)
-            pass
+        elif msg.msg_id == MAVLINK_MSG_ID_MISSION_CURRENT:
+            sequence_number = struct.unpack('<H', msg.payload)
+
+            # self.current_mission_no = sequence_number[0]
+
+            # rospy.loginfo("Mission item #{} is currently active".format(sequence_number[0]))
+            # if self.current_mission_no != self.last_mission_no:
+            #     rospy.loginfo("Mission item #{} is currently active".format(sequence_number[0]))
+            #     self.last_mission_no = self.current_mission_no
+
+        elif msg.msg_id == MAVLINK_MSG_ID_MISSION_ITEM_REACHED:
+            sequence_number = struct.unpack('<H', msg.payload)
+
+            # rospy.loginfo("Mission item #{} has been reached".format(sequence_number[0]))
+
+        # elif msg.msg_id == 36:
+        #     # (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port) = struct.unpack('<IHHHHHHHHB', msg.payload)
+        #     pass
+
 
     def on_new_local_setpoint(self,msg):
         self.local_lat = msg.latitude

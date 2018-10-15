@@ -121,6 +121,9 @@ Revision
 #define MAVLINK_MSG_ID_MISSION_REQUEST_PARTIAL_LIST 37
 #define MAVLINK_MSG_ID_MISSION_REQUEST_PARTIAL_LIST_LEN 6
 
+#define MAVLINK_MSG_ID_WRITE_PARTIAL_LIST 38
+#define MAVLINK_MSG_ID_WRITE_PARTIAL_LIST_LEN 6
+
 #define MAVLINK_MSG_ID_MISSION_ITEM 39
 #define MAVLINK_MSG_ID_MISSION_ITEM_LEN 37
 
@@ -342,6 +345,7 @@ void ml_queue_msg_mission_request (unsigned short seq);
 void ml_queue_msg_mission_request_list (void);
 void ml_queue_msg_mission_ack (void);
 void ml_queue_msg_mission_count (unsigned short count);
+void ml_queue_msg_write_partial_list (uint16_t start_idx, uint16_t end_idx);
 void ml_queue_msg_mission_clear_all (void);
 void ml_queue_msg_mission_item_int (float param1, float param2, float param3, float param4, int32_t x, int32_t y, float z, unsigned short seq, unsigned short command, unsigned char frame, unsigned char current, unsigned char autocontinue);
 void ml_queue_msg_command_long (unsigned short cmd_id, float param1, float param2, float param3, float param4, float param5, float param6, float param7, unsigned int confirmation);

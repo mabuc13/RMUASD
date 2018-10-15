@@ -45,6 +45,7 @@ Revision
 #include <mavlink_lora/mavlink_lora_status.h>
 #include <mavlink_lora/mavlink_lora_mission_item_int.h>
 #include <mavlink_lora/mavlink_lora_mission_list.h>
+#include <mavlink_lora/mavlink_lora_mission_partial_list.h>
 #include <mavlink_lora/mavlink_lora_command_ack.h>
 #include <mavlink_lora/mavlink_lora_command_start_mission.h>
 #include <mavlink_lora/mavlink_lora_command_set_mode.h>
@@ -63,7 +64,7 @@ extern "C"
 
 #define RX_BUFFER_SIZE 16000
 #define DEFAULT_TIMEOUT_TIME 1.5
-#define MISSION_ITEM_TIMEOUT_TIME 0.25
+#define MISSION_ITEM_TIMEOUT_TIME 0.5
 #define MISSION_MAX_RETRIES 5
 #define HEARTBEAT_RATE 1
 /***************************************************************************/
@@ -84,6 +85,8 @@ unsigned short msg_id_global_position_int_received;
 /* Mission upload operations variables */
 unsigned short mission_up_count = 0; /*< Total count of mission elements to be uploaded*/
 int mission_up_index = 0; /*< Current mission item getting uploaded */
+uint16_t start_index = 0;
+uint16_t end_index = 0;
 std::vector<mavlink_lora::mavlink_lora_mission_item_int> missionlist; /*< list of all waypoints for upload */
 bool mission_uploading = false; /*< Are we uploading a mission atm. Needed to know what messages/timeouts to react to*/
 ros::Timer mission_up_timeout;// = ros::NodeHandle::createTimer(ros::Duration(DEFAULT_TIMEOUT_TIME), mission_up_timeout_callback, true, false); /*< Timer for timeouts when doing mission transmissions */
@@ -113,10 +116,12 @@ mavlink_command_long_t last_cmd_long; // Saving parameters for resending last co
 /* Function Headers, for reference purposes */
 void mission_up_count_timeout_callback(const ros::TimerEvent&);
 void mission_up_item_timeout_callback(const ros::TimerEvent&);
+void mission_up_partial_timeout_callback(const ros::TimerEvent&);
 void mission_clear_all_timeout_callback(const ros::TimerEvent&);
 void command_long_timeout_callback(const ros::TimerEvent&);
 void ml_send_mission_clear_all();
 void ml_send_mission_count();
+void ml_send_partial_list();
 void ml_send_mission_item_int();
 std::string mission_result_parser(uint8_t result);
 std::string command_result_parser(uint8_t result);
@@ -378,6 +383,34 @@ void ml_new_mission_callback(const mavlink_lora::mavlink_lora_mission_list::Cons
     mission_uploading = true;
 
 }
+void ml_partial_mission_callback(const mavlink_lora::mavlink_lora_mission_partial_list::ConstPtr& msg)
+{
+    //Received new mission on topic, start uploading
+    mission_up_count = msg->waypoints.size();
+    mission_up_index = msg->start_index;
+
+
+    if(msg->end_index >= missionlist.size())
+    {
+        ROS_WARN_STREAM("Index for partial mission is out of bounds. Aborting");
+        return;
+    }
+
+    int itr = msg->start_index;
+    for(auto waypoint : msg->waypoints)
+    {
+        missionlist[itr++] = waypoint;
+    }
+
+    ROS_INFO_STREAM("New partial mission. Length:" + std::to_string(mission_up_count));
+
+    //Send mission count
+    ml_send_partial_list();
+
+    //Set status to uploading mission. Currently not used, but maybe use it to make sure you can't upload a new mission while another mission gets uploaded?
+    mission_uploading = true;
+
+}
 void ml_mission_clear_all_callback(const std_msgs::Empty::ConstPtr& msg)
 {
     //queue command for clearing all missions
@@ -402,6 +435,20 @@ void ml_send_mission_count()
     mission_up_timeout = nh.createTimer(ros::Duration(DEFAULT_TIMEOUT_TIME), mission_up_count_timeout_callback, true, true);
 }
 /***************************************************************************/
+void ml_send_partial_list()
+{
+    ROS_INFO_STREAM("Sending partial list");
+    // queue msg
+    ml_queue_msg_write_partial_list(start_index, end_index);
+
+    // update TX
+    ml_tx_update();
+
+    // start timer
+    ros::NodeHandle nh;
+    mission_up_timeout = nh.createTimer(ros::Duration(DEFAULT_TIMEOUT_TIME), mission_up_partial_timeout_callback, true, true);
+}
+/***************************************************************************/
 void ml_send_mission_clear_all()
 {
     ROS_INFO_STREAM("Sending mission clear all");
@@ -420,7 +467,7 @@ void ml_send_mission_item_int()
 {
     //send mission item.
     mavlink_lora::mavlink_lora_mission_item_int item = missionlist[mission_up_index];
-    ml_queue_msg_mission_item_int(item.param1, item.param2, item.param3, item.param4, item.x, item.y, item.z, item.seq, item.command, item.frame, item.current, item.autocontinue);
+    ml_queue_msg_mission_item_int(item.param1, item.param2, item.param3, item.param4, item.x, item.y, item.z, mission_up_index, item.command, item.frame, item.current, item.autocontinue);
 
     // update TX
     ml_tx_update();
@@ -515,6 +562,35 @@ void mission_up_count_timeout_callback(const ros::TimerEvent&)
 
     //if timeout triggers, resend count message
     ml_send_mission_count();
+}
+/***************************************************************************/
+void mission_up_partial_timeout_callback(const ros::TimerEvent&)
+{
+    //increment retries
+    mission_retries++;
+
+    //check if retries has been exceeded
+    if (mission_retries > MISSION_MAX_RETRIES)
+    {
+        //publish error on ack topic
+        std_msgs::String msg;
+        msg.data = mission_result_parser(20); //max retries error
+        mission_ack_pub.publish(msg);
+
+        //cancel command
+        mission_uploading = false;
+
+        //reset retries
+        mission_retries = 0;
+
+        //debug
+        ROS_INFO_STREAM("MAX RETRIES REACHED");
+
+        return;
+    }
+
+    //if timeout triggers, resend count message
+    ml_send_partial_list();
 }
 /***************************************************************************/
 std::string mission_result_parser(uint8_t result)
@@ -672,6 +748,7 @@ int main (int argc, char** argv)
 
 	/* Interface subscribers */
     ros::Subscriber mission_upload_sub = n.subscribe("mavlink_interface/mission/mavlink_upload_mission", 1, ml_new_mission_callback);
+    ros::Subscriber partial_mission_upload_sub = n.subscribe("mavlink_interface/mission/mavlink_upload_partial_mission", 1, ml_partial_mission_callback);
     ros::Subscriber mission_clear_all_sub = n.subscribe("mavlink_interface/mission/mavlink_clear_all", 1, ml_mission_clear_all_callback);
     ros::Subscriber command_arm_disarm_sub = n.subscribe("mavlink_interface/command/arm_disarm", 1, ml_command_arm_disarm_callback);
     ros::Subscriber command_start_mission_sub = n.subscribe("mavlink_interface/command/start_mission", 1, ml_command_start_mission_callback);
@@ -697,6 +774,7 @@ int main (int argc, char** argv)
 	ml_init();
 	ml_set_monitor_all();
 
+    /* start local setpoint spam */
     ros::Timer timer = n.createTimer(ros::Duration(0.2), send_local_setpoint_callback);
 
 	/* ros main loop */

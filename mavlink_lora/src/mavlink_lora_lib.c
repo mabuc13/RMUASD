@@ -695,6 +695,38 @@ void ml_queue_msg_mission_count (unsigned short count)
 	ml_queue_msg(buf);
 }
 /***************************************************************************/
+void ml_queue_msg_write_partial_list (uint16_t start_idx, uint16_t end_idx)
+{
+	/* id=38 */
+	/* reference: mavlink/common/mavlink_msg_write_partial_list.h */
+	unsigned char *buf = (txbuf + txbuf_cnt);
+    unsigned char *pv;
+
+	/* encode part of the header */
+	buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_WRITE_PARTIAL_LIST_LEN;
+	buf[ML_POS_SYS_ID] = recorded_sysid;
+	buf[ML_POS_COMP_ID] = 0;
+	buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_WRITE_PARTIAL_LIST;
+
+	/* payload */
+    pv = (unsigned char *) &start_idx;
+	buf[ML_POS_PAYLOAD + 0]  = pv[0];
+	buf[ML_POS_PAYLOAD + 1]  = pv[1];
+
+    pv = (unsigned char *) &end_idx;
+	buf[ML_POS_PAYLOAD + 2]  = pv[0];
+	buf[ML_POS_PAYLOAD + 3]  = pv[1];
+	
+	/* system_id (target) */
+	buf[ML_POS_PAYLOAD + 4] = MAV_SYS_ID_UA; /* UA is the target system */
+
+	/* component_id (target) */
+	buf[ML_POS_PAYLOAD + 5] = 0; /* target component */
+
+	/* queue message */
+	ml_queue_msg(buf);
+}
+/***************************************************************************/
 void ml_queue_msg_mission_clear_all(void)
 {
     /* id=45 */

@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+
+import signal
+import sys
+import rospy
+import time
+import struct
+
+from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos, mavlink_lora_status
+from gcs.msg import *
+from std_msgs.msg import Int8,Header
+from std_srvs.srv import Trigger, TriggerResponse
+from mavlink_lora.msg import mavlink_lora_mission_item_int, mavlink_lora_mission_list, mavlink_lora_mission_partial_list
+from mavlink_defines import *
+from datetime import datetime
+
+# parameters
+mavlink_lora_sub_topic = '/mavlink_rx'
+mavlink_lora_pub_topic = '/mavlink_tx'
+mavlink_lora_status_sub_topic = '/mavlink_status'
+mavlink_lora_pos_sub_topic = '/mavlink_pos'
+mavlink_lora_atti_sub_topic = '/mavlink_attitude'
+update_interval = 10
+
+class MissionHandler(object):
+
+    def __init__(self):
+        self.request_sent = False
+
+		# status variables
+        self.batt_volt = 0.0
+        self.last_heard = 0
+        self.last_heard_sys_status = 0
+        self.lat = 0.0
+        self.lon = 0.0
+        self.alt = 0.0
+        self.local_lat = 0.0
+        self.local_lon = 0.0
+        self.local_alt = -5.0
+
+        self.mission_list = mavlink_lora_mission_list()
+        self.valid_mission = False
+
+        self.upload_timer = None
+
+        rospy.sleep (1) # wait until everything is running
+
+        # Service handlers
+        # self.arm_service            = rospy.Service("/telemetry/arm_drone", Trigger, self.arm_drone, buff_size=10)
+        self.mission_upload_service = rospy.Service("/mission/upload", Trigger, self.upload_mission, buff_size=10)
+        self.mission_upload_partial_service = rospy.Service("/mission/partial", Trigger, self.upload_partial_mission, buff_size=10)
+        self.mission_change_service = rospy.Service("/mission/change", Trigger, self.change_mission, buff_size=10)
+
+        # Topic handlers
+        # self.mav_mode_pub = rospy.Publisher("/telemetry/mavlink_mav_mode", telemetry_mav_mode, queue_size=0)
+
+        self.mission_upload_pub = rospy.Publisher("mavlink_interface/mission/mavlink_upload_mission", mavlink_lora_mission_list, queue_size=0)
+        self.partial_mission_upload_pub = rospy.Publisher("mavlink_interface/mission/mavlink_upload_partial_mission", mavlink_lora_mission_partial_list, queue_size=0)
+
+        rospy.Subscriber("/downloaded_mission", mavlink_lora_mission_list, self.on_mission_list)
+        rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
+        # rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
+        # rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
+        self.rate = rospy.Rate(update_interval)
+
+    def on_mavlink_msg(self,msg):                
+        if msg.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST or msg.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST_INT:
+            pass
+
+    def on_mission_list(self, msg):
+        self.waypoints = msg.waypoints
+
+        # for waypoint in msg.waypoints:
+        #     print(waypoint)
+
+    def on_mavlink_lora_pos(self,msg):
+        self.lat = msg.lat
+        self.lon = msg.lon
+        self.alt = msg.alt
+
+    def on_mavlink_lora_status (self, msg):
+        self.last_heard = msg.last_heard.secs + msg.last_heard.nsecs/1.0e9
+        self.last_heard_sys_status = msg.last_heard_sys_status.secs + msg.last_heard_sys_status.nsecs/1.0e9
+        self.batt_volt = msg.batt_volt / 1000.0
+
+    def upload_mission(self, srv):
+        msg = mavlink_lora_mission_list(
+            header=Header(stamp=rospy.Time.now()),
+            waypoints=self.waypoints
+        )
+        self.mission_upload_pub.publish(msg)
+        return TriggerResponse()
+
+    def upload_partial_mission(self, srv):
+        msg = mavlink_lora_mission_partial_list(
+            start_index=4,
+            end_index=4
+        )
+        print("HEY")
+        msg.waypoints.append(self.waypoints[1])
+        self.partial_mission_upload_pub.publish(msg)
+        
+        return TriggerResponse()
+
+    def change_mission(self, srv):
+        self.waypoints[4].x = self.waypoints[0].x
+        self.waypoints[4].y = self.waypoints[0].y
+
+def main():
+    rospy.init_node('mission_node')#, anonymous=True)
+    rospy.sleep(1)
+
+    mh = MissionHandler()
+
+    rospy.spin()
+
+if __name__ == "__main__":
+    main()
