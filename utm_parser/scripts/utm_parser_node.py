@@ -13,7 +13,7 @@ Descriptors: MB = Mark Buch (mabuc13@student.sdu.dk)
 
 """
 Description:
-This class will handle post and get to the UTM from the GCS. 
+This class will handle post and get to the UTM from the GCS.
 The idea is to have each request as a seperate method.
 
 License: BSD 3-Clause

@@ -7,12 +7,12 @@ project(utm_parser)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED 
-  rospy 
+find_package(catkin REQUIRED
+  rospy
   message_generation
   std_msgs
   gcs
-  
+
 )
 
 ## System dependencies are found with CMake's conventions
@@ -51,15 +51,23 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+<<<<<<< f16fb5400808b0c1e2c52d6be36150a69d8bfb8c
   array1d.msg
   dnfz.msg
+=======
+
+>>>>>>> Can download and parse static NFZ from the UTM server
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
    FILES
+<<<<<<< f16fb5400808b0c1e2c52d6be36150a69d8bfb8c
    get_snfz.srv
    post_drone_info.srv
+=======
+
+>>>>>>> Can download and parse static NFZ from the UTM server
 )
 
 ## Generate actions in the 'action' folder
@@ -73,7 +81,10 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
+<<<<<<< f16fb5400808b0c1e2c52d6be36150a69d8bfb8c
   gcs
+=======
+>>>>>>> Can download and parse static NFZ from the UTM server
 )
 
 ################################################

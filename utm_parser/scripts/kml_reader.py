@@ -265,7 +265,7 @@ class kml_no_fly_zones_parser():
         Returns no-fly zone name of the argument provided no-fly zone (note that if the parsing failed with the name it returns 'NaN')
         Input: zone number
         Output: no-fly zone name
-        """	
+        """
         if 0 <= zone_no < len(self.coordinate3d_combined):
             return self.coordinate3d_combined[zone_no]['name']
         else:
