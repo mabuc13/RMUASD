@@ -64,13 +64,13 @@ extern "C"
 
 #define RX_BUFFER_SIZE 16000
 #define DEFAULT_TIMEOUT_TIME 1.5
-#define MISSION_ITEM_TIMEOUT_TIME 0.5
+#define MISSION_ITEM_TIMEOUT_TIME 1.5
 #define MISSION_MAX_RETRIES 5
 #define HEARTBEAT_RATE 1
 /***************************************************************************/
 /* global variables */
 
-int ser_ref;
+int ser_ref; 
 struct termios oldtio;
 ros::Time last_heard;
 ros::Time sys_status_last_heard;
@@ -84,13 +84,15 @@ unsigned short msg_id_global_position_int_received;
 
 /* Mission upload operations variables */
 unsigned short mission_up_count = 0; /*< Total count of mission elements to be uploaded*/
-int mission_up_index = 0; /*< Current mission item getting uploaded */
+int mission_up_index = -1; /*< Current mission item getting uploaded */
 uint16_t start_index = 0;
 uint16_t end_index = 0;
 std::vector<mavlink_lora::mavlink_lora_mission_item_int> missionlist; /*< list of all waypoints for upload */
 bool mission_uploading = false; /*< Are we uploading a mission atm. Needed to know what messages/timeouts to react to*/
 ros::Timer mission_up_timeout;// = ros::NodeHandle::createTimer(ros::Duration(DEFAULT_TIMEOUT_TIME), mission_up_timeout_callback, true, false); /*< Timer for timeouts when doing mission transmissions */
 int mission_retries = 0;
+
+int items_sent = 0;
 
 /* Offboard related variables */
 uint16_t local_sp_typemask = 0x03F8;
@@ -228,20 +230,28 @@ void ml_parse_msg(unsigned char *msg)
 	/* Forcing it to use INT variants for best possible precision. */
 	if (m.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST_INT || m.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST)
     {
-	    //stop timer
-	    mission_up_timeout.stop();
-
-	    //reset retries
-	    mission_retries = 0;
-
 	    //unpack and update requested seq
 	    mavlink_mission_request_int_t request = ml_unpack_msg_mission_request_int(&m.payload.front());
-	    mission_up_index = request.seq;
 
-	    //send next item
-	    ml_send_mission_item_int();
+        // only answer a request for a sequence number the first time
+        if(mission_up_index == request.seq)
+            ROS_INFO_STREAM("Already sent that sequence number once");
+        else
+        {
+            //stop timer
+            mission_up_timeout.stop();
 
-        ROS_INFO_STREAM("Next item asked for:" + std::to_string(mission_up_index)); //TODO agree on what to print, and if debug prints can be enabled from launchfile or so?
+            //reset retries
+            mission_retries = 0;
+
+            mission_up_index = request.seq;
+
+            //send next item
+            ml_send_mission_item_int();
+
+            ROS_INFO_STREAM("Next item asked for:" + std::to_string(mission_up_index)); //TODO agree on what to print, and if debug prints can be enabled from launchfile or so?
+        }
+            
     }
 
     //handle mission ack
@@ -372,7 +382,7 @@ void ml_new_mission_callback(const mavlink_lora::mavlink_lora_mission_list::Cons
 {
     //Received new mission on topic, start uploading
     mission_up_count = msg->waypoints.size();
-    mission_up_index = 0;
+    mission_up_index = -1;
     missionlist = msg->waypoints;
 
     ROS_INFO_STREAM("New mission. Length:" + std::to_string(mission_up_count));
@@ -465,7 +475,7 @@ void ml_send_mission_clear_all()
 }
 /***************************************************************************/
 void ml_send_mission_item_int()
-{
+{   
     //send mission item.
     mavlink_lora::mavlink_lora_mission_item_int item = missionlist[mission_up_index];
     ml_queue_msg_mission_item_int(item.param1, item.param2, item.param3, item.param4, item.x, item.y, item.z, mission_up_index, item.command, item.frame, item.current, item.autocontinue);
@@ -492,7 +502,7 @@ void mission_up_item_timeout_callback(const ros::TimerEvent&)
         mission_ack_pub.publish(msg);
 
         //cancel command
-        mission_up_index = 0;
+        mission_up_index = -1;
         mission_up_count = 0;
         missionlist.clear();
         mission_uploading = false;
@@ -506,6 +516,7 @@ void mission_up_item_timeout_callback(const ros::TimerEvent&)
         return;
     }
 
+    ROS_INFO_STREAM("MISSION ITEM TIMEOUT!");
     //if timeout triggers, resend last mission item
     ml_send_mission_item_int();
 }

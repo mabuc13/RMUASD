@@ -173,6 +173,11 @@ class Telemetry(object):
 
             # rospy.loginfo("Mission item #{} has been reached".format(sequence_number[0]))
 
+        # elif msg.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST or msg.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST_INT:
+        #     (seq,_,_) = struct.unpack('<HBB', msg.payload)
+
+        #     print("Received a request for mission item #{}".format(seq))
+
         # elif msg.msg_id == 36:
         #     # (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port) = struct.unpack('<IHHHHHHHHB', msg.payload)
         #     pass

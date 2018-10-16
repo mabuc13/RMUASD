@@ -11,9 +11,6 @@ def import_plan(filename, target_sys=1, target_comp=0):
 
     mission_list = mavlink_lora_mission_list()
 
-    target_sys = 1
-    target_comp = 0
-
     for itr, waypoint in enumerate(data['mission']['items']):
         
         curr = 0
