@@ -104,7 +104,6 @@ catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES rocketbot
   CATKIN_DEPENDS message_runtime
-  DEPENDS system_lib
 )
 
 ###########

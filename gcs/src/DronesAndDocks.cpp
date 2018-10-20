@@ -2,6 +2,8 @@
 #include "DronesAndDocks.hpp"
 #include <iostream>
 
+
+//################## Dock ###################
 dock::dock(string name,double latitude, double longitude, double altitude, bool isLab):
   name(name),isALab(isLab){
   position.longitude = longitude;
@@ -18,6 +20,8 @@ bool dock::isLab(void){
   return isALab;
 }
 
+
+//################# Job #########################
 job::job(dock* station):status(1),worker(NULL){
     goal = station;
     QuestGiver = station;
@@ -28,6 +32,10 @@ job::job(const job &ajob):worker(NULL){
     this->status = ajob.status;
     this->setDrone(ajob.worker);
 }
+job::~job(){
+    this->worker->setJob(NULL);
+}
+
 
 uint8 job::getStatus(void){
     return status;
@@ -61,6 +69,8 @@ void job::setStatus(uint8 status){
     this->status = status;
 }
 
+
+//################### Drone ####################
 drone::drone(ID_t ID, gcs::GPS position):
     ID(ID),
     position(position),
@@ -99,6 +109,8 @@ void drone::setJob(job* aJob){
         if(aJob->getDrone() != this){
             aJob->setDrone(this);
         }
+    }else{
+        isFree = true;
     }
 }
 void drone::setPosition(gcs::GPS position){
