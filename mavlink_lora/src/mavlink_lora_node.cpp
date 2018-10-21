@@ -64,6 +64,7 @@ extern "C"
 
 #define RX_BUFFER_SIZE 16000
 #define DEFAULT_TIMEOUT_TIME 1.5
+#define DEFAULT_ACK_TIMEOUT 10
 #define MISSION_ITEM_TIMEOUT_TIME 1.5
 #define MISSION_MAX_RETRIES 5
 #define HEARTBEAT_RATE 1
@@ -90,6 +91,7 @@ uint16_t end_index = 0;
 std::vector<mavlink_lora::mavlink_lora_mission_item_int> missionlist; /*< list of all waypoints for upload */
 bool mission_uploading = false; /*< Are we uploading a mission atm. Needed to know what messages/timeouts to react to*/
 ros::Timer mission_up_timeout;// = ros::NodeHandle::createTimer(ros::Duration(DEFAULT_TIMEOUT_TIME), mission_up_timeout_callback, true, false); /*< Timer for timeouts when doing mission transmissions */
+ros::Timer mission_ack_timeout;
 int mission_retries = 0;
 
 int items_sent = 0;
@@ -120,6 +122,7 @@ void mission_up_count_timeout_callback(const ros::TimerEvent&);
 void mission_up_item_timeout_callback(const ros::TimerEvent&);
 void mission_up_partial_timeout_callback(const ros::TimerEvent&);
 void mission_clear_all_timeout_callback(const ros::TimerEvent&);
+void mission_ack_timeout_callback(const ros::TimerEvent&);
 void command_long_timeout_callback(const ros::TimerEvent&);
 void ml_send_mission_clear_all();
 void ml_send_mission_count();
@@ -230,7 +233,12 @@ void ml_parse_msg(unsigned char *msg)
 	/* Forcing it to use INT variants for best possible precision. */
 	if (m.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST_INT || m.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST)
     {
-	    //unpack and update requested seq
+	    // stop mission ack timout
+        mission_ack_timeout.stop();
+        ros::NodeHandle nh;
+        mission_ack_timeout = nh.createTimer(ros::Duration(DEFAULT_ACK_TIMEOUT), mission_ack_timeout_callback, true, true);
+        
+        //unpack and update requested seq
 	    mavlink_mission_request_int_t request = ml_unpack_msg_mission_request_int(&m.payload.front());
 
         // only answer a request for a sequence number the first time
@@ -257,8 +265,9 @@ void ml_parse_msg(unsigned char *msg)
     //handle mission ack
     if (m.msg_id == MAVLINK_MSG_ID_MISSION_ACK)
     {
-        //stop timer
+        //stop timers
         mission_up_timeout.stop();
+        mission_ack_timeout.stop();
 
         //reset retries
         mission_retries = 0;
@@ -576,6 +585,15 @@ void mission_up_count_timeout_callback(const ros::TimerEvent&)
     ml_send_mission_count();
 }
 /***************************************************************************/
+void mission_ack_timeout_callback(const ros::TimerEvent&)
+{        
+    //publish error on ack topic
+    std_msgs::String msg;
+    msg.data = mission_result_parser(19); //ack timeout error
+    mission_ack_pub.publish(msg);
+    ROS_WARN_STREAM("Wait for acknowledge timed out");
+}
+/***************************************************************************/
 void mission_up_partial_timeout_callback(const ros::TimerEvent&)
 {
     //increment retries
@@ -639,6 +657,8 @@ std::string mission_result_parser(uint8_t result)
             return "MAV_MISSION_INVALID_SEQUENCE";
         case 14:
             return "MAV_MISSION_DENIED";
+        case 19:
+            return "MAV_MISSION_ACK_TIMEOUT";
         case 20:
             return "MAV_MISSION_MAX_RETRIES"; //Custom error indicating aborting due to max retries with no success
         default:
@@ -787,7 +807,7 @@ int main (int argc, char** argv)
 	ml_set_monitor_all();
 
     /* start local setpoint spam */
-    ros::Timer timer = n.createTimer(ros::Duration(0.2), send_local_setpoint_callback);
+    ros::Timer timer = n.createTimer(ros::Duration(0.125), send_local_setpoint_callback);
 
 	/* ros main loop */
 	ros::Rate loop_rate(100);

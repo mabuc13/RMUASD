@@ -41,6 +41,8 @@ MAVLINK_CMD_NAV_GUIDED_ENABLE = 92
 MAVLINK_CMD_DO_SET_MODE = 176
 MAVLINK_CMD_DO_CHANGE_SPEED = 178
 
+MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6
+
 MAVLINK_MAIN_MODE_LOOKUP = {0: "N/A", 1: "Manual", 2: "Altitude Control", 3: "Position Control",
                             4: "Auto", 5: "Acro", 6: "Offboard", 7: "Stabilized", 8: "Rattitude"}
 

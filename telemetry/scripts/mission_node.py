@@ -31,9 +31,6 @@ class MissionHandler(object):
         self.request_sent = False
 
 		# status variables
-        self.batt_volt = 0.0
-        self.last_heard = 0
-        self.last_heard_sys_status = 0
         self.lat = 0.0
         self.lon = 0.0
         self.alt = 0.0
@@ -49,10 +46,8 @@ class MissionHandler(object):
         rospy.sleep (1) # wait until everything is running
 
         # Service handlers
-        # self.arm_service            = rospy.Service("/telemetry/arm_drone", Trigger, self.arm_drone, buff_size=10)
         self.mission_upload_service = rospy.Service("/mission/upload", Trigger, self.upload_mission, buff_size=10)
         self.mission_upload_partial_service = rospy.Service("/mission/partial", Trigger, self.upload_partial_mission, buff_size=10)
-        self.mission_change_service = rospy.Service("/mission/change", Trigger, self.change_mission, buff_size=10)
         self.mission_upload_from_file_service = rospy.Service("/mission/upload_from_file", UploadFromFile, self.upload_from_file, buff_size=10)
 
         # Topic handlers
@@ -62,8 +57,6 @@ class MissionHandler(object):
 
         rospy.Subscriber("/downloaded_mission", mavlink_lora_mission_list, self.on_mission_list)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
-        # rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
-        # rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
         self.rate = rospy.Rate(update_interval)
 
     def on_mavlink_msg(self,msg):                
@@ -72,19 +65,6 @@ class MissionHandler(object):
 
     def on_mission_list(self, msg):
         self.waypoints = msg.waypoints
-
-        # for waypoint in msg.waypoints:
-        #     print(waypoint)
-
-    def on_mavlink_lora_pos(self,msg):
-        self.lat = msg.lat
-        self.lon = msg.lon
-        self.alt = msg.alt
-
-    def on_mavlink_lora_status (self, msg):
-        self.last_heard = msg.last_heard.secs + msg.last_heard.nsecs/1.0e9
-        self.last_heard_sys_status = msg.last_heard_sys_status.secs + msg.last_heard_sys_status.nsecs/1.0e9
-        self.batt_volt = msg.batt_volt / 1000.0
 
     def upload_mission(self, srv):
         msg = mavlink_lora_mission_list(
@@ -107,14 +87,12 @@ class MissionHandler(object):
             
         return UploadFromFileResponse()
 
-
-
     def upload_partial_mission(self, srv):
         msg = mavlink_lora_mission_partial_list(
             start_index=4,
             end_index=4
         )
-        print("HEY")
+        
         msg.waypoints.append(self.waypoints[1])
         self.partial_mission_upload_pub.publish(msg)
         
@@ -128,10 +106,6 @@ class MissionHandler(object):
         self.mavlink_msg_pub.publish(mav_msg)
 
         return TriggerResponse()
-
-    def change_mission(self, srv):
-        self.waypoints[4].x = self.waypoints[0].x
-        self.waypoints[4].y = self.waypoints[0].y
 
 def main():
     rospy.init_node('mission_node')#, anonymous=True)

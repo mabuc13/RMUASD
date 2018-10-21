@@ -6,14 +6,15 @@ import rospy
 import time
 import struct
 
-from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos, mavlink_lora_status
+from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_list
 from gcs.msg import *
-from std_msgs.msg import Int8
+from std_msgs.msg import Int8, String
 from std_srvs.srv import Trigger, TriggerResponse
-from telemetry.srv import SetMode, Origin, OriginResponse, ChangeSpeed, ChangeSpeedResponse
+from telemetry.srv import SetMode, Origin, OriginResponse, ChangeSpeed, ChangeSpeedResponse, UploadFromFile
 from telemetry.msg import telemetry_statustext, telemetry_heartbeat_status, telemetry_mav_mode, local_setpoint
 from mavlink_defines import *
 from datetime import datetime
+import mission_handler
 
 # parameters
 mavlink_lora_sub_topic = '/mavlink_rx'
@@ -42,6 +43,7 @@ class Telemetry(object):
         self.local_lon = 0.0
         self.local_alt = -5.0
 
+        self.mission_handler = mission_handler.MissionHandler()
         self.current_mission_no = 0
         self.last_mission_no = 0
 
@@ -50,31 +52,39 @@ class Telemetry(object):
         self.boot_time = rospy.Time.now().to_sec() * 1000
 
         # Service handlers
-        self.arm_service            = rospy.Service("/telemetry/arm_drone", Trigger, self.arm_drone, buff_size=10)
-        self.disarm_service         = rospy.Service("/telemetry/disarm_drone", Trigger, self.disarm_drone, buff_size=10)
-        self.takeoff_service        = rospy.Service("/telemetry/takeoff_drone", Trigger, self.takeoff_drone, buff_size=10)
-        self.land_service           = rospy.Service("/telemetry/land_drone", Trigger, self.land_drone, buff_size=10)
-        self.start_mission_service  = rospy.Service("/telemetry/start_mission", Trigger, self.start_mission, buff_size=10)
-        self.return_home_service    = rospy.Service("/telemetry/return_home", Trigger, self.return_home, buff_size=10)
-        self.set_mode_service       = rospy.Service("/telemetry/set_mode", SetMode, self.set_mode, buff_size=10)
-        self.gps_origin_service     = rospy.Service("/telemetry/gps_origin", Origin, self.set_gps_global_origin, buff_size=10)
-        self.guided_enable_service  = rospy.Service("/telemetry/guided_enable", Trigger, self.guided_enable, buff_size=10)
-        self.guided_disable_service = rospy.Service("/telemetry/guided_disable", Trigger, self.guided_disable, buff_size=10)
-        self.change_speed_service   = rospy.Service("/telemetry/change_speed", ChangeSpeed, self.change_speed, buff_size=10)
+        self.arm_service                = rospy.Service("/telemetry/arm_drone", Trigger, self.arm_drone, buff_size=10)
+        self.disarm_service             = rospy.Service("/telemetry/disarm_drone", Trigger, self.disarm_drone, buff_size=10)
+        self.takeoff_service            = rospy.Service("/telemetry/takeoff_drone", Trigger, self.takeoff_drone, buff_size=10)
+        self.land_service               = rospy.Service("/telemetry/land_drone", Trigger, self.land_drone, buff_size=10)
+        self.start_mission_service      = rospy.Service("/telemetry/start_mission", Trigger, self.start_mission, buff_size=10)
+        self.return_home_service        = rospy.Service("/telemetry/return_home", Trigger, self.return_home, buff_size=10)
+        self.set_mode_service           = rospy.Service("/telemetry/set_mode", SetMode, self.set_mode, buff_size=10)
+        # self.gps_origin_service         = rospy.Service("/telemetry/gps_origin", Origin, self.set_gps_global_origin, buff_size=10)
+        self.guided_enable_service      = rospy.Service("/telemetry/guided_enable", Trigger, self.guided_enable, buff_size=10)
+        self.guided_disable_service     = rospy.Service("/telemetry/guided_disable", Trigger, self.guided_disable, buff_size=10)
+        self.change_speed_service       = rospy.Service("/telemetry/change_speed", ChangeSpeed, self.change_speed, buff_size=10)
+        self.dowload_mission_service    = rospy.Service("/telemetry/download_mission", Trigger, self.mission_handler.download, buff_size=10)
+        self.mission_upload_service     = rospy.Service("/telemetry/upload_mission", Trigger, self.mission_handler.upload, buff_size=10)
+        self.mission_upload_from_file_service = rospy.Service("/telemetry/upload_mission_from_file", UploadFromFile, self.mission_handler.upload_from_file, buff_size=10)
 
         # Topic handlers
-        self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
-        self.statustext_pub = rospy.Publisher("/telemetry/mavlink_statustext", telemetry_statustext, queue_size=0)
-        self.heartbeat_status_pub = rospy.Publisher("telemetry/mavlink_heartbeat_status", telemetry_heartbeat_status, queue_size=0)
-        self.mav_mode_pub = rospy.Publisher("/telemetry/mavlink_mav_mode", telemetry_mav_mode, queue_size=0)
+        self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
+        self.statustext_pub         = rospy.Publisher("/telemetry/mavlink_statustext", telemetry_statustext, queue_size=0)
+        self.heartbeat_status_pub   = rospy.Publisher("/telemetry/mavlink_heartbeat_status", telemetry_heartbeat_status, queue_size=0)
+        self.mav_mode_pub           = rospy.Publisher("/telemetry/mavlink_mav_mode", telemetry_mav_mode, queue_size=0)
         # rospy.Subscriber('/telemetry/local_setpoint', local_setpoint, self.on_new_local_setpoint)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
         rospy.Subscriber(mavlink_lora_keypress_sub_topic, Int8, self.on_keypress)
+        rospy.Subscriber("/telemetry/new_mission", mavlink_lora_mission_list, self.mission_handler.on_mission_list)
+        rospy.Subscriber("mavlink_interface/mission/ack", String, self.mission_handler.on_mission_ack)
         self.rate = rospy.Rate(update_interval)
 
-    def on_mavlink_msg(self,msg):                
+    def on_mavlink_msg(self,msg):       
+        # also send the msg to the mission handlr for processing
+        self.mission_handler.on_mavlink_msg(msg)
+
         if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
             (custom_mode, mav_type, autopilot, base_mode, mav_state, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
             
@@ -157,26 +167,6 @@ class Telemetry(object):
         #     print("Channel 7: {}".format(ch7))
         #     print("Channel 8: {}".format(ch8))
         #     print("RSSI: {}".format(rssi))
-
-        elif msg.msg_id == MAVLINK_MSG_ID_MISSION_CURRENT:
-            sequence_number = struct.unpack('<H', msg.payload)
-
-            # self.current_mission_no = sequence_number[0]
-
-            # rospy.loginfo("Mission item #{} is currently active".format(sequence_number[0]))
-            # if self.current_mission_no != self.last_mission_no:
-            #     rospy.loginfo("Mission item #{} is currently active".format(sequence_number[0]))
-            #     self.last_mission_no = self.current_mission_no
-
-        elif msg.msg_id == MAVLINK_MSG_ID_MISSION_ITEM_REACHED:
-            sequence_number = struct.unpack('<H', msg.payload)
-
-            # rospy.loginfo("Mission item #{} has been reached".format(sequence_number[0]))
-
-        # elif msg.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST or msg.msg_id == MAVLINK_MSG_ID_MISSION_REQUEST_INT:
-        #     (seq,_,_) = struct.unpack('<HBB', msg.payload)
-
-        #     print("Received a request for mission item #{}".format(seq))
 
         # elif msg.msg_id == 36:
         #     # (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port) = struct.unpack('<IHHHHHHHHB', msg.payload)
@@ -334,10 +324,6 @@ class Telemetry(object):
         # TODO Handle responses properly
         return True, "Dummy message"
 
-    def shutdownHandler(self):
-        # shutdown services
-        print("Shutting down")
-
     def change_speed(self, srv):
         command = MAVLINK_CMD_DO_CHANGE_SPEED
         params = (srv.speed_type,srv.speed,srv.throttle,srv.abs_rel,0,0,0)
@@ -345,47 +331,52 @@ class Telemetry(object):
         self.send_mavlink_msg_id_cmd_long(params,command,1)
 
         return ChangeSpeedResponse()
-
-    def enable_rc_channels(self):
-        msg = mavlink_lora_msg()
-
-        # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
-        msg.header.stamp = rospy.Time.now()
-        msg.msg_id = 66 # request data stream
-        msg.sys_id = 0
-        msg.comp_id = 0
-
-        # command = 511
-        # params = (34,500000,0,0,0,0,0)
-
-        # self.send_mavlink_msg_id_cmd_long(params,command,1)
-
-        # Appears to need to be 1,1
-        target_sys = 1
-        target_comp = 1
-        req_stream_id = 3 # rc channel stream
-        req_message_rate = 1
-        start_stop = 0
-
-        msg.payload_len = 6
-        msg.payload = struct.pack('<HBBBB', req_message_rate, target_sys, target_comp, req_stream_id, start_stop)
-        self.mavlink_msg_pub.publish(msg)
-
-    def set_gps_global_origin(self,srv):
-        msg = mavlink_lora_msg()
         
-        target_sys = 1
-        latitude = int(srv.lat * 1e7)
-        longitude = int(srv.lon * 1e7)
-        altitude = int(self.alt * 1e3)
+    def shutdownHandler(self):
+        # shutdown services
+        print("Shutting down")
 
-        msg.msg_id = MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN
-        msg.payload = struct.pack('<iiiB', latitude, longitude, altitude, target_sys)
-        msg.payload_len = 13
 
-        self.mavlink_msg_pub.publish(msg)
+    # def enable_rc_channels(self):
+    #     msg = mavlink_lora_msg()
 
-        return OriginResponse()
+    #     # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
+    #     msg.header.stamp = rospy.Time.now()
+    #     msg.msg_id = 66 # request data stream
+    #     msg.sys_id = 0
+    #     msg.comp_id = 0
+
+    #     # command = 511
+    #     # params = (34,500000,0,0,0,0,0)
+
+    #     # self.send_mavlink_msg_id_cmd_long(params,command,1)
+
+    #     # Appears to need to be 1,1
+    #     target_sys = 1
+    #     target_comp = 1
+    #     req_stream_id = 3 # rc channel stream
+    #     req_message_rate = 1
+    #     start_stop = 0
+
+    #     msg.payload_len = 6
+    #     msg.payload = struct.pack('<HBBBB', req_message_rate, target_sys, target_comp, req_stream_id, start_stop)
+    #     self.mavlink_msg_pub.publish(msg)
+
+    # def set_gps_global_origin(self,srv):
+    #     msg = mavlink_lora_msg()
+        
+    #     target_sys = 1
+    #     latitude = int(srv.lat * 1e7)
+    #     longitude = int(srv.lon * 1e7)
+    #     altitude = int(self.alt * 1e3)
+
+    #     msg.msg_id = MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN
+    #     msg.payload = struct.pack('<iiiB', latitude, longitude, altitude, target_sys)
+    #     msg.payload_len = 13
+
+    #     self.mavlink_msg_pub.publish(msg)
+
+    #     return OriginResponse()
 
 def main():
     rospy.init_node('telemetry')#, anonymous=True)

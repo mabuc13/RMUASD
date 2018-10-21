@@ -71,7 +71,7 @@ class ros_node():
 
 		# initiate node
 		rospy.init_node(ros_node_name)
-		self.mission_list_pub = rospy.Publisher("downloaded_mission", mavlink_lora_mission_list, queue_size=0)
+		self.mission_list_pub = rospy.Publisher("/telemetry/new_mission", mavlink_lora_mission_list, queue_size=0)
 		self.mavlink_msg_pub = rospy.Publisher(mavlink_lora_tx_pub, mavlink_lora_msg, queue_size=0)
 		rospy.Subscriber(mavlink_lora_rx_sub, mavlink_lora_msg, self.on_mavlink_msg)
 		self.rate = rospy.Rate(ros_node_update_interval)
@@ -145,7 +145,7 @@ class ros_node():
 			period=rospy.Duration(TIMEOUT),
 			callback=self.request_list_timeout,
 			oneshot=True
-			)
+		)
 		
 
 	def send_mavlink_mission_req(self, mission_id):
