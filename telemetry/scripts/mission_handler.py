@@ -106,6 +106,7 @@ class MissionHandler(object):
             rospy.loginfo("Mission count: %d" % self.mission_count)
             if self.mission_count > 0:
                 self.mission_id_next = 0
+                rospy.loginfo("Requesting item #%d" % self.mission_id_next)
                 self.send_mavlink_mission_req(self.mission_id_next)
             else:
                 self.busy = False
@@ -191,6 +192,7 @@ class MissionHandler(object):
             rospy.logwarn("Can't upload mission. Handler is busy.")
             return TriggerResponse(False, "Can't upload mission. Handler is busy.")
         else:
+            rospy.loginfo("Upload started.")
             self.busy = True
             self.mission_list_up.header.stamp = rospy.Time.now()
             self.mission_upload_pub.publish(self.mission_list_up)
@@ -208,6 +210,7 @@ class MissionHandler(object):
             rospy.logwarn("Can't upload mission. Handler is busy.")
             return UploadFromFileResponse(False, "Can't upload mission. Handler is busy.")
         else:
+            rospy.loginfo("Upload started.")
             self.busy = True
             mission_list.header.stamp = rospy.Time.now()
             self.mission_list_up = mission_list
