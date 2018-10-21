@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #/***************************************************************************
 # MavLink LoRa node (ROS) mission library
 # Copyright (c) 2018, Kjeld Jensen <kjen@mmmi.sdu.dk> <kj@kjen.dk>
@@ -93,15 +93,15 @@ class mission_lib():
 		self.msg.payload = struct.pack('<HBB', mission_id, self.target_sys, self.target_comp)
 
 	def unpack_mission_count(self, payload):
-		(count, target_sys, target_comp) = struct.unpack('<HBB', payload)
+		(count, _, _) = struct.unpack('<HBB', payload)
 		return count
 
 	def unpack_mission_current(self, payload):
-		current = struct.unpack('<H', payload)
-		return current
+		(current) = struct.unpack('<H', payload)
+		return current[0]
 		
 	def unpack_mission_item(self, payload):
-		(param1, param2, param3, param4, x, y, z, seq, cmd, target_sys, target_comp, frame, cur, autocont) = struct.unpack('fffffffHHBBBBB', payload)
+		(param1, param2, param3, param4, x, y, z, seq, cmd, _, _, _, cur, autocont) = struct.unpack('fffffffHHBBBBB', payload)
 		return [param1, param2, param3, param4, x, y, z, seq, cmd, cur, autocont]
 	
 if __name__ == "__main__":

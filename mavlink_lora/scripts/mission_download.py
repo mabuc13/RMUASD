@@ -44,7 +44,7 @@ mavlink_lora_tx_pub = '/mavlink_tx'
 # imports
 from sys import argv
 import rospy
-from mission_lib import *
+from mission_lib import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_mission_item_int, mavlink_lora_mission_list
 
 # defines

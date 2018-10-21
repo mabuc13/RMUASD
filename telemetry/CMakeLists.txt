@@ -52,6 +52,7 @@ add_message_files(
   telemetry_statustext.msg
   telemetry_heartbeat_status.msg
   telemetry_mav_mode.msg
+  telemetry_mission_info.msg
   local_setpoint.msg
 )
 
@@ -62,6 +63,8 @@ add_service_files(
    Origin.srv
    ChangeSpeed.srv
    UploadFromFile.srv
+   LandDrone.srv
+   TakeoffDrone.srv
 )
 
 ## Generate actions in the 'action' folder

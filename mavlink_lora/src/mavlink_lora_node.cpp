@@ -590,7 +590,7 @@ void mission_ack_timeout_callback(const ros::TimerEvent&)
     //publish error on ack topic
     std_msgs::String msg;
     msg.data = mission_result_parser(19); //ack timeout error
-    mission_ack_pub.publish(msg);
+    mission_ack_pub.publish(msg); 
     ROS_WARN_STREAM("Wait for acknowledge timed out");
 }
 /***************************************************************************/

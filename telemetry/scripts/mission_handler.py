@@ -1,10 +1,11 @@
+#!/usr/bin/env python
 
 # imports
 from sys import argv
 import rospy
 import rospkg
-from mavlink_defines import *
-from mission_lib import *
+from mavlink_defines import * # pylint: disable=W0614
+from mission_lib import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_mission_item_int, mavlink_lora_mission_list
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.srv import UploadFromFile, UploadFromFileResponse
@@ -31,6 +32,7 @@ class MissionHandler(object):
         self.sys_id = 0  # reset when receiving first msg
         self.comp_id = 0
         self.active_mission_item = 0
+        self.active_mission_length = 0
 
         self.mission_list_down  = mavlink_lora_mission_list()
         self.mission_list_up    = mavlink_lora_mission_list()
@@ -91,6 +93,7 @@ class MissionHandler(object):
                 self.mission_list_down.header.stamp = rospy.Time.now()
                 self.mission_id_next = 0
                 self.busy = False
+                self.active_mission_length = len(self.mission_list_down.waypoints)
                 self.mi.pack_mission_ack(MAV_MISSION_ACCEPTED)
                 self.mavlink_msg_pub.publish(self.mi.msg)
                 # self.mission_list_pub.publish(self.mission_list_down)
@@ -109,15 +112,18 @@ class MissionHandler(object):
 
         elif msg.msg_id == MAVLINK_MSG_ID_MISSION_ACK:
             self.busy = False
+            self.active_mission_length = len(self.mission_list_up.waypoints)
 
         elif msg.msg_id == MAVLINK_MSG_ID_MISSION_CURRENT:
             self.active_mission_item = self.mi.unpack_mission_current(msg.payload)
+
 
     def on_mission_list(self, msg):
         self.mission_list_up.waypoints = msg.waypoints
 
     def on_mission_ack(self, msg):
         self.busy = False
+        self.retries = 0
         rospy.loginfo(msg.data)
 
     def send_mavlink_mission_req_list(self):
@@ -204,6 +210,7 @@ class MissionHandler(object):
         else:
             self.busy = True
             mission_list.header.stamp = rospy.Time.now()
+            self.mission_list_up = mission_list
             self.mission_upload_pub.publish(mission_list)
             return UploadFromFileResponse(True, "Uploading mission.")
 
