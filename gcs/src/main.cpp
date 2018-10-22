@@ -15,6 +15,7 @@
 #include <gcs/DronePath.h>
 #include <gcs/DroneState.h>
 #include <std_msgs/String.h>
+#include <internet/getIp.h>
 
 #include <DronesAndDocks.hpp>
 
@@ -22,7 +23,7 @@ using namespace std;
 
 ros::Subscriber DroneStatus_sub;//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
 ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=10)
-//ros::Publisher DroneState_pub;// = rospy.Publisher('/gcs/StateRequest', DroneState, queue_size=10)
+
 ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_handler)
 ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
 ros::NodeHandle* nh;
@@ -265,6 +266,33 @@ void initialize(void){
             }
         }
     }
+
+    ros::ServiceClient client = nh->serviceClient<internet::getIp>("getIp");
+    internet::getIp srv;
+    srv.request.username = "waarbubble@gmail.com";
+    srv.request.password = "RMUASDProject";
+    bool worked = false;
+    const long maxTries = 10000;
+    long tries = 0;
+    cout << "Getting Server IP" << endl;
+    while(!worked && tries < maxTries){
+        tries++;
+        worked = client.call(srv);
+        if (worked){
+            cout << "IP: " << srv.response.ip << endl;
+            cout << "Port: " << srv.response.port << endl;
+            string msg = "name=gcs,server="+srv.response.ip+",port="+srv.response.port;
+            std_msgs::String msgOut;
+            msgOut.data=msg;
+            WebInfo_pub.publish(msgOut);
+
+        }
+    }
+
+    if(tries == maxTries){
+        ROS_ERROR("Could not obtain IP");
+    }
+
 
 
 

@@ -5,12 +5,13 @@ import json
 import rospy
 from urllib.request import urlopen
 from json import dumps
+from internet.srv import *
 
 #"RUI2QzlDRjQtMTg0NC00RjU0LUE0NDItMDIwNDJGRDBGOERE"
-def getToken(developerKey):
+def getToken(developerKey,username,password):
     url = "https://api.remot3.it/apv/v23.5/user/login"
     print ("Connecting to: "+ url)
-    payload = "{ \"username\" : \"waarbubble@gmail.com\", \"password\" : \"RMUASDProject\" }"
+    payload = "{ \"username\" : \""+username+"\", \"password\" : \""+password+"\" }"
     headers = {
         'developerkey': developerKey,
         'content-type': "application/json",
@@ -75,7 +76,7 @@ def proxyConnect(UID, token,developerKey):
   # whatismyip.com
 
     my_ip = urlopen('http://ip.42.pl/raw').read().decode()
-    print("my I: " + my_ip)
+    print("my Ip: " + my_ip)
 
     proxyConnectURL = apiMethod + apiServer + apiVersion + "/device/connect"
 
@@ -98,17 +99,28 @@ def proxyConnect(UID, token,developerKey):
                                        )
     try:
         data = json.loads(content.decode())["connection"]["proxy"]
-        print(data)
+
+        data = data.split(":")
+        print("IPfound: "+  data[0]+":"+data[1]+"::"+data[2])
+        return data[0]+":"+data[1],data[2]
     except KeyError:
         print("Key Error exception!")
         print(content)
+        return "localhost", "5555"
 
-if __name__ == '__main__':
-    rospy.init_node('IpNode')
-
+def handle_getIp(req):
     developerKey="RUI2QzlDRjQtMTg0NC00RjU0LUE0NDItMDIwNDJGRDBGOERE"
-    token = getToken(developerKey)
+    token = getToken(developerKey,req.username,req.password)
     device = getDevice(token,developerKey)
     serviceID = getService('Relay',device)
     if not serviceID == 'NULL':
-       proxyConnect(serviceID,token,developerKey)
+       ip,port = proxyConnect(serviceID,token,developerKey)
+       return getIpResponse(ip,port)
+    return getIpResponse("localhost","5555")
+
+if __name__ == '__main__':
+    rospy.init_node('IpNode')
+    s = rospy.Service('getIp',getIp, handle_getIp)
+    print(" ")
+    print("IP fetcher running")
+    rospy.spin()

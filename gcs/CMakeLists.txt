@@ -48,7 +48,6 @@ find_package(catkin REQUIRED rospy std_msgs message_generation roscpp roslib)
    DroneInfo.msg
    GPS.msg
    DronePath.msg
-   DroneState.msg
 )
 
 ## Generate services in the 'srv' folder
