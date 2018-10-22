@@ -3,19 +3,21 @@
 import numpy as np
 from numpy import *  # Gradient
 import matplotlib.pyplot as plt
+from matplotlib2tikz import save as tikz_save
 import matplotlib.patches as patches
 import math
-from coordinate import coordinate
+from coordinate import Coordinate
 
 padding = 6    # Padding in top, bottum, left and right of start and goal coordinates
 delta = 1.0  # Strength of attraction
 mu = 1.0  # Strength of repultion
 dist_thresh = 0.02  #
-objects = np.empty((0, 2), coordinate)
-global_bottom_left = coordinate(0, 0)
-global_top_right = coordinate(0, 0)
+objects = np.empty((0, 2), Coordinate)
+global_bottom_left = Coordinate(0, 0)
+global_top_right = Coordinate(0, 0)
 global_map_width = 0
 global_map_height = 0
+
 
 def set_global_coordinates(start, goal):
     if start.lat < goal.lat:
@@ -41,13 +43,16 @@ def set_global_coordinates(start, goal):
             global_top_right.lat = start.lat + padding
             global_top_right.lon = start.lon + padding
 
+
 def dist(start, goal):
     return sqrt((start.lat - goal.lat) ** 2 + (start.lon - goal.lon) ** 2)
+
 
 def dist_matrix(start, goal, obj):
     x, y = np.mgrid[global_bottom_left.lon:global_top_right.lon, global_bottom_left.lat:global_top_right.lat]
     dist = sqrt((obj.lon - x) ** 2 + (obj.lat - y) ** 2)
     return dist
+
 
 def dist_gradient(start, goal, obj):
     x, y = np.mgrid[global_bottom_left.lon:global_top_right.lon, global_bottom_left.lat:global_top_right.lat]
@@ -55,15 +60,18 @@ def dist_gradient(start, goal, obj):
     eLat, eLon = gradient(D)
     return eLat, eLon
 
+
 def obj_gradient(start, goal, obj):
     x, y = np.mgrid[global_bottom_left.lon:global_top_right.lon, global_bottom_left.lat:global_top_right.lat]
     D = -1 / (sqrt((y - obj.lat) ** 2 + (x - obj.lon) ** 2))
     eLat, eLon = gradient(D)
     return eLat, eLon
 
+
 def U_att(start, goal):
     U_lat, U_lon = dist_gradient(start, goal, goal)
     return delta * (U_lat), delta * (U_lon),
+
 
 def U_rep(start, goal):
     x, y = np.mgrid[global_bottom_left.lon:global_top_right.lon, global_bottom_left.lat:global_top_right.lat]#np.mgrid[start.lon:goal.lon + 1, start.lat:goal.lat + 1]
@@ -87,6 +95,7 @@ def U_rep(start, goal):
 
     return U_lat, U_lon
 
+
 def U_total(start, goal):
     U_a_lat, U_a_lon = U_att(start, goal)
     U_r_lat, U_r_lon = U_rep(start, goal)
@@ -96,19 +105,30 @@ def U_total(start, goal):
 
     return U_a_lat + U_r_lat, U_a_lon + U_r_lon
 
+
 if __name__ == "__main__":
-    obj_0 = coordinate(4, 6)
-    obj_1 = coordinate(8, 2)
-    obj_2 = coordinate(8, 12)
-    obj_3 = coordinate(1, -3)
+    obj_0 = Coordinate(6,2)
+    obj_1 = Coordinate(6,3)
+    obj_2 = Coordinate(6,4)
+    obj_3 = Coordinate(6,5)
+    obj_4 = Coordinate(6,6)
+    obj_5 = Coordinate(5,6)
+    obj_6 = Coordinate(4,6)
+    obj_7 = Coordinate(3,6)
+    obj_8 = Coordinate(2,6)
 
     objects = np.append(objects, obj_0)
     objects = np.append(objects, obj_1)
     objects = np.append(objects, obj_2)
     objects = np.append(objects, obj_3)
+    objects = np.append(objects, obj_4)
+    objects = np.append(objects, obj_5)
+    objects = np.append(objects, obj_6)
+    objects = np.append(objects, obj_7)
+    objects = np.append(objects, obj_8)
 
-    start = coordinate(10, 10)
-    goal = coordinate(1, 1)
+    start = Coordinate(1, 1)
+    goal = Coordinate(10, 10)
 
     set_global_coordinates(start, goal)
     global_map_width = global_top_right.lon - global_bottom_left.lon
@@ -119,12 +139,11 @@ if __name__ == "__main__":
     # np.mgrid[0:(global_map_width), 0:(global_map_height)]
     U, V = U_total(start, goal)
 
-    circles = []
+    #circles = []
 
-    fig = plt.figure()
-    ax = fig.add_axes([0.025, 0.025, 0.95, 0.95])
-
-    #plt.axes([0.025, 0.025, 0.95, 0.95])
+    #fig = plt.figure()
+    #ax = fig.add_axes([0.025, 0.025, 0.95, 0.95])
+    plt.axes([0.025, 0.025, 0.95, 0.95])
     #plt.quiver(X, Y, U, V, R, alpha=.5)
     #circle1 = patches.Circle((8, 2), 0.3, fc='r', alpha=0.5, picker=True)
     #circle1 = patches.Circle((2, -3), 0.3, fc='r', alpha=0.5, picker=True)
@@ -135,8 +154,12 @@ if __name__ == "__main__":
     #circles.append(ax.add_patch(circle2))
     #circles.append(ax.add_patch(circle3))
     plt.quiver(X, Y, U, V, edgecolor='k', facecolor='None', linewidth=.5)
-
     plt.xticks(())
     plt.yticks(())
-
+    tikz_save(
+        'vector_field_test1.tex',
+        figureheight='\\figureheight',
+        figurewidth='\\figurewidth'
+    )
+    plt.savefig('vector_field_test1.png')
     plt.show()

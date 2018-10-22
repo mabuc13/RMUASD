@@ -16,7 +16,7 @@ find_package(catkin REQUIRED rospy std_msgs message_generation roscpp roslib)
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
+catkin_python_setup()
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -103,7 +103,6 @@ catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES rocketbot
   CATKIN_DEPENDS message_runtime
-  DEPENDS system_lib
 )
 
 ###########
@@ -142,6 +141,9 @@ add_executable(${PROJECT_NAME}_node src/main.cpp src/DronesAndDocks.cpp src/Text
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+# needed because the message file needs to be maked before the node using it
+add_dependencies(${PROJECT_NAME}_node gcs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node

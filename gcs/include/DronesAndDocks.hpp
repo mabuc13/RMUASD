@@ -32,6 +32,7 @@ class job{
 public:
   job(dock* station);
   job(const job &aJob);
+  ~job();
   uint8 getStatus(void);
   drone* getDrone(void);
   dock* getQuestHandler(void);
@@ -41,11 +42,13 @@ public:
   void setGoal(dock* goal);
   void setStatus(uint8 status);
 
+  static const uint8 done = 6;
   static const uint8 ready4takeOff = 5;
   static const uint8 wait4pathplan = 4;
   static const uint8 onhold = 3;
   static const uint8 ongoing = 2;
   static const uint8 queued = 1;
+
 
 private:
   dock* goal= NULL;

@@ -1,0 +1,5 @@
+uint8 system_id
+uint8 component_id
+string timestamp
+uint16 active_waypoint_idx
+uint16 mission_length

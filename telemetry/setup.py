@@ -2,6 +2,6 @@ from distutils.core import setup
 from catkin_pkg.python_setup import generate_distutils_setup
 
 d = generate_distutils_setup(
-  scripts=['scripts/telemetry_node.py'],)
+  scripts=['scripts/telemetry_node.py', 'scripts/mission_node.py'],)
 setup(**d)
 

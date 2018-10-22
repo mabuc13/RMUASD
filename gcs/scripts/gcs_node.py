@@ -119,10 +119,6 @@ def Web_handler(msg):
 			else:
 				feedBack = feedBack + ",request=failed"
 
-
-
-
-
 		WebInfo_pub.publish(feedBack)
 	print(msg)
 

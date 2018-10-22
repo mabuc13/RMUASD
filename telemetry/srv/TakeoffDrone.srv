@@ -1,0 +1,9 @@
+bool        on_the_spot
+float32     abort_alt
+float32     yaw             # -1 for unchanged
+float32     lat
+float32     lon
+float32     alt             # ground level
+---
+bool        success
+string      message
