@@ -54,19 +54,11 @@ using namespace std;
 #endif
 
 
-<<<<<<< HEAD
 ros::Subscriber DroneStatus_sub;//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
 ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=10)
 
 ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_handler)
 ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
-=======
-ros::Subscriber DroneStatus_sub;//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler) // NOLINT
-ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=10) // NOLINT
-//ros::Publisher DroneState_pub;// = rospy.Publisher('/gcs/StateRequest', DroneState, queue_size=10)
-ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_handler) // NOLINT
-ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10) // NOLINT
->>>>>>> e2a0f0d45165205b593976d9936a2f4cd9fc2635
 ros::NodeHandle* nh;
 
 std::deque<job*> jobQ;
@@ -256,7 +248,6 @@ void initialize(void){
             }
         }
     }
-<<<<<<< HEAD
 
     ros::ServiceClient client = nh->serviceClient<internet::getIp>("getIp");
     internet::getIp srv;
@@ -288,8 +279,6 @@ void initialize(void){
 
 
 
-=======
->>>>>>> e2a0f0d45165205b593976d9936a2f4cd9fc2635
 }
 
 
