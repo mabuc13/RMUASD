@@ -301,30 +301,30 @@ int main(int argc, char** argv){
     initialize();
     unsigned long spins;
     ros::Rate r(1);
+
+    std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
+    //########## Dummy #####
+
+    
+    // only take a few of the waypoints
+    // std::cout << plan.size() << std::endl;
+
+    // get the number of indeces to skip in order to end up with 10 waypoints
+    int delta_idx = plan.size() / 9;
+
+    std::vector<gcs::GPS> shortened_plan;
+
+    for(int i = 0; i < 9; i++)
+        shortened_plan.push_back(plan[delta_idx*i]);
+
+    shortened_plan.push_back(Docks[1]->getPosition());
+
+    // std::cout << shortened_plan.size() << std::endl;
+
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
-
-        //########## Dommy #####
-
-        std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
         
-        // only take a few of the waypoints
-        // std::cout << plan.size() << std::endl;
-
-        // get the number of indeces to skip in order to end up with 10 waypoints
-        int delta_idx = plan.size() / 9;
-
-        std::vector<gcs::GPS> shortened_plan;
-
-        for(int i = 0; i < 9; i++)
-        {
-            shortened_plan.push_back(plan[delta_idx*i]);
-        }
-
-        shortened_plan.push_back(Docks[1]->getPosition());
-        
-        // std::cout << shortened_plan.size() << std::endl;
 
         gcs::DronePath p;
         p.DroneID = 2;

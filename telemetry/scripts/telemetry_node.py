@@ -74,9 +74,9 @@ class Telemetry(object):
 
         # Topic handlers
         self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
-        self.statustext_pub         = rospy.Publisher("/telemetry/mavlink_statustext", telemetry_statustext, queue_size=0)
-        self.heartbeat_status_pub   = rospy.Publisher("/telemetry/mavlink_heartbeat_status", telemetry_heartbeat_status, queue_size=0)
-        self.mav_mode_pub           = rospy.Publisher("/telemetry/mavlink_mav_mode", telemetry_mav_mode, queue_size=0)
+        self.statustext_pub         = rospy.Publisher("/telemetry/statustext", telemetry_statustext, queue_size=0)
+        self.heartbeat_status_pub   = rospy.Publisher("/telemetry/heartbeat_status", telemetry_heartbeat_status, queue_size=0)
+        self.mav_mode_pub           = rospy.Publisher("/telemetry/mav_mode", telemetry_mav_mode, queue_size=0)
         self.mission_info_pub       = rospy.Publisher("/telemetry/mission_info", telemetry_mission_info, queue_size=0)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
