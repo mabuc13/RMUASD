@@ -200,7 +200,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
                 jobQ.push_back(new job(goalDock));
                 feedback+= ",request=queued";
             }else{
-                feedback+= ",request=No Dockingstation named " + msg.getValue("name");
+                feedback+= ",request=failed,error=No Dockingstation named " + msg.getValue("name");
             }
             cout << "[Ground Control]: " << "request end" << endl;
         }else if(msg.hasValue("return")){  // ##########  RETURN ###############
@@ -221,7 +221,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
                         if(goalDock == NULL){
                             goalDock=closestLab(activeJobs[i]->getDrone());
                             if(goalDock == NULL){
-                                feedback+= ",return=Lab not found";
+                                feedback+= ",return=failed,error=Lab not found";
                                 break;
                             }
                         }
@@ -265,7 +265,7 @@ void initialize(void){
         }
     }
     pathPlanClient = nh->serviceClient<gcs::pathPlan>("/pathplan/getPlan");
-    ros::ServiceClient client = nh->serviceClient<internet::getIp>("getIp");
+    ros::ServiceClient client = nh->serviceClient<internet::getIp>("/Internet/getIp");
     sleep(2);
 
     internet::getIp srv;
@@ -306,9 +306,10 @@ int main(int argc, char** argv){
     ros::init(argc,argv,"gcs");
     initialize();
     unsigned long spins;
-
+    ros::Rate r(10);
     while(ros::ok()){
         ros::spinOnce();
+        r.sleep();
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
@@ -342,7 +343,7 @@ int main(int argc, char** argv){
                 activeJobs[i]->setStatus(job::ready4takeOff);
                 activeJobs[i]->getDrone()->setPath(path);
 
-                webMsg(activeJobs[i]->getQuestHandler(),"request=ready for takeoff");
+                webMsg(activeJobs[i]->getQuestHandler(),"request=ready4takeoff");
 
             }
         }

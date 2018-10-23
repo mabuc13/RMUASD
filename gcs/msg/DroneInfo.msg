@@ -1,14 +1,17 @@
 GPS position
 GPS next_goal
-float32[3] velocity
+float32 velocity
 float32 heading
 float32 battery_SOC
+float32 relative_alt
 
 uint32 drone_id
-uint64 GPS_timestamp
-int8 status
+string GPS_timestamp
+uint8 status
+uint16 mission_index
+bool armed
 
 uint8 Run = 1
-uint8 Stop = 2
-uint8 Land = 3
-uint8 Wait = 4
+uint8 Land = 2
+uint8 holding = 3
+

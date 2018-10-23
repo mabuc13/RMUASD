@@ -25,10 +25,10 @@ class ROSserver(object):
         self.port = 5555
         self.Ready2Send = False
         self.connectInternet("msg=HandShake")
-    def connectInternet(self,msg):
+    def connectInternet(self,msg): # Establish connection to internet
         self.Ready2Send = False
         self.toSend = [msg]
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Specify connection Type
         try:
             with self.printLock:
                 print("[Internet node]: Connecting to: "+self.server+":"+str(self.port))
@@ -37,7 +37,7 @@ class ROSserver(object):
         except socket.error as e:
             with self.printLock:
                 print("[Internet node]: "+str(e))
-    def toInternet(self,data):
+    def toInternet(self,data):     # Read msg heading for the internet and check if New IP address is specifyd
         with self.printLock:
             print("[Internet node]: "+data.data)
         data=str(data.data)
@@ -56,27 +56,27 @@ class ROSserver(object):
             data.replace(",port="+Ser,"")
 
         if serPortChanged:
-            with self.printLock:
-                print("[Internet node]: Server addr: "+ self.server+":"+str(self.port))
             with self.senderLock:
                 self.s.close()
                 self.connectInternet(data);
         else:
             self.toSend.append(data)
-    def sendPck(self):
+    def sendPck(self):             # Check if any new messages are available and send them of
         if len(self.toSend) >0:
             with self.printLock:
                 print("[Internet node]: "+self.toSend[0])
             with self.senderLock:
                 self.s.send(self.toSend.pop(0).encode())
-    def recvPck(self):
+        else:
+            time.sleep(1)
+    def recvPck(self):             # Wait for package to be recived
         self.fromInternet(self.s.recv(4096))
-    def fromInternet(self,data):
+    def fromInternet(self,data):   # Format the data from the internet and publish to rostopic
         data.decode()
         data = str(data)
         data = data[2:len(data)-1]
         with self.printLock:
-            print("[Internet node]: "+data)
+            print("[Internet node]: "+"Data recived: "+data)
         self.pub.publish(data)
     def valueOf(self,msg,value):
         text = msg.split(',')
@@ -98,7 +98,6 @@ def sender(void):
                 else:
                     time.sleep(1)
         except socket.error as e:
-
             with node.printLock:
                 print("[Internet node]: Sending Failed")
                 print("[Internet node]: "+str(e))
@@ -125,4 +124,4 @@ if __name__ == "__main__":
     start_new_thread(sender,(1,))
     start_new_thread(reciver,(1,))
     while not rospy.is_shutdown():
-        time.sleep(1000)
+        rospy.spin()
