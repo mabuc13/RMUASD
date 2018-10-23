@@ -888,7 +888,7 @@ void ml_queue_msg_heartbeat(void)
 
     /* encode part of the header */
     buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_HEARTBEAT_LEN;
-    buf[ML_POS_SYS_ID] = recorded_sysid;
+    buf[ML_POS_SYS_ID] = 0; //recorded_sysid;
     buf[ML_POS_COMP_ID] = 0;
     buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_HEARTBEAT;
 
@@ -925,7 +925,7 @@ void ml_queue_msg_set_position_target_local_ned(uint32_t time_boot_ms, uint8_t f
 
 	/* encode part of the header */
 	buf[ML_POS_PAYLOAD_LEN] = MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED_LEN;
-	buf[ML_POS_SYS_ID] = recorded_sysid;
+	buf[ML_POS_SYS_ID] = 0; //recorded_sysid;
 	buf[ML_POS_COMP_ID] = 0;
 	buf[ML_POS_MSG_ID] = MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED;
 

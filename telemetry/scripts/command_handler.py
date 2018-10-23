@@ -53,7 +53,8 @@ class CommandHandler(object):
     def on_command_ack(self, msg):
         self.busy = False
         self.retries = 0
-        self.command_timer.shutdown()
+        if self.command_timer != None:
+            self.command_timer.shutdown()
         rospy.loginfo(msg.result_text)
         # TODO add parser for what command was acknowledged
 
