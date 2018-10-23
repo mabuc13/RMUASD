@@ -1,0 +1,7 @@
+#input
+GPS start
+GPS end
+
+---
+# output
+GPS[] path

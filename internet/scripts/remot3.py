@@ -6,11 +6,12 @@ import rospy
 from urllib.request import urlopen
 from json import dumps
 from internet.srv import *
+import socket
 
 #"RUI2QzlDRjQtMTg0NC00RjU0LUE0NDItMDIwNDJGRDBGOERE"
 def getToken(developerKey,username,password):
     url = "https://api.remot3.it/apv/v23.5/user/login"
-    print ("Connecting to: "+ url)
+    print ("[remot3]: Connecting to: "+ url)
     payload = "{ \"username\" : \""+username+"\", \"password\" : \""+password+"\" }"
     headers = {
         'developerkey': developerKey,
@@ -20,7 +21,7 @@ def getToken(developerKey,username,password):
 
     response = requests.request("POST", url, data=payload, headers=headers)
     jsonFile = response.json()
-    print("Found token: "+ jsonFile['token'])
+    print("[remot3]: Found token: "+ jsonFile['token'])
     return jsonFile['token']
 
 def getDevice(token,developerKey):
@@ -42,22 +43,23 @@ def getDevice(token,developerKey):
     httplib2.debuglevel     = 0
     http                    = httplib2.Http()
 
-    print ("Connecting to: " + deviceListURL)
+    print ("[remot3]: Connecting to: " + deviceListURL)
     response, content = http.request( deviceListURL,
                                           'GET',
                                           headers=deviceListHeaders)
 
 
     deviceJson = json.loads(content.decode())
-    print("Device found: " + deviceJson['status'])
+    print("[remot3]: Device found: " + deviceJson['status'])
     #print(deviceJson['devices'])
     #print(content)
     return deviceJson['devices']
 
 def getService(name,device):
     for service in device:
+
         if service['devicealias'] == name:
-            print ("service found: "+ service['devicealias'])
+            print ("[remot3]: service found: "+ service['devicealias'])
             return service['deviceaddress']
     return 'NULL'
 
@@ -76,7 +78,7 @@ def proxyConnect(UID, token,developerKey):
   # whatismyip.com
 
     my_ip = urlopen('http://ip.42.pl/raw').read().decode()
-    print("my Ip: " + my_ip)
+    print("[remot3]: my Ip: " + my_ip)
 
     proxyConnectURL = apiMethod + apiServer + apiVersion + "/device/connect"
 
@@ -101,11 +103,12 @@ def proxyConnect(UID, token,developerKey):
         data = json.loads(content.decode())["connection"]["proxy"]
 
         data = data.split(":")
-        print("IPfound: "+  data[0]+":"+data[1]+"::"+data[2])
-        return data[0]+":"+data[1],data[2]
+        print("[remot3]: IPfound: "+data[1][2:]+"::"+data[2])
+        #return data[0]+":"+data[1],data[2]
+        return data[1][2:],data[2]
     except KeyError:
-        print("Key Error exception!")
-        print(content)
+        print("[remot3]: Key Error exception!")
+        print("[remot3]: "+content)
         return "localhost", "5555"
 
 def handle_getIp(req):
@@ -114,13 +117,13 @@ def handle_getIp(req):
     device = getDevice(token,developerKey)
     serviceID = getService('Relay',device)
     if not serviceID == 'NULL':
-       ip,port = proxyConnect(serviceID,token,developerKey)
-       return getIpResponse(ip,port)
+        ip,port = proxyConnect(serviceID,token,developerKey)
+        return getIpResponse(ip,port)
     return getIpResponse("localhost","5555")
 
 if __name__ == '__main__':
     rospy.init_node('IpNode')
     s = rospy.Service('getIp',getIp, handle_getIp)
     print(" ")
-    print("IP fetcher running")
+    print("[remot3]: IP fetcher running")
     rospy.spin()

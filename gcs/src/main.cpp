@@ -13,9 +13,9 @@
 #include <gcs/GPS.h>
 #include <gcs/DroneInfo.h>
 #include <gcs/DronePath.h>
-#include <gcs/DroneState.h>
 #include <std_msgs/String.h>
 #include <internet/getIp.h>
+#include <gcs/pathPlan.h>
 
 #include <DronesAndDocks.hpp>
 #include <TextCsvReader.hpp>
@@ -59,7 +59,11 @@ ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePa
 
 ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_handler)
 ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
+
+ros::ServiceClient pathPlanClient;
 ros::NodeHandle* nh;
+
+
 
 std::deque<job*> jobQ;
 std::vector<dock*> Docks;
@@ -99,8 +103,18 @@ dock* closestLab(drone* theDrone){ // TODO
     return NULL;
 }
 std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
-    std::vector<gcs::GPS> ret = {start,end};
-    return ret;
+
+    gcs::pathPlan srv;
+    srv.request.start = start;
+    srv.request.end = end;
+    bool worked = pathPlanClient.call(srv);
+    if (worked){
+        cout << "[Ground Control]: " << "PathPlanDone" << endl;
+    }else{
+        cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
+    }
+
+    return srv.response.path;
 }
 int ETA(job* aJob){
     return 3600;
@@ -115,7 +129,7 @@ void webMsg(dock* reciver, string msg){
     m+=msg;
     msgOut.data=m;
     WebInfo_pub.publish(msgOut);
-    cout << m << endl;
+    cout << "[Ground Control]: " << m << endl;
 }
 
 
@@ -135,7 +149,7 @@ void DroneStatus_Hangler(gcs::DroneInfo msg){
 
     if(isANewDrone){ // ############## Register if new drone #####################
         Drones.push_back(new drone(msg.drone_id,msg.position));
-        cout << "Drone Registered: " << Drones.back()->getID() << endl;
+        cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << endl;
     }else{ // ################### Update Drone state #############################
         Drones[index]->setPosition(msg.position);
         if(msg.status == msg.Run){
@@ -159,34 +173,36 @@ void DroneStatus_Hangler(gcs::DroneInfo msg){
 
 void WebInfo_Handler(std_msgs::String msg_in){
     CSVmsg msg(msg_in.data);
-    cout << msg_in.data << endl;
-    if(msg.hasValue("name") ){
+    cout << "[Ground Control]: "<< "MSG recived: "<<msg_in.data << endl;
+    if(msg.getValue("name")=="server")
+        return;
+    if(msg.hasValue("name")){
         string feedback = "name=gcs,target=" + msg.getValue("name");
         if(msg.hasValue("register")){ // ##############  REGISTER #############
             if(appendDockingStation(msg.getText())){
-                cout << "Docking Station added: " << Docks.back()->getName()<< endl;
+                cout << "[Ground Control]: " << "Docking Station added: " << Docks.back()->getName()<< endl;
                 feedback += ",register=succes";
             }else{
                 feedback += ",register=failed";
             }
         }else if(msg.hasValue("request")){  // ##########  REQUEST ##############
-            cout << "request recived" << endl;
+            cout << "[Ground Control]: " << "request recived" << endl;
             dock* goalDock;
             string dockName = msg.getValue("name");
             for(size_t i = 0; i < Docks.size(); i++){
                 if(Docks[i]->getName() == dockName){
-                    cout << "Dock found" << endl;
+                    cout << "[Ground Control]: " << "Dock found" << endl;
                     goalDock = Docks[i];
                 }
             }
             if(goalDock != NULL){
-                cout << "making job" << endl;
+                cout << "[Ground Control]: " << "making job" << endl;
                 jobQ.push_back(new job(goalDock));
                 feedback+= ",request=queued";
             }else{
                 feedback+= ",request=No Dockingstation named " + msg.getValue("name");
             }
-            cout << "request end" << endl;
+            cout << "[Ground Control]: " << "request end" << endl;
         }else if(msg.hasValue("return")){  // ##########  RETURN ###############
             job* theJob;
             for(size_t i = 0; i < activeJobs.size();i++){
@@ -236,33 +252,35 @@ void initialize(void){
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
         cout << endl << endl <<endl;
-        cout << "File opened: " <<  ros::package::getPath("gcs")<<"/scripts/Settings/DockingStationsList.txt" << endl;
+        cout << "[Ground Control]: " << "File opened: " <<  ros::package::getPath("gcs")<<"/scripts/Settings/DockingStationsList.txt" << endl;
         string line;
         while(getline(myFile,line)){
-            //cout << line << endl;
+            //cout << "[Ground Control]: " << line << endl;
             if(appendDockingStation(line)){
                 dock theDock = *(Docks.back());
-                cout << "Docking Station added: " << theDock.getName()<< endl;
+                cout << "[Ground Control]: " << "Docking Station added: " << theDock.getName()<< endl;
             }else{
-                cout << "Not a Docking Station" << endl;
+                cout << "[Ground Control]: " << "Not a Docking Station" << endl;
             }
         }
     }
-
+    pathPlanClient = nh->serviceClient<gcs::pathPlan>("/pathplan/getPlan");
     ros::ServiceClient client = nh->serviceClient<internet::getIp>("getIp");
+    sleep(2);
+
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
     srv.request.password = "RMUASDProject";
     bool worked = false;
     const long maxTries = 10000;
     long tries = 0;
-    cout << "Getting Server IP" << endl;
+    cout << "[Ground Control]: " << "Getting Server IP" << endl;
     while(!worked && tries < maxTries){
         tries++;
         worked = client.call(srv);
         if (worked){
-            cout << "IP: " << srv.response.ip << endl;
-            cout << "Port: " << srv.response.port << endl;
+            cout << "[Ground Control]: " << "IP: " << srv.response.ip << endl;
+            cout << "[Ground Control]: " << "Port: " << srv.response.port << endl;
             string msg = "name=gcs,server="+srv.response.ip+",port="+srv.response.port;
             std_msgs::String msgOut;
             msgOut.data=msg;
@@ -275,10 +293,12 @@ void initialize(void){
         ROS_ERROR("Could not obtain IP");
     }
 
+    //Test Code
+    /*std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
 
-
-
-
+    for(size_t i = 0; i < plan.size(); i++){
+        cout << "[Ground Control]: " << plan[i].altitude << endl;
+    }*/
 }
 
 
@@ -294,9 +314,9 @@ int main(int argc, char** argv){
         if(jobQ.size() != 0){
             for(size_t i = 0; i < Drones.size();i++){
                 if(Drones[i]->isAvailable()){
-                    cout << "Error here " << endl;
+                    cout << "[Ground Control]: " << "Error here " << endl;
                     activeJobs.push_back(jobQ.front());
-                    cout << "Error end" << endl;
+                    cout << "[Ground Control]: " << "Error end" << endl;
                     jobQ.pop_front();
                     Drones[i]->setJob(activeJobs.back());
                     Drones[i]->setAvailable(false);

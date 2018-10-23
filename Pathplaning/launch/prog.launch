@@ -1,0 +1,3 @@
+<launch>
+   <node name="pathplan" pkg="pathplan" type="pathplanner_node.py" output="screen"/>
+</launch>

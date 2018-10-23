@@ -6,23 +6,17 @@ from AStar_1 import astar
 from exportkml import kmlclass
 import rospy
 from gcs.msg import GPS, DronePath
-
-
-coord = GPS(longitude=,
-            latitude=,
-            altidute=)
-
-msg = DronePath(Path=)
+from gcs.srv import *
 
 
 class PathPlanner(object):
     def __init__(self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)):
-        self.start = Coordinate(lat=start.latitude, lon=start.longitude)
-        self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
+        self.start = Coordinate(GPS_data=start.GPS_data)
+        self.goal = Coordinate(GPS_data=goal.GPS_data)
 
         # Default position at HCA Airport: lat=55.470415, lon=10.329449
-        self.global_bottom_left = Coordinate(lat=55.470415, lon=10.329449)
-        self.global_top_right = Coordinate(lat=55.470415, lon=10.329449)
+        self.global_bottom_left = start
+        self.global_top_right = goal
         self.global_map_width = 0
         self.global_map_height = 0
         self.path = []
@@ -30,10 +24,6 @@ class PathPlanner(object):
         self.map_zeros = np.zeros((self.global_map_height, self.global_map_width), dtype=np.int)
 
         self.set_global_coordinates()
-
-        # Ros services:
-        self.service_get_path = rospy.Service("/pathplan/get_path", GetPath, self.get_path())
-
     def set_global_coordinates(self):
         if self.start.northing < self.goal.northing:
             if self.start.easting < self.goal.easting:
@@ -65,15 +55,12 @@ class PathPlanner(object):
         self.global_map_height = int(self.global_top_right.northing - self.global_bottom_left.northing)
 
         self.map_zeros = np.zeros((self.global_map_height, self.global_map_width), dtype=np.int)
-
     def set_map_padding(self, new_padding):
         self.map_padding = new_padding
         self.set_global_coordinates()
-
     def set_start_and_goal(self, start, goal):
         self.start = Coordinate(lat=start.latitude, lon=start.longitude)
         self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
-
     def compute_path(self):
         rel_start_pos = (int(self.start.northing - self.global_bottom_left.northing),
                          int(self.start.easting - self.global_bottom_left.easting))
@@ -81,7 +68,7 @@ class PathPlanner(object):
                         int(self.goal.easting - self.global_bottom_left.easting))
         rel_path = astar(self.map_zeros, rel_start_pos, rel_goal_pos)
 
-        self.path.clear()
+        self.path = []
 
         #TODO: Convert this to the GPS format that Kasper made
         self.path.append(self.start)
@@ -89,7 +76,6 @@ class PathPlanner(object):
             self.path.append(Coordinate(northing=(j[0] + self.global_bottom_left.northing),
                                         easting=(j[1] + self.global_bottom_left.easting)))
         self.path.append(self.goal)
-
     def export_kml_path(self, name):
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
@@ -102,15 +88,25 @@ class PathPlanner(object):
         kml.trksegend()
         kml.end()
 
-    def get_path(self):
-        self.compute_path()
-        return self.path
+
+def handle_getPathPlan(req):
+    print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) + ") to lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude)+")")
+    start = Coordinate(GPS_data=req.start)
+    theend = Coordinate(GPS_data=req.end)
+    planner = PathPlanner(start=start,goal=theend)
+    planner.compute_path();
+    plan = planner.path
+    GPSPlan = [req.start, req.end]
+    for point in plan:
+        GPSPlan.append(point.GPS_data)
+
+
+    return pathPlanResponse(GPSPlan)
 
 if __name__ == '__main__':
     rospy.init_node('pathplan')
     rospy.sleep(1)
 
-    drone_path_planner = PathPlanner()
-
+    s = rospy.Service('pathplan/getPlan',pathPlan, handle_getPathPlan)
+    print("[Path planner]: "+"Path planner running")
     rospy.spin()
-

@@ -1,13 +1,18 @@
 from utm import utmconv
-
+from gcs.msg import GPS
 
 class Coordinate(object):
-	def __init__(self, lat=0, lon=0, northing=0, easting=0):
+	def __init__(self, lat=0, lon=0, northing=0, easting=0, GPS_data=0):
 		self.lat = lat
 		self.lon = lon
 		self.northing = northing
 		self.easting = easting
 		self.altitude = 30
+		self.GPS_data = GPS_data
+		if self.GPS_data != 0:
+			self.lat = GPS_data.latitude
+			self.lon = GPS_data.longitude
+			self.altitude = GPS_data.altitude
 
 		# Default values:
 		self.hemisphere = 'N'
@@ -20,6 +25,11 @@ class Coordinate(object):
 			self.update_geo_coordinates()
 		if self.northing == 0 and self.easting == 0:
 			self.update_UTM_coordinates()
+		if self.GPS_data == 0:
+			self.GPS_data = GPS()
+			self.GPS_data.latitude = self.lat
+			self.GPS_data.longitude = self.lon
+			self.GPS_data.altitude = self.altitude
 
 	def update_UTM_coordinates(self):
 		self.hemisphere, self.zone, self.letter, self.easting, self.northing = self.converter.geodetic_to_utm(self.lat,

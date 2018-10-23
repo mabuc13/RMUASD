@@ -1,5 +1,6 @@
 <launch>
  <include file="$(find internet)/launch/prog.launch" />
  <include file="$(find telemetry)/launch/prog.launch" />
- <include file="$(find gcs)/launch/prog.launch" />	
+ <include file="$(find pathplan)/launch/prog.launch" />
+ <include file="$(find gcs)/launch/prog.launch" />
 </launch>

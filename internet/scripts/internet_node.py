@@ -10,7 +10,7 @@ import threading
 from std_msgs.msg import String
 
 def signal_handler(signal,somthing):
-    print('You pressed Ctrl+C!')
+    print('[Internet node]: You pressed Ctrl+C!')
     node.s.close()
     sys.exit(0)
 
@@ -31,15 +31,15 @@ class ROSserver(object):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             with self.printLock:
-                print("Connecting to: "+self.server+":"+str(self.port))
+                print("[Internet node]: Connecting to: "+self.server+":"+str(self.port))
             self.s.connect((self.server,self.port))
             self.Ready2Send = True
         except socket.error as e:
             with self.printLock:
-                print(str(e))
+                print("[Internet node]: "+str(e))
     def toInternet(self,data):
         with self.printLock:
-            print(data.data)
+            print("[Internet node]: "+data.data)
         data=str(data.data)
         data.replace(" ","")
         serPortChanged = False
@@ -57,7 +57,7 @@ class ROSserver(object):
 
         if serPortChanged:
             with self.printLock:
-                print("Server addr: "+ self.server+":"+str(self.port))
+                print("[Internet node]: Server addr: "+ self.server+":"+str(self.port))
             with self.senderLock:
                 self.s.close()
                 self.connectInternet(data);
@@ -66,7 +66,7 @@ class ROSserver(object):
     def sendPck(self):
         if len(self.toSend) >0:
             with self.printLock:
-                print(self.toSend[0].encode())
+                print("[Internet node]: "+self.toSend[0])
             with self.senderLock:
                 self.s.send(self.toSend.pop(0).encode())
     def recvPck(self):
@@ -76,7 +76,7 @@ class ROSserver(object):
         data = str(data)
         data = data[2:len(data)-1]
         with self.printLock:
-            print(data)
+            print("[Internet node]: "+data)
         self.pub.publish(data)
     def valueOf(self,msg,value):
         text = msg.split(',')
@@ -100,8 +100,8 @@ def sender(void):
         except socket.error as e:
 
             with node.printLock:
-                print("Sending Failed")
-                print(str(e))
+                print("[Internet node]: Sending Failed")
+                print("[Internet node]: "+str(e))
 
 RecErrNoLast = -1
 def reciver(void):
@@ -117,8 +117,8 @@ def reciver(void):
             if not e.errno == RecErrNoLast:
                 RecErrNoLast = e.errno
                 with node.printLock:
-                    print("Recived Failed")
-                    print(str(e))
+                    print("[Internet node]: Recived Failed")
+                    print("[Internet node]: "+str(e))
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
