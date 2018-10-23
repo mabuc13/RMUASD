@@ -86,7 +86,7 @@ class MissionHandler(object):
                 # if self.mission_id_next == 10:
                 # 	self.mission_id_next += 2
                 rospy.loginfo("Requesting item #%d" % self.mission_id_next)
-                self.send_mavlink_mission_req(self.mission_id_next)
+                self.send_mavlink_mission_req(self.mission_id_next) 
             else:
                 # finished download
                 rospy.loginfo("Download has finished.")

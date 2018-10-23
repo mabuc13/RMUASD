@@ -2,13 +2,8 @@
 
 import json
 from mavlink_lora.msg import mavlink_lora_mission_item_int, mavlink_lora_mission_list
-
-MAV_FRAME_MISSION = 2
-MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6
-
-FRAME_FROM_CMD = {
-    16: MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
-    178: MAV_FRAME_MISSION}
+from mavlink_defines import * # pylint: disable=W0614
+import rospy
 
 def import_plan(filename, target_sys=1, target_comp=0):
     with open(filename) as file:
@@ -24,6 +19,15 @@ def import_plan(filename, target_sys=1, target_comp=0):
 
         # convert all None-types to nan
         params = [float('nan') if param == None else param for param in waypoint['params'] ]
+        command = waypoint['command']
+
+        if command in SUPPORTED_GLOBAL_FRAMES:
+            frame = MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+        elif command in SUPPORTED_MISSION_FRAMES:
+            frame = MAV_FRAME_MISSION
+        else:
+            rospy.logwarn("Mission item ignored. Not supported on PX4 stack.")
+            continue
 
         mission_item = mavlink_lora_mission_item_int(
             param1=params[0],
@@ -34,12 +38,12 @@ def import_plan(filename, target_sys=1, target_comp=0):
             y=int(waypoint['params'][5]*1e7),
             z=waypoint['params'][6],
             seq=waypoint['doJumpId'],
-            command=waypoint['command'],
+            command=command,
             current=curr,
             autocontinue=1,
             target_system=target_sys,
             target_component=target_comp,
-            frame=FRAME_FROM_CMD[waypoint['command']]
+            frame=frame
         )
 
         mission_list.waypoints.append(mission_item)

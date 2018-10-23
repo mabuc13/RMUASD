@@ -46,7 +46,7 @@ class CommandHandler(object):
             self.cmd_lib.set_target(self.sys_id, self.comp_id)
 
     def on_mavlink_lora_pos(self,msg):
-        self.lat = msg.lat
+        self.lat = msg.lat 
         self.lon = msg.lon
         self.alt = msg.alt
        
@@ -60,7 +60,7 @@ class CommandHandler(object):
 
     # TODO Create suitable service messages for these calls (maybe include drone ID)
     def arm_drone(self, srv):
-        command = MAVLINK_CMD_ID_ARM_DISARM
+        command = MAV_CMD_ARM_DISARM
         params = (1,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -68,7 +68,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def disarm_drone(self, srv):
-        command = MAVLINK_CMD_ID_ARM_DISARM
+        command = MAV_CMD_ARM_DISARM
         params = (0,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -76,7 +76,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def takeoff_drone(self, srv):
-        command = MAVLINK_CMD_NAV_TAKEOFF
+        command = MAV_CMD_NAV_TAKEOFF
 
         yaw = float('nan') if srv.yaw == -1 else srv.yaw
 
@@ -90,7 +90,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def land_drone(self, srv):
-        command = MAVLINK_CMD_NAV_LAND
+        command = MAV_CMD_NAV_LAND
 
         yaw = float('nan') if srv.yaw == -1 else srv.yaw
 
@@ -105,7 +105,7 @@ class CommandHandler(object):
         
     def set_mode(self, srv):
         # custom_mode = struct.pack('<BBBB',srv.sub_mode,srv.main_mode,0,0)
-        command = MAVLINK_CMD_DO_SET_MODE
+        command = MAV_CMD_DO_SET_MODE
         params = (srv.base_mode,srv.main_mode,srv.sub_mode,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -113,7 +113,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def guided_enable(self, srv):
-        command = MAVLINK_CMD_NAV_GUIDED_ENABLE
+        command = MAV_CMD_NAV_GUIDED_ENABLE
         params = (1,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -121,7 +121,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def guided_disable(self, srv):
-        command = MAVLINK_CMD_NAV_GUIDED_ENABLE
+        command = MAV_CMD_NAV_GUIDED_ENABLE
         params = (0,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -129,7 +129,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def start_mission(self, msg):
-        command = MAVLINK_CMD_ID_MISSION_START
+        command = MAV_CMD_MISSION_START
         params = (0,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -137,7 +137,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def return_home(self,msg):
-        command = MAVLINK_CMD_NAV_RETURN_TO_LAUNCH
+        command = MAV_CMD_NAV_RETURN_TO_LAUNCH
         params = (0,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -145,8 +145,9 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def change_speed(self, srv):
-        command = MAVLINK_CMD_DO_CHANGE_SPEED
-        params = (srv.speed_type,srv.speed,srv.throttle,srv.abs_rel,0,0,0)
+        command = MAV_CMD_DO_CHANGE_SPEED
+        # params = (srv.speed_type,srv.speed,srv.throttle,srv.abs_rel,0,0,0)
+        params = (1,srv.speed,-1,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
