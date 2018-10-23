@@ -292,13 +292,6 @@ void initialize(void){
     if(tries == maxTries){
         ROS_ERROR("Could not obtain IP");
     }
-
-    //Test Code
-    /*std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
-
-    for(size_t i = 0; i < plan.size(); i++){
-        cout << "[Ground Control]: " << plan[i].altitude << endl;
-    }*/
 }
 
 
@@ -306,10 +299,18 @@ int main(int argc, char** argv){
     ros::init(argc,argv,"gcs");
     initialize();
     unsigned long spins;
-    ros::Rate r(10);
+    ros::Rate r(1);
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
+
+        //########## Dommy #####
+
+        std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
+        gcs::DronePath p;
+        p.DroneID = 2;
+        p.Path = plan;
+        RouteRequest_pub.publish(p);
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
