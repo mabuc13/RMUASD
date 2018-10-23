@@ -109,9 +109,9 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
     srv.request.end = end;
     bool worked = pathPlanClient.call(srv);
     if (worked){
-        cout << "[Ground Control]: " << "PathPlanDone" << endl;
+        // cout << "[Ground Control]: " << "PathPlanDone" << endl;
     }else{
-        cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
+        // cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
     }
 
     return srv.response.path;
@@ -267,7 +267,7 @@ void initialize(void){
     pathPlanClient = nh->serviceClient<gcs::pathPlan>("/pathplan/getPlan");
     ros::ServiceClient client = nh->serviceClient<internet::getIp>("/Internet/getIp");
     sleep(2);
-
+    /*
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
     srv.request.password = "RMUASDProject";
@@ -292,6 +292,7 @@ void initialize(void){
     if(tries == maxTries){
         ROS_ERROR("Could not obtain IP");
     }
+    */
 }
 
 
@@ -307,9 +308,27 @@ int main(int argc, char** argv){
         //########## Dommy #####
 
         std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
+        
+        // only take a few of the waypoints
+        // std::cout << plan.size() << std::endl;
+
+        // get the number of indeces to skip in order to end up with 10 waypoints
+        int delta_idx = plan.size() / 9;
+
+        std::vector<gcs::GPS> shortened_plan;
+
+        for(int i = 0; i < 9; i++)
+        {
+            shortened_plan.push_back(plan[delta_idx*i]);
+        }
+
+        shortened_plan.push_back(Docks[1]->getPosition());
+        
+        // std::cout << shortened_plan.size() << std::endl;
+
         gcs::DronePath p;
         p.DroneID = 2;
-        p.Path = plan;
+        p.Path = shortened_plan;
         RouteRequest_pub.publish(p);
 
         // ############ Find Available drones for queued Jobs ############
