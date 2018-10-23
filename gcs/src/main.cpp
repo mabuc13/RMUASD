@@ -304,13 +304,13 @@ int main(int argc, char** argv){
         ros::spinOnce();
         r.sleep();
 
-        //########## Dommy #####
+        //########## Dommy PathPlan request#####
 
-        std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
+        /*std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
         gcs::DronePath p;
         p.DroneID = 2;
         p.Path = plan;
-        RouteRequest_pub.publish(p);
+        RouteRequest_pub.publish(p);*/
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
