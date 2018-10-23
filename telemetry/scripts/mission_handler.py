@@ -217,3 +217,5 @@ class MissionHandler(object):
             self.mission_upload_pub.publish(mission_list)
             return UploadFromFileResponse(True, "Uploading mission.")
 
+    def mission_set_current(self, srv):
+        pass

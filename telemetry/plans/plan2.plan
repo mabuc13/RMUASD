@@ -43,15 +43,15 @@
             {
                 "autoContinue": true,
                 "command": 16,
-                "doJumpId": 3,
+                "doJumpId": 1,
                 "frame": 3,
                 "params": [
                     0,
                     0,
                     0,
                     null,
-                    55.47181446844337,
-                    10.414553225675661,
+                    55.4718399666637,
+                    10.414841881830853,
                     15
                 ],
                 "type": "SimpleItem"
