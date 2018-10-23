@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>telemetry</name>
+  <name>drone_handler</name>
   <version>0.0.0</version>
-  <description>Node that handles most of the MAVLink communication</description>
+  <description>Node that controls the low level operation and monitoring of drones</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
