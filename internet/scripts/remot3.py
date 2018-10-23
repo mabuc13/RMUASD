@@ -123,7 +123,7 @@ def handle_getIp(req):
 
 if __name__ == '__main__':
     rospy.init_node('IpNode')
-    s = rospy.Service('getIp',getIp, handle_getIp)
+    s = rospy.Service('/Internet/getIp',getIp, handle_getIp)
     print(" ")
     print("[remot3]: IP fetcher running")
     rospy.spin()
