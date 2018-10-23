@@ -11,3 +11,6 @@ cmake-build-*/
 
 # Ignore weird virtual environment folder
 venv/
+
+# Ignore macOS files
+.DS_Store
