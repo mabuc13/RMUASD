@@ -169,7 +169,7 @@ void webMsg(dock* reciver, string msg){
 }
 
 
-void DroneStatus_Hangler(gcs::DroneInfo msg){
+void DroneStatus_Handler(gcs::DroneInfo msg){
     // ###################### Is Drone Registered #####################
     bool isANewDrone = true;
     size_t index = 0;
@@ -282,7 +282,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
 
 void initialize(void){
     nh = new ros::NodeHandle();
-    DroneStatus_sub = nh->subscribe("/telemetry/DroneStatus",100,DroneStatus_Hangler);
+    DroneStatus_sub = nh->subscribe("/telemetry/DroneStatus",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/PathRequest",100);
     WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
@@ -308,31 +308,42 @@ void initialize(void){
     client = nh->serviceClient<internet::getIp>("/Internet/getIp");
     EtaClient = nh->serviceClient<gcs::getEta>("/pathplan/getEta");
     GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("pathplan/GPS2GPSdist");
+
     sleep(2);
 
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
-    srv.request.password = "RMUASDProject";
-    bool worked = false;
-    const long maxTries = 10000;
-    long tries = 0;
-    cout << "[Ground Control]: " << "Getting Server IP" << endl;
-    while(!worked && tries < maxTries){
-        tries++;
-        worked = client.call(srv);
-        if (worked){
-            cout << "[Ground Control]: " << "IP: " << srv.response.ip << endl;
-            cout << "[Ground Control]: " << "Port: " << srv.response.port << endl;
-            string msg = "name=gcs,server="+srv.response.ip+",port="+srv.response.port;
-            std_msgs::String msgOut;
-            msgOut.data=msg;
-            WebInfo_pub.publish(msgOut);
-
+    cout << "[Ground Control]: webServer Username: " << srv.request.username <<endl;
+    cout << "[Ground Control]: webServer Password: ";
+    string password;
+    getline(cin, password);
+    if(password.size()>2){
+        srv.request.password = password;
+        bool worked = false;
+        const long maxTries = 3;
+        long tries = 0;
+        cout << "[Ground Control]: " << "Getting Server IP" << endl;
+        while(!worked && tries < maxTries){
+            tries++;
+            worked = client.call(srv);
+            if (worked){
+                cout << "[Ground Control]: " << "IP: " << srv.response.ip << endl;
+                cout << "[Ground Control]: " << "Port: " << srv.response.port << endl;
+                string msg = "name=gcs,server="+srv.response.ip+",port="+srv.response.port;
+                std_msgs::String msgOut;
+                msgOut.data=msg;
+                WebInfo_pub.publish(msgOut);
+            }else{
+                cout << "[Ground Control]: webServer Password: ";
+                password.clear();
+                getline(cin, password);
+            }
         }
-    }
-
-    if(tries == maxTries){
-        ROS_ERROR("Could not obtain IP");
+        if(tries == maxTries){
+            ROS_ERROR("Could not obtain IP");
+        }
+    }else{
+        cout << "[Ground Control]: ignoring IP service" << endl;
     }
 
     /*job aJob(Docks[0]);
