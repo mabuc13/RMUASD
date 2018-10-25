@@ -116,6 +116,11 @@ void ml_init(void)
 	param_mission_tout = 0;
 }
 /***************************************************************************/
+uint8_t ml_recorded_sys_id(void)
+{
+	return recorded_sysid;
+}
+/***************************************************************************/
 unsigned long ml_messages_sent(void)
 {
 	return msg_tx_cnt;

@@ -1,15 +1,19 @@
 from collections import deque
 from mavlink_lora.msg import mavlink_lora_mission_item_int
+from gcs.msg import GPS
 
 # defines 
 BUFFER_SIZE = 30
 
 class Drone(object):
 
-    def __init__(self):
+    def __init__(self, drone_id=1):
         # All variables relating to the status and information of the drone
 
         self.last_heard = 0
+        self.id = drone_id
+
+        self.mission = []
 
         # from heartbeat status
         self.main_mode = ""
@@ -31,6 +35,14 @@ class Drone(object):
         # from statustext
         self.statustext = deque([], maxlen=BUFFER_SIZE)
         self.severity = deque([], maxlen=BUFFER_SIZE)
+
+        # from vfr hud
+        self.ground_speed = 0
+        self.climb_rate = 0
+        self.throttle = 0
+
+        # from home position
+        self.home_position = GPS()
 
         # from mission info
         self.active_waypoint_idx = 0
@@ -58,4 +70,3 @@ class Drone(object):
 
 
         # Maybe have service proxies in here so that drone operations seem like functions called on the drone object
-        pass

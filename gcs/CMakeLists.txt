@@ -48,6 +48,7 @@ catkin_python_setup()
    DroneInfo.msg
    GPS.msg
    DronePath.msg
+   NiceInfo.msg
 )
 
 ## Generate services in the 'srv' folder

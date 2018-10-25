@@ -54,6 +54,8 @@ add_message_files(
   telemetry_heartbeat_status.msg
   telemetry_mav_mode.msg
   telemetry_mission_info.msg
+  telemetry_vfr_hud.msg
+  telemetry_home_position.msg
   local_setpoint.msg
 )
 

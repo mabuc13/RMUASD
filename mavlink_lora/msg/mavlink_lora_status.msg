@@ -1,6 +1,7 @@
 Header header
 time last_heard
 time last_heard_sys_status
+uint8 system_id
 uint16 batt_volt
 
 uint32 msg_sent_gcs

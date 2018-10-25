@@ -11,8 +11,11 @@ import drone
 from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String
 from std_srvs.srv import Trigger, TriggerResponse
-from telemetry.msg import telemetry_heartbeat_status, telemetry_mav_mode, telemetry_mission_info, telemetry_statustext
+from telemetry.msg import *
 from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status
+from gcs.msg import DroneInfo, GPS, NiceInfo
+# defines
+INFO_FREQ = 5
 
 # parameters
 update_interval = 10
@@ -34,11 +37,16 @@ class DroneHandler(object):
 
         # Topic handlers
         # self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
+        self.drone_info_pub = rospy.Publisher("/drone_handler/DroneInfo", DroneInfo, queue_size=0) 
+        self.nice_info_pub = rospy.Publisher("/drone_handler/NiceInfo", NiceInfo, queue_size=0) 
+
         rospy.Subscriber("/gcs/PathRequest", DronePath, self.on_drone_path)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
         rospy.Subscriber("/telemetry/mav_mode", telemetry_mav_mode, self.on_mav_mode)
         rospy.Subscriber("/telemetry/statustext", telemetry_statustext, self.on_statustext)
         rospy.Subscriber("/telemetry/mission_info", telemetry_mission_info, self.on_mission_info)
+        rospy.Subscriber("/telemetry/vfr_hud", telemetry_vfr_hud, self.on_vfr_hud)
+        rospy.Subscriber("/telemetry/home_position", telemetry_home_position, self.on_home_position)
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
         rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
@@ -51,67 +59,136 @@ class DroneHandler(object):
         pass
 
     def on_heartbeat_status(self, msg):
-        drone = self.drones[msg.system_id]
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
 
-        drone.main_mode     = msg.main_mode
-        drone.sub_mode      = msg.sub_mode
-        drone.autopilot     = msg.autopilot
-        drone.type          = msg.mav_type
-        drone.state         = msg.mav_state
+            drone.main_mode     = msg.main_mode
+            drone.sub_mode      = msg.sub_mode
+            drone.autopilot     = msg.autopilot
+            drone.type          = msg.mav_type
+            drone.state         = msg.mav_state
 
     def on_mav_mode(self, msg):
-        drone = self.drones[msg.system_id]
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
 
-        drone.armed             = msg.armed
-        drone.manual_input      = msg.manual_input
-        drone.hil_simulation    = msg.hil_simulation
-        drone.stabilized_mode   = msg.stabilized_mode
-        drone.guided_mode       = msg.guided_mode
-        drone.auto_mode         = msg.auto_mode
-        drone.test_mode         = msg.test_mode
-        drone.custom_mode       = msg.custom_mode
+            drone.armed             = msg.armed
+            drone.manual_input      = msg.manual_input
+            drone.hil_simulation    = msg.hil_simulation
+            drone.stabilized_mode   = msg.stabilized_mode
+            drone.guided_mode       = msg.guided_mode
+            drone.auto_mode         = msg.auto_mode
+            drone.test_mode         = msg.test_mode
+            drone.custom_mode       = msg.custom_mode
         
     def on_statustext(self, msg):
-        drone = self.drones[msg.system_id]
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
 
-        drone.statustext.append(msg.text)
-        drone.severity.append(msg.severity)
+            drone.statustext.append(msg.text)
+            drone.severity.append(msg.severity)
+
+    def on_vfr_hud(self, msg):
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
+
+            drone.ground_speed = msg.ground_speed
+            drone.climb_rate = msg.climb_rate
+            drone.throttle = msg.throttle
+
+    def on_home_position(self, msg):
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
+
+            drone.home_position = GPS(msg.latitude, msg.longitude, msg.altitude)
+            # drone.home_position_local = local_pos(msg.x, msg.y, msg.z)
 
     def on_mission_info(self, msg):
-        drone = self.drones[msg.system_id]
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
 
-        drone.active_waypoint_idx   = msg.active_waypoint_idx
-        drone.active_mission_len    = msg.active_mission_len
-        drone.active_waypoint       = msg.current_item
+            drone.active_waypoint_idx   = msg.active_waypoint_idx
+            drone.active_mission_len    = msg.active_mission_len
+            drone.active_waypoint       = msg.current_item
 
 
     def on_drone_attitude(self, msg):
-        # drone = self.drones[msg.system_id]
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
 
-        # drone.roll = msg.roll
-        # drone.pitch = msg.pitch
-        # drone.yaw = msg.yaw
-        pass
+            drone.roll = msg.roll
+            drone.pitch = msg.pitch
+            drone.yaw = msg.yaw
 
     def on_drone_status(self, msg):
-        # drone = self.drones[msg.system_id]
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
 
-        # drone.battery_volt = msg.batt_volt / 1000.0
-        # drone.msg_sent_gcs = msg.msg_sent_gcs
-        # drone.msg_received_gcs = msg.msg_received_gcs
-        # drone.msg_dropped_gcs = msg.msg_dropped_gcs
-        # drone.msg_dropped_uas = msg.msg_dropped_uas
-        pass
+            drone.battery_volt = msg.batt_volt / 1000.0
+            drone.msg_sent_gcs = msg.msg_sent_gcs
+            drone.msg_received_gcs = msg.msg_received_gcs
+            drone.msg_dropped_gcs = msg.msg_dropped_gcs
+            drone.msg_dropped_uas = msg.msg_dropped_uas
 
     def on_drone_pos(self, msg):
-        # drone = self.drones[msg.system_id]
-        
-        # drone.latitude = msg.lat
-        # drone.longitude = msg.lon
-        # drone.absolute_alt = msg.alt
-        # drone.relative_alt = msg.relative_alt
-        # drone.heading = msg.heading
-        pass
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
+            
+            drone.latitude = msg.lat
+            drone.longitude = msg.lon
+            drone.absolute_alt = msg.alt
+            drone.relative_alt = msg.relative_alt
+            drone.heading = msg.heading
+
+    def send_info_cb(self, event):
+        # TODO iterate over all drones
+
+        drone = self.drones[1]
+
+        need2know = DroneInfo(
+            drone_id=drone.id,
+            position=GPS(drone.latitude, drone.longitude, drone.relative_alt),
+            # next_waypoint=drone.mission[index],
+            ground_speed=drone.ground_speed,
+            heading=drone.heading,
+            battery_SOC=drone.battery_volt,
+            relative_alt=drone.relative_alt,
+            absolute_alt=drone.absolute_alt
+            # GPS_timestamp=,
+            # status=DroneInfo.Run,
+            # mission_index=
+        )
+
+        nice2know = NiceInfo(
+            drone_id=drone.id,
+            # last_heard=,
+            # up_time=,
+            RPY=[drone.roll, drone.pitch, drone.yaw],
+            main_flightmode=drone.main_mode,
+            sub_flightmode=drone.sub_mode,
+            msg_sent_gcs=drone.msg_sent_gcs,
+            msg_received_gcs=drone.msg_received_gcs,
+            msg_dropped_gcs=drone.msg_dropped_gcs,
+            msg_dropped_uas=drone.msg_dropped_uas,
+            active_waypoint_idx=drone.active_waypoint_idx,
+            active_mission_len=drone.active_mission_len,
+            manual_input=drone.manual_input,
+            hil_simulation=drone.hil_simulation,
+            stabilized_mode=drone.stabilized_mode,
+            guided_mode=drone.guided_mode,
+            auto_mode=drone.auto_mode,
+            test_mode=drone.test_mode,
+            custom_mode=drone.custom_mode,
+            autopilot=drone.autopilot,
+            mav_state=drone.state,
+            mav_type=drone.type,
+            climb_rate=drone.climb_rate,
+            throttle=drone.throttle,
+            home=drone.home_position
+        )
+
+        self.drone_info_pub.publish(need2know)
+        self.nice_info_pub.publish(nice2know)
 
     def mission_request(self, srv):
         pass
@@ -127,6 +204,8 @@ if __name__ == "__main__":
     rospy.sleep(1)
 
     dh = DroneHandler()
+    
+    rospy.Timer(rospy.Duration(1/INFO_FREQ), dh.send_info_cb)
 
     rospy.on_shutdown(dh.shutdownHandler)
 

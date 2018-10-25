@@ -146,6 +146,7 @@ void ml_send_status_msg(void)
 	status.last_heard = last_heard;
 	status.last_heard_sys_status = sys_status_last_heard;
 	status.batt_volt = sys_status_voltage_battery;
+    status.system_id = ml_recorded_sys_id();
 	status.msg_sent_gcs = ml_messages_sent();
 	status.msg_received_gcs = ml_messages_received();
 	status.msg_dropped_gcs = ml_messages_crc_error();
@@ -184,6 +185,7 @@ void ml_parse_msg(unsigned char *msg)
 		pos.header.stamp = last_heard;
 		mavlink_global_position_int_t glob_pos = ml_unpack_msg_global_position_int (&m.payload.front());
 		pos.time_usec = (uint64_t) glob_pos.time_boot_ms*1000;
+        pos.system_id = ml_recorded_sys_id();
 		pos.lat = glob_pos.lat / 1e7;
 		pos.lon = glob_pos.lon / 1e7;
 		pos.alt = glob_pos.alt / 1e3;
@@ -199,6 +201,7 @@ void ml_parse_msg(unsigned char *msg)
 		pos.header.stamp = last_heard;
 		mavlink_gps_raw_int_t gri = ml_unpack_msg_gps_raw_int (&m.payload.front());
 		pos.time_usec = gri.time_usec;
+        pos.system_id = ml_recorded_sys_id();
 		pos.lat = gri.lat / 1e7;
 		pos.lon = gri.lon / 1e7;
 		pos.alt = gri.alt / 1e3;
@@ -214,6 +217,7 @@ void ml_parse_msg(unsigned char *msg)
 		atti.header.stamp = last_heard;
 		mavlink_attitude_t a = ml_unpack_msg_attitude (&m.payload.front());
 		atti.time_usec = (uint64_t) a.time_boot_ms*1000;
+        atti.system_id = ml_recorded_sys_id();
 		atti.yaw = a.yaw;
 		atti.pitch = a.pitch;
 		atti.roll = a.roll;

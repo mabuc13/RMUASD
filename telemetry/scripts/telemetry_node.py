@@ -11,7 +11,7 @@ from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.srv import SetMode, ChangeSpeed, UploadFromFile, TakeoffDrone, LandDrone
-from telemetry.msg import telemetry_statustext, telemetry_heartbeat_status, telemetry_mav_mode, telemetry_mission_info
+from telemetry.msg import *
 from mavlink_defines import * # pylint: disable=W0614
 from datetime import datetime
 import mission_handler
@@ -77,7 +77,8 @@ class Telemetry(object):
         self.statustext_pub         = rospy.Publisher("/telemetry/statustext", telemetry_statustext, queue_size=0)
         self.heartbeat_status_pub   = rospy.Publisher("/telemetry/heartbeat_status", telemetry_heartbeat_status, queue_size=0)
         self.mav_mode_pub           = rospy.Publisher("/telemetry/mav_mode", telemetry_mav_mode, queue_size=0)
-        self.mission_info_pub       = rospy.Publisher("/telemetry/mission_info", telemetry_mission_info, queue_size=0)
+        self.vfr_hud_pub            = rospy.Publisher("/telemetry/vfr_hud", telemetry_vfr_hud, queue_size=0)
+        self.home_position_pub      = rospy.Publisher("/telemetry/home_position", telemetry_home_position, queue_size=0)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
@@ -85,8 +86,6 @@ class Telemetry(object):
         rospy.Subscriber("/telemetry/new_mission", mavlink_lora_mission_list, self.mission_handler.on_mission_list)
         rospy.Subscriber("/mavlink_interface/mission/ack", String, self.mission_handler.on_mission_ack)
         rospy.Subscriber("/mavlink_interface/command/ack", mavlink_lora_command_ack, self.command_handler.on_command_ack)
-        
-        rospy.Timer(rospy.Duration(0.1), self.mission_info_cb)
         
         self.rate = rospy.Rate(update_interval)
 
@@ -128,7 +127,7 @@ class Telemetry(object):
                 timestamp=datetime.now().isoformat(),
                 armed=bool(base_mode & 0x80),
                 manual_input=bool(base_mode & 0x40),
-                HIL_simulation=bool(base_mode & 0x20),
+                hil_simulation=bool(base_mode & 0x20),
                 stabilized_mode=bool(base_mode & 0x10),
                 guided_mode=bool(base_mode & 0x08),
                 auto_mode=bool(base_mode & 0x04),
@@ -158,6 +157,38 @@ class Telemetry(object):
             rospy.logwarn(text)
             self.statustext_pub.publish(status_msg)
 
+        elif msg.msg_id == MAVLINK_MSG_ID_VFR_HUD:
+            (airspeed, groundspeed, alt, climb, heading, throttle) = struct.unpack('<ffffhH', msg.payload)
+            hud_msg = telemetry_vfr_hud(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=datetime.now().isoformat(),
+                airspeed=airspeed,
+                ground_speed=groundspeed,
+                absolute_alt=alt,
+                climb_rate=climb,
+                heading=heading,
+                throttle=throttle
+            )
+
+            self.vfr_hud_pub.publish(hud_msg)
+
+        elif msg.msg_id == MAVLINK_MSG_ID_HOME_POSITION:
+            (latitude, longitude, altitude, x, y, z, q0, q1, q2, q3, approach_x, approach_y, approach_z) = struct.unpack('<iiifff4ffff', msg.payload)
+
+            home_pos = telemetry_home_position(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=datetime.now().isoformat(),
+                latitude=latitude / 1e7,
+                longitude=longitude / 1e7,
+                altitude=altitude / 1e3,
+                x=x,
+                y=y,
+                z=z
+            )
+
+            self.home_position_pub.publish(home_pos)
         # elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
         #     (time_boot_ms, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IfffffffffffHB', msg.payload)
 
@@ -198,18 +229,6 @@ class Telemetry(object):
         self.last_heard_sys_status = msg.last_heard_sys_status.secs + msg.last_heard_sys_status.nsecs/1.0e9
         self.batt_volt = msg.batt_volt / 1000.0
 
-    def on_keypress(self, msg):
-        pass
-
-    def mission_info_cb(self, event):
-        msg = telemetry_mission_info(
-            system_id=self.recorded_sys_id,
-            component_id=self.recorded_comp_id,
-            timestamp=datetime.now().isoformat(),
-            active_waypoint_idx=self.mission_handler.active_mission_item,
-            active_mission_len=self.mission_handler.active_mission_length            
-        )
-        self.mission_info_pub.publish(msg)
 
     def shutdownHandler(self):
         # shutdown services

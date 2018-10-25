@@ -320,6 +320,7 @@ extern short rxbuf_filtered_cnt;
 /* function prototypes */
 
 void ml_init(void);
+uint8_t ml_recorded_sys_id(void);
 unsigned long ml_messages_sent(void);
 unsigned long ml_messages_received(void);
 unsigned long ml_messages_crc_error(void);

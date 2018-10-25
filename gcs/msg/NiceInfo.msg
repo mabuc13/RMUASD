@@ -1,4 +1,10 @@
-float32[3] RPY
+uint32 drone_id
+time last_heard             # last heard from drone x seconds ago
+uint32 up_time              # Time since boot of drone
+
+string autopilot
+string mav_state
+string mav_type
 string main_flightmode
 string sub_flightmode
 
@@ -7,29 +13,24 @@ uint32 msg_received_gcs
 uint32 msg_dropped_gcs
 uint32 msg_dropped_uas
 
-string status_text
-string severity_level
+#string status_text         # should be in a message on its own
+#string severity_level      # runs completely asynchronously to the rest
 
-uint16 active_waypoint_index	#On drone index
-uint16 mission_length		#On drone mission length
+uint16 active_waypoint_idx	# On drone index
+uint16 active_mission_len	# On drone mission length
 
 bool manual_input
-bool HIL_simulation
+bool hil_simulation
 bool stabilized_mode
 bool guided_mode
 bool auto_mode
 bool test_mode
 bool custom_mode
 
-string autopilot
-string mav_state
-string mav_type
+float32[3] RPY
+float32 climb_rate
+uint16 throttle
 
-GPS origin_local_NED
 GPS home
-GPS offboard_setpoint
-
-time last_heard #last heard from drone x seconds ago
-uint64 up_time #Time since boot of drone
-
-uint32 drone_id
+# GPS origin_local_NED      # ignore offboard stuff for now
+# GPS offboard_setpoint     # not immediately necessary 

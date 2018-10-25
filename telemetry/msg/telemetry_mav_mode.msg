@@ -3,7 +3,7 @@ uint8 component_id
 string timestamp
 bool armed
 bool manual_input
-bool HIL_simulation
+bool hil_simulation
 bool stabilized_mode
 bool guided_mode
 bool auto_mode
