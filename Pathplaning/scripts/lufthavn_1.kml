@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>Example</name>
+<description>Example on the use of kmlclass</description>
+<Style id="red">
+  <LineStyle>
+    <color>ff0000ff</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="green">
+  <LineStyle>
+    <color>ff00ff00</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="blue">
+  <LineStyle>
+    <color>ffff0000</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="cyan">
+  <LineStyle>
+    <color>ffffff00</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="yellow">
+  <LineStyle>
+    <color>ff00ffff</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="grey">
+  <LineStyle>
+    <color>ff888888</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Placemark>
+<name></name>
+<description></description>
+<styleUrl>#red</styleUrl>
+<LineString>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>
+10.3445990000,055.4812020000,0.000
+10.3425280583,055.4800688959,0.000
+10.3404643419,055.4789412262,0.000
+10.3384007433,055.4778135210,0.000
+10.3363551981,055.4772157930,0.000
+10.3343306581,055.4772378765,0.000
+10.3325750000,055.4772570000,0.000
+</coordinates>
+</LineString>
+</Placemark>
+</Document>
+</kml>

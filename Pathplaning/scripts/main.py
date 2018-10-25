@@ -4,6 +4,7 @@ import numpy as np
 from coordinate import Coordinate
 from AStar_1 import astar
 from exportkml import kmlclass
+from Path_simplifier import PathSimplifier
 #from beginner_tutorials.srv import *
 #import rospy
 #from gcs.msg import GPS
@@ -92,31 +93,41 @@ def compute_path_with_astar(start, goal):
 
 if __name__ == "__main__":
 
-    #start_pos = Coordinate(lat=55.462070, lon=10.285944)
-    #goal_pos = Coordinate(lat=55.481202, lon=10.344599)
+    # Small runway
+    start_pos = Coordinate(lat=55.481202, lon=10.344599)
+    goal_pos = Coordinate(lat=55.477257, lon=10.332575)
 
-    #start_pos = Coordinate(lat=55.481202, lon=10.344599)
-    #goal_pos = Coordinate(lat=55.479722, lon=10.336553)
+    # All of runway
+    #start_pos = Coordinate(lat=55.471520, lon=10.315290)
+    #goal_pos = Coordinate(lat=55.481202, lon=10.344599)
 
     path = compute_path_with_astar(start_pos, goal_pos)
 
-    # print("hem: ", path[0].hemisphere,
-    #       "zone: ", path[0].zone,
-    #       "letter: ", path[0].letter,
-    #       "east: ", path[0].easting,
-    #       "north: ", path[0].northing,)
+    '''
+    print("hem: ", path[0].hemisphere,
+          "zone: ", path[0].zone,
+          "letter: ", path[0].letter,
+          "east: ", path[0].easting,
+          "north: ", path[0].northing,)
+    '''
+
+    #for i in path:
+    #    print("Northing: ", i.northing, "Easting: ", i.easting)
 
     print("waypoints: ", len(path))
 
-    for i in path:
-       print("Northing: ", i.northing, "Easting: ", i.easting)
+    ps = PathSimplifier(path)
+    ps.delete_with_step_size_safe()
+    path = ps.get_simple_path()
+
+    print("waypoints: ", len(path))
 
     # width: defines the line width, use e.g. 0.1 - 1.0
     kml = kmlclass()
-    kml.begin('2-layer-connected.kml', 'Example', 'Example on the use of kmlclass', 0.1)
+    kml.begin('lufthavn_2.kml', 'Example', 'Example on the use of kmlclass', 0.1)
     # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
     # altitude: use 'absolute' or 'relativeToGround'
-    kml.trksegbegin('', '', 'blue', 'absolute')
+    kml.trksegbegin('', '', 'red', 'absolute')
     for i in path:
         kml.trkpt(i.lat, i.lon, 0.0)
     kml.trksegend()

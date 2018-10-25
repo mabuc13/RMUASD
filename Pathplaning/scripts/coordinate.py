@@ -1,6 +1,7 @@
 from utm import utmconv
 from gcs.msg import GPS
 
+
 class Coordinate(object):
 	def __init__(self, lat=0, lon=0, northing=0, easting=0, GPS_data=0):
 		self.lat = lat
@@ -31,9 +32,11 @@ class Coordinate(object):
 			self.GPS_data.longitude = self.lon
 			self.GPS_data.altitude = self.altitude
 
+
 	def update_UTM_coordinates(self):
 		self.hemisphere, self.zone, self.letter, self.easting, self.northing = self.converter.geodetic_to_utm(self.lat,
 																											  self.lon)
+
 
 	def update_geo_coordinates(self):
 		self.lat, self.lon = self.converter.utm_to_geodetic(self.hemisphere, self.zone, self.easting, self.northing)
