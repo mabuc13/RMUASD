@@ -51,27 +51,67 @@ class DroneHandler(object):
         pass
 
     def on_heartbeat_status(self, msg):
-        # print(msg)
-        pass
+        drone = self.drones[msg.system_id]
+
+        drone.main_mode     = msg.main_mode
+        drone.sub_mode      = msg.sub_mode
+        drone.autopilot     = msg.autopilot
+        drone.type          = msg.mav_type
+        drone.state         = msg.mav_state
 
     def on_mav_mode(self, msg):
-        pass
+        drone = self.drones[msg.system_id]
 
+        drone.armed             = msg.armed
+        drone.manual_input      = msg.manual_input
+        drone.hil_simulation    = msg.hil_simulation
+        drone.stabilized_mode   = msg.stabilized_mode
+        drone.guided_mode       = msg.guided_mode
+        drone.auto_mode         = msg.auto_mode
+        drone.test_mode         = msg.test_mode
+        drone.custom_mode       = msg.custom_mode
+        
     def on_statustext(self, msg):
-        pass
+        drone = self.drones[msg.system_id]
+
+        drone.statustext.append(msg.text)
+        drone.severity.append(msg.severity)
 
     def on_mission_info(self, msg):
-        pass
+        drone = self.drones[msg.system_id]
+
+        drone.active_waypoint_idx   = msg.active_waypoint_idx
+        drone.active_mission_len    = msg.active_mission_len
+        drone.active_waypoint       = msg.current_item
+
 
     def on_drone_attitude(self, msg):
+        # drone = self.drones[msg.system_id]
+
+        # drone.roll = msg.roll
+        # drone.pitch = msg.pitch
+        # drone.yaw = msg.yaw
         pass
 
     def on_drone_status(self, msg):
+        # drone = self.drones[msg.system_id]
+
+        # drone.battery_volt = msg.batt_volt / 1000.0
+        # drone.msg_sent_gcs = msg.msg_sent_gcs
+        # drone.msg_received_gcs = msg.msg_received_gcs
+        # drone.msg_dropped_gcs = msg.msg_dropped_gcs
+        # drone.msg_dropped_uas = msg.msg_dropped_uas
         pass
 
     def on_drone_pos(self, msg):
+        # drone = self.drones[msg.system_id]
+        
+        # drone.latitude = msg.lat
+        # drone.longitude = msg.lon
+        # drone.absolute_alt = msg.alt
+        # drone.relative_alt = msg.relative_alt
+        # drone.heading = msg.heading
         pass
-
 
     def mission_request(self, srv):
         pass

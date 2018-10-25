@@ -2,5 +2,5 @@ uint8 system_id
 uint8 component_id
 string timestamp
 uint16 active_waypoint_idx
-uint16 mission_length
+uint16 active_mission_len
 mavlink_lora/mavlink_lora_mission_item_int current_item

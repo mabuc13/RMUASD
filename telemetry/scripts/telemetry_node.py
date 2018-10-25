@@ -207,7 +207,7 @@ class Telemetry(object):
             component_id=self.recorded_comp_id,
             timestamp=datetime.now().isoformat(),
             active_waypoint_idx=self.mission_handler.active_mission_item,
-            mission_length=self.mission_handler.active_mission_length            
+            active_mission_len=self.mission_handler.active_mission_length            
         )
         self.mission_info_pub.publish(msg)
 
