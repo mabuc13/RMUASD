@@ -16,6 +16,8 @@
 #include <std_msgs/String.h>
 #include <internet/getIp.h>
 #include <gcs/pathPlan.h>
+#include <gcs/getEta.h>
+#include <gcs/gps2distance.h>
 
 #include <DronesAndDocks.hpp>
 #include <TextCsvReader.hpp>
@@ -61,6 +63,11 @@ ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_ha
 ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
 
 ros::ServiceClient pathPlanClient;
+ros::ServiceClient EtaClient;
+ros::ServiceClient GPSdistanceClient;
+ros::ServiceClient client;
+
+
 ros::NodeHandle* nh;
 
 
@@ -94,13 +101,32 @@ bool appendDockingStation(string textIn){
     }
 }
 
+double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
+    gcs::gps2distance srv;
+    srv.request.point1 = point1;
+    srv.request.point2 = point2;
+    bool worked = GPSdistanceClient.call(srv);
+    if (worked){
+        cout << "[Ground Control]: " << "Distance calculated " << srv.response.distance << endl;
+    }else{
+        cout << "[Ground Control]: " << "Distance Calc failed"<< endl;
+    }
+    return srv.response.distance;
+}
+
 dock* closestLab(drone* theDrone){ // TODO
+    double distance = INFINITY;
+    dock* theLab;
     for(size_t i = 0; i < Docks.size(); i++){
         if(Docks[i]->isLab()){
-            return Docks[i];
+            double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
+            if(d < distance){
+                distance = d;
+                theLab = Docks[i];
+            }
         }
     }
-    return NULL;
+    return theLab;
 }
 std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
 
@@ -117,7 +143,17 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
     return srv.response.path;
 }
 int ETA(job* aJob){
-    return 3600;
+    gcs::getEta srv;
+    srv.request.path = aJob->getDrone()->getPath();
+    srv.request.speed = 10; //TODO
+
+    bool worked = EtaClient.call(srv);
+    if (worked){
+        cout << "[Ground Control]: " << "ETA calculated " << srv.response.eta << endl;
+    }else{
+        cout << "[Ground Control]: " << "ETA failed"<< endl;
+    }
+    return srv.response.eta;
 }
 
 void webMsg(dock* reciver, string msg){
@@ -133,8 +169,7 @@ void webMsg(dock* reciver, string msg){
 }
 
 
-void DroneStatus_Hangler(gcs::DroneInfo msg){
-
+void DroneStatus_Handler(gcs::DroneInfo msg){
     // ###################### Is Drone Registered #####################
     bool isANewDrone = true;
     size_t index = 0;
@@ -145,7 +180,6 @@ void DroneStatus_Hangler(gcs::DroneInfo msg){
             break;
         }
     }
-
 
     if(isANewDrone){ // ############## Register if new drone #####################
         Drones.push_back(new drone(msg.drone_id,msg.position));
@@ -211,10 +245,14 @@ void WebInfo_Handler(std_msgs::String msg_in){
 
                         dock* goalDock;
                         string dockName = msg.getValue("return");
-                        for(size_t i = 0; i < Docks.size(); i++){
-                            if(Docks[i]->getName() == dockName){
-                                goalDock = Docks[i];
-                                break;
+                        if(dockName.size() <1){ // if no return addresse find nearest lab
+                            goalDock = closestLab(activeJobs[i]->getDrone());
+                        }else{ // Else find named lab
+                            for(size_t i = 0; i < Docks.size(); i++){
+                                if(Docks[i]->getName() == dockName){
+                                    goalDock = Docks[i];
+                                    break;
+                                }
                             }
                         }
 
@@ -244,7 +282,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
 
 void initialize(void){
     nh = new ros::NodeHandle();
-    DroneStatus_sub = nh->subscribe("/telemetry/DroneStatus",100,DroneStatus_Hangler);
+    DroneStatus_sub = nh->subscribe("/telemetry/DroneStatus",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/PathRequest",100);
     WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
@@ -264,34 +302,61 @@ void initialize(void){
             }
         }
     }
+
+
     pathPlanClient = nh->serviceClient<gcs::pathPlan>("/pathplan/getPlan");
-    ros::ServiceClient client = nh->serviceClient<internet::getIp>("/Internet/getIp");
+    client = nh->serviceClient<internet::getIp>("/Internet/getIp");
+    EtaClient = nh->serviceClient<gcs::getEta>("/pathplan/getEta");
+    GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("pathplan/GPS2GPSdist");
+
     sleep(2);
 
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
-    srv.request.password = "RMUASDProject";
-    bool worked = false;
-    const long maxTries = 10000;
-    long tries = 0;
-    cout << "[Ground Control]: " << "Getting Server IP" << endl;
-    while(!worked && tries < maxTries){
-        tries++;
-        worked = client.call(srv);
-        if (worked){
-            cout << "[Ground Control]: " << "IP: " << srv.response.ip << endl;
-            cout << "[Ground Control]: " << "Port: " << srv.response.port << endl;
-            string msg = "name=gcs,server="+srv.response.ip+",port="+srv.response.port;
-            std_msgs::String msgOut;
-            msgOut.data=msg;
-            WebInfo_pub.publish(msgOut);
-
+    cout << "[Ground Control]: webServer Username: " << srv.request.username <<endl;
+    cout << "[Ground Control]: webServer Password: ";
+    string password;
+    getline(cin, password);
+    if(password.size()>2){
+        srv.request.password = password;
+        bool worked = false;
+        const long maxTries = 3;
+        long tries = 0;
+        cout << "[Ground Control]: " << "Getting Server IP" << endl;
+        while(!worked && tries < maxTries){
+            tries++;
+            worked = client.call(srv);
+            if (worked){
+                cout << "[Ground Control]: " << "IP: " << srv.response.ip << endl;
+                cout << "[Ground Control]: " << "Port: " << srv.response.port << endl;
+                string msg = "name=gcs,server="+srv.response.ip+",port="+srv.response.port;
+                std_msgs::String msgOut;
+                msgOut.data=msg;
+                WebInfo_pub.publish(msgOut);
+            }else{
+                cout << "[Ground Control]: webServer Password: ";
+                password.clear();
+                getline(cin, password);
+            }
         }
+        if(tries == maxTries){
+            ROS_ERROR("Could not obtain IP");
+        }
+    }else{
+        cout << "[Ground Control]: ignoring IP service" << endl;
     }
 
-    if(tries == maxTries){
-        ROS_ERROR("Could not obtain IP");
-    }
+    /*job aJob(Docks[0]);
+    drone aDrone(22,Docks[0]->getPosition());
+    aJob.setDrone(&aDrone);
+    std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
+    aDrone.setPath(plan);
+    ETA(&aJob);
+    GPSdistance(Docks[0]->getPosition(),Docks[1]->getPosition());
+    gcs::DronePath p;
+    p.DroneID = 2;
+    p.Path = plan;
+    RouteRequest_pub.publish(p);*/
 }
 
 
@@ -303,14 +368,6 @@ int main(int argc, char** argv){
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
-
-        //########## Dommy PathPlan request#####
-
-        /*std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
-        gcs::DronePath p;
-        p.DroneID = 2;
-        p.Path = plan;
-        RouteRequest_pub.publish(p);*/
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
@@ -361,6 +418,7 @@ int main(int argc, char** argv){
                 }
             }
         }
+
         spins++;
     }
 

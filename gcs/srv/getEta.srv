@@ -1,0 +1,7 @@
+#input
+float32 speed
+GPS[] path
+
+---
+# output
+float64 eta

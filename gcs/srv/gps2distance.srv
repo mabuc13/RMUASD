@@ -1,0 +1,7 @@
+#input
+GPS point1
+GPS point2
+
+---
+# output
+float64 distance

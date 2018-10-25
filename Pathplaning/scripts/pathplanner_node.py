@@ -5,9 +5,10 @@ from coordinate import Coordinate
 from AStar_1 import astar
 from exportkml import kmlclass
 import rospy
-from gcs.msg import GPS, DronePath
+from gcs.msg import *
 from gcs.srv import *
 from Path_simplifier import PathSimplifier
+from eta_estimator import *
 
 
 class PathPlanner(object):
@@ -106,10 +107,26 @@ def handle_getPathPlan(req):
         GPSPlan.append(point.GPS_data)
     return pathPlanResponse(GPSPlan)
 
+def handle_ETA(req):
+    print("[Path planner]: Calculating ETA")
+    obj = eta()
+    etaT = obj.eta_estimate(req.path,req.speed)
+
+    return getEtaResponse(etaT)
+
+def handle_distanceCalculations(req):
+    print("[Path planner]: Calculating distance")
+    obj = eta()
+    distance = obj.distance_between_positions(req.point1,req.point2)
+    return gps2distanceResponse(distance)
+
+
 if __name__ == '__main__':
     rospy.init_node('pathplan')
     rospy.sleep(1)
 
     s = rospy.Service('pathplan/getPlan',pathPlan, handle_getPathPlan)
+    s2= rospy.Service('pathplan/getEta',getEta,handle_ETA)
+    s3= rospy.Service('pathplan/GPS2GPSdist',gps2distance,handle_distanceCalculations)
     print("[Path planner]: "+"Path planner running")
     rospy.spin()

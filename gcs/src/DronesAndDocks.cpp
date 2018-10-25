@@ -101,11 +101,11 @@ void drone::setPath(const std::vector<gcs::GPS> &path){
 }
 
 void drone::setJob(job* aJob){
-    if (this->currentJob != NULL){
-        this->currentJob->setDrone(NULL);
-    }
-    this->currentJob = aJob;
     if(aJob != NULL){
+        if (this->currentJob != NULL){
+            this->currentJob->setDrone(NULL);
+        }
+        this->currentJob = aJob;
         if(aJob->getDrone() != this){
             aJob->setDrone(this);
         }
