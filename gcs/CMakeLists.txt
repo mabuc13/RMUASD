@@ -54,6 +54,8 @@ catkin_python_setup()
 add_service_files(
    FILES
    pathPlan.srv
+   getEta.srv
+   gps2distance.srv
 )
 
 ## Generate actions in the 'action' folder
