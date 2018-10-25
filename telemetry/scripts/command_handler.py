@@ -128,7 +128,7 @@ class CommandHandler(object):
 
         return self.send_mavlink_msg()
 
-    def start_mission(self, msg):
+    def start_mission(self, srv):
         command = MAV_CMD_MISSION_START
         params = (0,0,0,0,0,0,0)
 
@@ -136,9 +136,40 @@ class CommandHandler(object):
 
         return self.send_mavlink_msg()
 
-    def return_home(self,msg):
+    def return_home(self, srv):
         command = MAV_CMD_NAV_RETURN_TO_LAUNCH
         params = (0,0,0,0,0,0,0)
+
+        self.cmd_lib.pack_command_long(params, command, self.confirmation)
+
+        return self.send_mavlink_msg()
+
+    def set_home(self, srv):
+        command = MAV_CMD_DO_SET_HOME
+
+        # if srv.use_current:
+        #     params = (1,0,0,0,0,0,0)
+        # else:
+            # params = (0,0,0,0,srv.lat,srv.lon,srv.alt)
+        params = (0,0,0,0,self.lat,self.lon,self.alt)
+
+        print(params)
+
+        self.cmd_lib.pack_command_long(params, command, self.confirmation)
+
+        return self.send_mavlink_msg()
+
+    def goto_waypoint(self, srv):
+        command = MAV_CMD_OVERRIDE_GOTO
+        # if srv.use_current:
+        #     params = (1,0,0,0,0,0,0)
+        # else:
+            # params = (0,0,0,0,srv.lat,srv.lon,srv.alt)
+        lat = (self.lat + 0.002) * 1e7
+        lon = (self.lon + 0.002) * 1e7
+        params = (0,3,3,0,self.lat + 0.002,self.lon + 0.002,5)
+
+        print(params)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 

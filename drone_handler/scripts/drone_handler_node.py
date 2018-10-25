@@ -11,9 +11,10 @@ import drone
 from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String
 from std_srvs.srv import Trigger, TriggerResponse
-from telemetry.msg import *
+from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status
 from gcs.msg import DroneInfo, GPS, NiceInfo
+
 # defines
 INFO_FREQ = 5
 
@@ -37,8 +38,8 @@ class DroneHandler(object):
 
         # Topic handlers
         # self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
-        self.drone_info_pub = rospy.Publisher("/drone_handler/DroneInfo", DroneInfo, queue_size=0) 
-        self.nice_info_pub = rospy.Publisher("/drone_handler/NiceInfo", NiceInfo, queue_size=0) 
+        self.drone_info_pub     = rospy.Publisher("/drone_handler/DroneInfo", DroneInfo, queue_size=0) 
+        self.nice_info_pub      = rospy.Publisher("/drone_handler/NiceInfo", NiceInfo, queue_size=0) 
 
         rospy.Subscriber("/gcs/PathRequest", DronePath, self.on_drone_path)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
@@ -142,7 +143,6 @@ class DroneHandler(object):
 
     def send_info_cb(self, event):
         # TODO iterate over all drones
-
         drone = self.drones[1]
 
         need2know = DroneInfo(

@@ -68,6 +68,7 @@ add_service_files(
    UploadFromFile.srv
    LandDrone.srv
    TakeoffDrone.srv
+   SetHome.srv
 )
 
 ## Generate actions in the 'action' folder
