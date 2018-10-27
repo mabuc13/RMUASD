@@ -6,12 +6,12 @@ import rospy
 import time
 import struct
 
-from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_list, mavlink_lora_command_ack
+from mavlink_lora.msg import * # pylint: disable=W0614
 from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String
 from std_srvs.srv import Trigger, TriggerResponse
-from telemetry.srv import SetMode, ChangeSpeed, UploadFromFile, TakeoffDrone, LandDrone
-from telemetry.msg import *
+from telemetry.srv import SetMode, ChangeSpeed, UploadFromFile, TakeoffDrone, LandDrone, GotoWaypoint, SetHome, UploadMission
+from telemetry.msg import * # pylint: disable=W0614
 from mavlink_defines import * # pylint: disable=W0614
 from datetime import datetime
 import mission_handler
@@ -63,15 +63,15 @@ class Telemetry(object):
         self.takeoff_service            = rospy.Service("/telemetry/takeoff_drone", TakeoffDrone, self.command_handler.takeoff_drone, buff_size=10)
         self.land_service               = rospy.Service("/telemetry/land_drone", LandDrone, self.command_handler.land_drone, buff_size=10)
         self.start_mission_service      = rospy.Service("/telemetry/start_mission", Trigger, self.command_handler.start_mission, buff_size=10)
-        self.goto_waypoint              = rospy.Service("/telemetry/goto_waypoint", Trigger, self.command_handler.goto_waypoint, buff_size=10)
+        self.goto_waypoint              = rospy.Service("/telemetry/goto_waypoint", GotoWaypoint, self.command_handler.goto_waypoint, buff_size=10)
         self.return_home_service        = rospy.Service("/telemetry/return_home", Trigger, self.command_handler.return_home, buff_size=10)
-        self.set_home_service           = rospy.Service("/telemetry/set_home", Trigger, self.command_handler.set_home, buff_size=10)
+        self.set_home_service           = rospy.Service("/telemetry/set_home", SetHome, self.command_handler.set_home, buff_size=10)
         self.set_mode_service           = rospy.Service("/telemetry/set_mode", SetMode, self.command_handler.set_mode, buff_size=10)
         self.guided_enable_service      = rospy.Service("/telemetry/guided_enable", Trigger, self.command_handler.guided_enable, buff_size=10)
         self.guided_disable_service     = rospy.Service("/telemetry/guided_disable", Trigger, self.command_handler.guided_disable, buff_size=10)
         self.change_speed_service       = rospy.Service("/telemetry/change_speed", ChangeSpeed, self.command_handler.change_speed, buff_size=10)
         self.dowload_mission_service    = rospy.Service("/telemetry/download_mission", Trigger, self.mission_handler.download, buff_size=10)
-        self.mission_upload_service     = rospy.Service("/telemetry/upload_mission", Trigger, self.mission_handler.upload, buff_size=10)
+        self.mission_upload_service     = rospy.Service("/telemetry/upload_mission", UploadMission, self.mission_handler.upload, buff_size=10)
         self.mission_upload_from_file_service = rospy.Service("/telemetry/upload_mission_from_file", UploadFromFile, self.mission_handler.upload_from_file, buff_size=10)
 
         # Topic handlers
@@ -85,7 +85,7 @@ class Telemetry(object):
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
         rospy.Subscriber("/telemetry/new_mission", mavlink_lora_mission_list, self.mission_handler.on_mission_list)
-        rospy.Subscriber("/mavlink_interface/mission/ack", String, self.mission_handler.on_mission_ack)
+        rospy.Subscriber("/mavlink_interface/mission/ack", mavlink_lora_mission_ack, self.mission_handler.on_mission_ack)
         rospy.Subscriber("/mavlink_interface/command/ack", mavlink_lora_command_ack, self.command_handler.on_command_ack)
         
         self.rate = rospy.Rate(update_interval)
@@ -175,7 +175,7 @@ class Telemetry(object):
             self.vfr_hud_pub.publish(hud_msg)
 
         elif msg.msg_id == MAVLINK_MSG_ID_HOME_POSITION:
-            (latitude, longitude, altitude, x, y, z, q0, q1, q2, q3, approach_x, approach_y, approach_z) = struct.unpack('<iiifff4ffff', msg.payload)
+            (latitude, longitude, altitude, x, y, z, q0, q1, q2, q3, approach_x, approach_y, approach_z) = struct.unpack('<iiifff4ffff', msg.payload) # pylint: disable=W0612
 
             home_pos = telemetry_home_position(
                 system_id=msg.sys_id,

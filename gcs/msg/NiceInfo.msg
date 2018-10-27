@@ -1,6 +1,8 @@
 uint32 drone_id
 time last_heard             # last heard from drone x seconds ago
-uint32 up_time              # Time since boot of drone
+uint32 up_time              # time since boot of drone
+
+string drone_handler_state  # what is the drone handler doing?
 
 string autopilot
 string mav_state
@@ -19,6 +21,7 @@ uint32 msg_dropped_uas
 uint16 active_waypoint_idx	# On drone index
 uint16 active_mission_len	# On drone mission length
 
+# bool armed
 bool manual_input
 bool hil_simulation
 bool stabilized_mode

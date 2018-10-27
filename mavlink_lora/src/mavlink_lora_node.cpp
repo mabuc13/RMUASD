@@ -46,6 +46,7 @@ Revision
 #include <mavlink_lora/mavlink_lora_mission_item_int.h>
 #include <mavlink_lora/mavlink_lora_mission_list.h>
 #include <mavlink_lora/mavlink_lora_mission_partial_list.h>
+#include <mavlink_lora/mavlink_lora_mission_ack.h>
 #include <mavlink_lora/mavlink_lora_command_ack.h>
 #include <mavlink_lora/mavlink_lora_command_start_mission.h>
 #include <mavlink_lora/mavlink_lora_command_set_mode.h>
@@ -82,6 +83,7 @@ unsigned long secs_init;
 ros::Publisher msg_pub, pos_pub, atti_pub, status_pub, mission_ack_pub, command_ack_pub;
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 unsigned short msg_id_global_position_int_received;
+uint8_t recorded_sysid;
 
 /* Mission upload operations variables */
 unsigned short mission_up_count = 0; /*< Total count of mission elements to be uploaded*/
@@ -177,6 +179,8 @@ void ml_parse_msg(unsigned char *msg)
 	
 	// publish the message
 	msg_pub.publish(m);
+
+    recorded_sysid = m.sys_id;
 
 	// handle pos messages
 	if (m.msg_id == MAVLINK_MSG_ID_GLOBAL_POSITION_INT)
@@ -282,13 +286,15 @@ void ml_parse_msg(unsigned char *msg)
         mission_uploading = false;
 
         //respond back with result
-        std_msgs::String msg;
-        msg.data = mission_result_parser(ack.type);
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = m.sys_id;
+        msg.result = ack.type;
+        msg.result_text = mission_result_parser(ack.type);
 
         mission_ack_pub.publish(msg);
 
         // DEBUG
-        ROS_INFO_STREAM(msg.data);
+        ROS_INFO_STREAM(msg.result_text);
     }
 
     //handle command ack
@@ -510,8 +516,10 @@ void mission_up_item_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //cancel command
@@ -543,8 +551,10 @@ void mission_clear_all_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //reset retries
@@ -569,8 +579,10 @@ void mission_up_count_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //cancel command
@@ -592,8 +604,10 @@ void mission_up_count_timeout_callback(const ros::TimerEvent&)
 void mission_ack_timeout_callback(const ros::TimerEvent&)
 {        
     //publish error on ack topic
-    std_msgs::String msg;
-    msg.data = mission_result_parser(19); //ack timeout error
+    mavlink_lora::mavlink_lora_mission_ack msg;
+    msg.drone_id = recorded_sysid;
+    msg.result = 19;
+    msg.result_text = mission_result_parser(19); //ack timeout error
     mission_ack_pub.publish(msg); 
     ROS_WARN_STREAM("Wait for acknowledge timed out");
 }
@@ -607,8 +621,10 @@ void mission_up_partial_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //cancel command
@@ -794,7 +810,7 @@ int main (int argc, char** argv)
     ros::Subscriber local_acc_sp_sub = n.subscribe("mavlink_interface/offboard/new_acc_sp", 1, ml_offboard_new_local_acc_sp_callback);
 
     /* Interface publishers */
-    mission_ack_pub = n.advertise<std_msgs::String>("mavlink_interface/mission/ack", 1);
+    mission_ack_pub = n.advertise<mavlink_lora::mavlink_lora_mission_ack>("mavlink_interface/mission/ack", 1);
     command_ack_pub = n.advertise<mavlink_lora::mavlink_lora_command_ack>("mavlink_interface/command/ack", 1);
 
 	/* initialize serial port */
@@ -811,7 +827,7 @@ int main (int argc, char** argv)
 	ml_set_monitor_all();
 
     /* start local setpoint spam */
-    ros::Timer timer = n.createTimer(ros::Duration(0.125), send_local_setpoint_callback);
+    // ros::Timer timer = n.createTimer(ros::Duration(0.125), send_local_setpoint_callback);
 
 	/* ros main loop */
 	ros::Rate loop_rate(100);

@@ -11,7 +11,7 @@ float32 absolute_alt
 string GPS_timestamp    # timestamp of when GPS info was read on the drone
 uint8 status            # one of the constants below
 uint16 mission_index    # index of the current complete mission (dock to dock)
-# bool armed            # is this necessary?
+bool armed              # is this necessary?
 
 uint8 Run = 1
 uint8 Land = 2

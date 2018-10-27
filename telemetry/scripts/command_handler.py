@@ -6,13 +6,15 @@ import rospy
 import rospkg
 import time
 import struct
+from datetime import datetime
 from mavlink_defines import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos
 from telemetry.srv import ChangeSpeed, ChangeSpeedResponse
+from telemetry.msg import telemetry_cmd_retry_fail
 import command_lib
 
 # defines
-MAX_RETRIES = 3
+MAX_RETRIES = 3 
 TIMEOUT = 1.5
 
 class CommandHandler(object):
@@ -26,6 +28,7 @@ class CommandHandler(object):
         self.lat = 0
         self.lon = 0
         self.alt = 0
+        self.home_alt = 0
 
         self.cmd_lib = command_lib.command_lib()
         self.sys_id = 0  # reset when receiving first msg
@@ -36,6 +39,7 @@ class CommandHandler(object):
 
         # topic handlers
         self.mavlink_msg_pub        = rospy.Publisher("/mavlink_tx", mavlink_lora_msg, queue_size=0)
+        self.cmd_retry_fail_pub     = rospy.Publisher("/telemetry/cmd_retry_fail", telemetry_cmd_retry_fail, queue_size=0)
 
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_mavlink_lora_pos)
 
@@ -49,6 +53,7 @@ class CommandHandler(object):
         self.lat = msg.lat 
         self.lon = msg.lon
         self.alt = msg.alt
+        self.home_alt = msg.alt - msg.relative_alt
        
     def on_command_ack(self, msg):
         self.busy = False
@@ -147,11 +152,14 @@ class CommandHandler(object):
     def set_home(self, srv):
         command = MAV_CMD_DO_SET_HOME
 
-        # if srv.use_current:
-        #     params = (1,0,0,0,0,0,0)
-        # else:
-            # params = (0,0,0,0,srv.lat,srv.lon,srv.alt)
-        params = (0,0,0,0,self.lat,self.lon,self.alt)
+        if srv.use_current:
+            params = (1,0,0,0,0,0,0)
+        else:
+            if srv.relative_alt:
+                alt = self.home_alt + srv.altitude
+            else:
+                alt = srv.altitude
+            params = (0,0,0,0,srv.latitude,srv.longitude,alt)
 
         print(params)
 
@@ -160,16 +168,16 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def goto_waypoint(self, srv):
-        command = MAV_CMD_OVERRIDE_GOTO
-        # if srv.use_current:
-        #     params = (1,0,0,0,0,0,0)
-        # else:
-            # params = (0,0,0,0,srv.lat,srv.lon,srv.alt)
-        lat = (self.lat + 0.002) * 1e7
-        lon = (self.lon + 0.002) * 1e7
-        params = (0,3,3,0,self.lat + 0.002,self.lon + 0.002,5)
+        command = MAV_CMD_DO_REPOSITION
 
-        print(params)
+        lat = int(srv.latitude * 1e7)
+        lon = int(srv.longitude * 1e7)
+
+        if srv.relative_alt:
+            alt = self.home_alt + srv.altitude
+        else:
+            alt = srv.altitude
+        params = (0,1,0,float('nan'),lat,lon,alt)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
@@ -215,6 +223,13 @@ class CommandHandler(object):
             self.retries = 0
             self.confirmation = 0
             rospy.logwarn("Too many failures - giving up.")
+            msg = telemetry_cmd_retry_fail(
+                system_id=self.sys_id,
+                component_id=self.comp_id,
+                timestamp=datetime.now().isoformat(),
+                message="Too many failures"
+                )
+            self.cmd_retry_fail_pub.publish(msg)
             self.busy = False
         else:
             rospy.loginfo("Sending command again")

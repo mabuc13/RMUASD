@@ -12,7 +12,7 @@ from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.msg import * # pylint: disable=W0614
-from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status
+from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack
 from gcs.msg import DroneInfo, GPS, NiceInfo
 
 # defines
@@ -48,6 +48,8 @@ class DroneHandler(object):
         rospy.Subscriber("/telemetry/mission_info", telemetry_mission_info, self.on_mission_info)
         rospy.Subscriber("/telemetry/vfr_hud", telemetry_vfr_hud, self.on_vfr_hud)
         rospy.Subscriber("/telemetry/home_position", telemetry_home_position, self.on_home_position)
+        rospy.Subscriber("/telemetry/cmd_retry_fail", telemetry_cmd_retry_fail, self.on_cmd_fail)
+        rospy.Subscriber("/mavlink_interface/mission/ack", mavlink_lora_mission_ack, self.on_mission_ack)
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
         rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
@@ -56,8 +58,16 @@ class DroneHandler(object):
 
         self.rate = rospy.Rate(update_interval)
 
+    def on_cmd_fail(self, msg):
+        if msg.system_id in self.drones:
+            drone = self.drones[msg.system_id]
+            drone.on_cmd_fail(msg)
+
     def on_drone_path(self, msg):
-        pass
+        if msg.DroneID in self.drones:
+            drone = self.drones[msg.DroneID]
+            
+            drone.update_mission(msg.Path) 
 
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
@@ -108,9 +118,9 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.active_waypoint_idx   = msg.active_waypoint_idx
-            drone.active_mission_len    = msg.active_mission_len
-            drone.active_waypoint       = msg.current_item
+            drone.active_sub_waypoint_idx   = msg.active_waypoint_idx
+            drone.active_sub_mission_len    = msg.active_mission_len
+            drone.active_sub_waypoint       = msg.current_item
 
 
     def on_drone_attitude(self, msg):
@@ -141,6 +151,12 @@ class DroneHandler(object):
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
 
+    def on_mission_ack(self, msg):
+        if msg.drone_id in self.drones:
+            drone = self.drones[msg.drone_id]
+            drone.on_mission_ack(msg)
+            
+
     def send_info_cb(self, event):
         # TODO iterate over all drones
         drone = self.drones[1]
@@ -149,6 +165,7 @@ class DroneHandler(object):
             drone_id=drone.id,
             position=GPS(drone.latitude, drone.longitude, drone.relative_alt),
             # next_waypoint=drone.mission[index],
+            armed=drone.armed,
             ground_speed=drone.ground_speed,
             heading=drone.heading,
             battery_SOC=drone.battery_volt,
@@ -161,6 +178,7 @@ class DroneHandler(object):
 
         nice2know = NiceInfo(
             drone_id=drone.id,
+            drone_handler_state=str(drone.fsm_state),
             # last_heard=,
             # up_time=,
             RPY=[drone.roll, drone.pitch, drone.yaw],
@@ -170,8 +188,9 @@ class DroneHandler(object):
             msg_received_gcs=drone.msg_received_gcs,
             msg_dropped_gcs=drone.msg_dropped_gcs,
             msg_dropped_uas=drone.msg_dropped_uas,
-            active_waypoint_idx=drone.active_waypoint_idx,
-            active_mission_len=drone.active_mission_len,
+            active_waypoint_idx=drone.active_sub_waypoint_idx,
+            active_mission_len=drone.active_sub_mission_len,
+            # armed=drone.armed,
             manual_input=drone.manual_input,
             hil_simulation=drone.hil_simulation,
             stabilized_mode=drone.stabilized_mode,
@@ -191,7 +210,15 @@ class DroneHandler(object):
         self.nice_info_pub.publish(nice2know)
 
     def mission_request(self, srv):
-        pass
+        drone = self.drones[1]
+
+        drone.start_mission()
+
+        return TriggerResponse()
+
+    def run(self, event):
+        drone = self.drones[1]
+        drone.run()
 
     def shutdownHandler(self):
         # shutdown services
@@ -206,6 +233,7 @@ if __name__ == "__main__":
     dh = DroneHandler()
     
     rospy.Timer(rospy.Duration(1/INFO_FREQ), dh.send_info_cb)
+    rospy.Timer(rospy.Duration(1/2), dh.run)
 
     rospy.on_shutdown(dh.shutdownHandler)
 

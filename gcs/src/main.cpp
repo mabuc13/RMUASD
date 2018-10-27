@@ -327,7 +327,7 @@ int main(int argc, char** argv){
         
 
         gcs::DronePath p;
-        p.DroneID = 2;
+        p.DroneID = 1;
         p.Path = shortened_plan;
         RouteRequest_pub.publish(p);
 

@@ -56,7 +56,7 @@ add_message_files(
   telemetry_mission_info.msg
   telemetry_vfr_hud.msg
   telemetry_home_position.msg
-  local_setpoint.msg
+  telemetry_cmd_retry_fail.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -66,9 +66,11 @@ add_service_files(
    Origin.srv
    ChangeSpeed.srv
    UploadFromFile.srv
+   UploadMission.srv
    LandDrone.srv
    TakeoffDrone.srv
    SetHome.srv
+   GotoWaypoint.srv
 )
 
 ## Generate actions in the 'action' folder

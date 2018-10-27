@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
   message_generation
   std_msgs
   mavlink_lora
+  telemetry
 )
 
 ## System dependencies are found with CMake's conventions
@@ -69,6 +70,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
   mavlink_lora
+  telemetry
 )
 
 ################################################

@@ -1,0 +1,5 @@
+uint8 drone_id
+mavlink_lora/mavlink_lora_mission_item_int[] waypoints
+---
+bool success
+string message
