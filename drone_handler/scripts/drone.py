@@ -17,15 +17,17 @@ MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6
 
 class State(Enum):
     GROUNDED = 1
-    STANDBY_UPLOAD = 2
-    TAKEOFF = 3
-    REPOSITION = 4
-    ACTIVE_UPLOAD = 5
-    SET_MISSION = 6
-    FLYING_MISSION = 7
-    PAUSED = 8
-    REQUESTING_UPLOAD = 9
-    ARMING = 10
+    REQUESTING_UPLOAD = 2
+    UPLOADING = 3
+    TAKEOFF = 4
+    REPOSITION = 5
+    ARMING = 6
+    SET_MISSION = 7
+    FLYING_MISSION = 8
+    PAUSED = 9
+
+PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
+PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
 
 class Drone(object):
 
@@ -41,14 +43,19 @@ class Drone(object):
         self.cmd_try_again = False
 
         self.pending_mission_gps = []
-        self.pending_sub_mission = []
         self.active_mission_gps = []
+        self.active_mission_len = 0
         self.active_mission_ml  = mavlink_lora_mission_list()
         self.active_sub_mission = mavlink_lora_mission_list()
-        self.active_mission_idx = 0
-        self.active_sub_mission_offset = 0
-        self.mission_locked = False
-        self.desired_relative_alt = DESIRED_RELATIVE_ALT
+        self.active_mission_idx = 0             # index for the complete plan
+        self.active_sub_mission_offset = 0      # at what index does the sub plan start
+        self.swapping_mission = False
+        
+
+        # from mission info
+        self.active_sub_waypoint_idx = 0
+        self.active_sub_mission_len = 0
+        self.active_sub_waypoint = mavlink_lora_mission_item_int()
 
         # from heartbeat status
         self.main_mode = ""
@@ -78,11 +85,6 @@ class Drone(object):
 
         # from home position
         self.home_position = GPS()
-
-        # from mission info
-        self.active_sub_waypoint_idx = 0
-        self.active_sub_mission_len = 0
-        self.active_sub_waypoint = mavlink_lora_mission_item_int()
 
         # from drone attitude
         self.roll = 0
@@ -130,16 +132,22 @@ class Drone(object):
 
     def update_mission(self, path):
         self.pending_mission_gps = path
+        # self.active_mission_len = len(self.pending_mission_gps)
         # self.new_mission = True
 
     def start_mission(self):
         self.new_mission = True
+        self.active_mission_len = len(self.pending_mission_gps)
         print("New mission")
 
-    def gps_to_mavlink(self):
+    def gps_to_mavlink(self, gps_list):
         sequence_number = 0
-        self.active_mission_ml.waypoints.clear()
-        for waypoint in self.pending_mission_gps:
+
+        ml_list = mavlink_lora_mission_list()
+        for itr, waypoint in enumerate(gps_list):
+            current = 0
+            if itr == 0:
+                current = 1
             mission_item = mavlink_lora_mission_item_int(
                 param1=0,                       # hold time in seconds
                 param2=2,                       # acceptance radius [m]
@@ -150,65 +158,82 @@ class Drone(object):
                 z=waypoint.altitude,
                 seq=sequence_number,
                 command=MAV_CMD_NAV_WAYPOINT,
-                current=0,
+                current=current,
                 autocontinue=1,
                 target_system=self.id,
                 target_component=0,
                 frame=MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
             )
             sequence_number += 1
-            self.active_mission_ml.waypoints.append(mission_item)
-        self.active_mission_ml.header.stamp = rospy.Time.now()
+            ml_list.waypoints.append(mission_item)
+        ml_list.header.stamp = rospy.Time.now()
+
+        print(ml_list)
+
+        return ml_list
+
+    def next_sub_mission(self, new_mission=False):
+        offset = 0
+        if not new_mission:
+            offset = self.active_sub_mission_offset + 2
+        
+        if offset > self.active_mission_len - 3:
+            self.active_sub_mission.waypoints = self.active_mission_ml.waypoints[offset : self.active_mission_len]
+        else:
+            self.active_sub_mission.waypoints = self.active_mission_ml.waypoints[offset : offset+3]
+
+        # make sure the first waypoint is active!
+        self.active_sub_mission.waypoints[0].current = 1
+        self.active_sub_mission_offset = offset
+        # self.active_sub_waypoint_idx = 0
 
     def run(self):
 
-        if self.main_mode == "Stabilized" or self.main_mode == "Manual":
+        if self.main_mode in PAUSE_LIST_MAIN or self.sub_mode in PAUSE_LIST_SUB:
             self.fsm_state = State.PAUSED
-
+        # ------------------------------------------------------------------------------ #
         if self.fsm_state == State.GROUNDED:
             if self.new_mission:
-                # begin upload and change state
+                # prepare for upload and change state
                 self.active_mission_gps = self.pending_mission_gps
-                self.gps_to_mavlink()
-                
-                # request = UploadMissionRequest(drone_id=self.id, waypoints=self.active_mission_ml.waypoints)
-                # response = self.upload_mission(request)
+                self.active_mission_ml = self.gps_to_mavlink(self.active_mission_gps)
+                # from the grounded state, the sub mission is the same as the whole mission
+                self.active_sub_mission = self.active_mission_ml
+
                 self.new_mission = False
                 self.fsm_state = State.REQUESTING_UPLOAD
-                
-                # if response.success:
-                #     self.fsm_state = State.STANDBY_UPLOAD
-                # else:
-                #     self.fsm_state = State.REQUESTING_UPLOAD
             
             pass
-        
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REQUESTING_UPLOAD:
-            request = UploadMissionRequest(drone_id=self.id, waypoints=self.active_mission_ml.waypoints)
+            request = UploadMissionRequest(drone_id=self.id, waypoints=self.active_sub_mission.waypoints)
             response = self.upload_mission(request)
             
             if response.success:
-                if self.state == "Standby":
-                    self.fsm_state = State.STANDBY_UPLOAD
-                elif self.state == "Active":
-                    self.fsm_state = State.ACTIVE_UPLOAD
-                else:
-                    self.fsm_state == State.PAUSED
-
+                self.fsm_state = State.UPLOADING
                 self.upload_done = False
-
-        elif self.fsm_state == State.STANDBY_UPLOAD:
+        # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.UPLOADING:
+            # only a positive ack counts as a succesful upload (see callback)
             if self.upload_done:
-                request = TakeoffDroneRequest(on_the_spot=True, alt=20)
-                response = self.takeoff(request)
 
-                if response.success:
-                    self.fsm_state = State.TAKEOFF
+                if self.state == "Standby":
+                    request = TakeoffDroneRequest(on_the_spot=True, alt=20)
+                    response = self.takeoff(request)
+                    if response.success:
+                        self.fsm_state = State.TAKEOFF
 
+                elif self.state == "Active":
+                    response = self.set_mode(flight_modes.MISSION)
+                    if response.success:
+                        self.fsm_state = State.SET_MISSION
+
+                else:
+                    self.fsm_state = State.PAUSED
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.TAKEOFF:
             if self.sub_mode == "Takeoff":
                 response = self.arm()
-
                 if response.success:
                     self.fsm_state = State.ARMING
 
@@ -216,15 +241,13 @@ class Drone(object):
                 if self.cmd_try_again:
                     request = TakeoffDroneRequest(on_the_spot=True, alt=20)
                     response = self.takeoff(request)
-
                     if response.success:
                         self.cmd_try_again = False
-
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.ARMING:
             if self.armed:
                 if self.sub_mode == "Loiter":
                     response = self.set_mode(flight_modes.MISSION)
-
                     if response.success:
                         self.fsm_state = State.SET_MISSION
 
@@ -233,7 +256,7 @@ class Drone(object):
                     response = self.arm()
                     if response.success:
                         self.cmd_try_again = False
-                
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.SET_MISSION:
             if self.sub_mode == "Mission":
                 self.fsm_state = State.FLYING_MISSION
@@ -242,16 +265,55 @@ class Drone(object):
                     response = self.set_mode(flight_modes.MISSION)
                     if response.success:
                         self.cmd_try_again = False
-        
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.FLYING_MISSION:
-            pass
 
+            if self.new_mission:
+                # reposition to first wp of new mission
+                self.active_mission_gps = self.pending_mission_gps
+                self.active_mission_ml = self.gps_to_mavlink(self.active_mission_gps)
+                # only use the first 3 waypoints in the sub mission
+                self.active_sub_mission_offset = 0
+                self.next_sub_mission(new_mission=True)
+                # self.active_sub_mission.waypoints = self.active_mission_ml.waypoints[0:3]
+                first_wp = self.active_mission_gps[0]
+                request = GotoWaypointRequest(
+                    relative_alt=True, latitude=first_wp.latitude,
+                    longitude=first_wp.longitude, altitude=first_wp.altitude
+                    )
+                response = self.reposition(request)
+
+                if response.success:
+                    self.fsm_state = State.REPOSITION
+                    self.new_mission = False
+
+            if self.active_sub_waypoint_idx == 0:
+                self.swapping_mission = False
+
+            # check mission progress to see if new sub mission needs to be uploaded
+            if self.active_sub_mission_len > 0 and not self.swapping_mission:
+                if self.active_sub_waypoint_idx > self.active_sub_mission_len - 2:
+                    # print(self.active_sub_waypoint_idx)
+                    self.swapping_mission = True
+                    self.next_sub_mission()
+                    self.fsm_state = State.REQUESTING_UPLOAD
+
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REPOSITION:
-            pass
-
-        elif self.fsm_state == State.ACTIVE_UPLOAD:
-            pass
-
+            if self.sub_mode == "Loiter":
+                self.fsm_state = State.REQUESTING_UPLOAD
+            else:
+                if self.cmd_try_again:
+                    first_wp = self.active_mission_gps[0]
+                    request = GotoWaypointRequest(
+                        relative_alt=True, latitude=first_wp.latitude,
+                        longitude=first_wp.longitude, altitude=first_wp.altitude
+                        )
+                    response = self.reposition(request)
+                    if response.success:
+                        self.cmd_try_again = False
+            
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.PAUSED:
             if self.sub_mode == "Mission":
                 self.fsm_state = State.FLYING_MISSION

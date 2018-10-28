@@ -210,6 +210,7 @@ class DroneHandler(object):
         self.nice_info_pub.publish(nice2know)
 
     def mission_request(self, srv):
+        # TODO implement for all drones
         drone = self.drones[1]
 
         drone.start_mission()
@@ -217,6 +218,7 @@ class DroneHandler(object):
         return TriggerResponse()
 
     def run(self, event):
+        # TODO implement for all drones
         drone = self.drones[1]
         drone.run()
 
