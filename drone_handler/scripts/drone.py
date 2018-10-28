@@ -35,7 +35,7 @@ class Drone(object):
         # All variables relating to the status and information of the drone
 
         self.id = drone_id
-        self.last_heard = 0
+        self.up_time = 0
 
         self.fsm_state = State.GROUNDED
         self.new_mission = False
@@ -43,6 +43,7 @@ class Drone(object):
         self.cmd_try_again = False
 
         self.pending_mission_gps = []
+        self.active_waypoint_gps = GPS()
         self.active_mission_gps = []
         self.active_mission_len = 0
         self.active_mission_ml  = mavlink_lora_mission_list()
@@ -97,6 +98,7 @@ class Drone(object):
         self.msg_received_gcs = 0
         self.msg_dropped_gcs = 0
         self.msg_dropped_uas = 0
+        self.last_heard = rospy.Time().now()
 
         # from drone pos
         self.latitude = 0
@@ -138,6 +140,7 @@ class Drone(object):
     def start_mission(self):
         self.new_mission = True
         self.active_mission_len = len(self.pending_mission_gps)
+        self.active_sub_mission_offset = 0
         print("New mission")
 
     def gps_to_mavlink(self, gps_list):
@@ -191,6 +194,16 @@ class Drone(object):
 
         if self.main_mode in PAUSE_LIST_MAIN or self.sub_mode in PAUSE_LIST_SUB:
             self.fsm_state = State.PAUSED
+
+        # the sub waypoint idx can only be trusted when we are not swapping missions
+        if not self.swapping_mission:
+            self.active_mission_idx = self.active_sub_mission_offset + self.active_sub_waypoint_idx
+            try:
+                self.active_sub_waypoint = self.active_sub_mission.waypoints[self.active_sub_waypoint_idx]
+                self.active_waypoint_gps = self.active_mission_gps[self.active_mission_idx]
+            except:
+                pass
+
         # ------------------------------------------------------------------------------ #
         if self.fsm_state == State.GROUNDED:
             if self.new_mission:
@@ -203,7 +216,6 @@ class Drone(object):
                 self.new_mission = False
                 self.fsm_state = State.REQUESTING_UPLOAD
             
-            pass
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REQUESTING_UPLOAD:
             request = UploadMissionRequest(drone_id=self.id, waypoints=self.active_sub_mission.waypoints)
@@ -246,7 +258,7 @@ class Drone(object):
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.ARMING:
             if self.armed:
-                if self.sub_mode == "Loiter":
+                if self.sub_mode == "Loiter" or self.relative_alt > 19:
                     response = self.set_mode(flight_modes.MISSION)
                     if response.success:
                         self.fsm_state = State.SET_MISSION
@@ -289,14 +301,20 @@ class Drone(object):
 
             if self.active_sub_waypoint_idx == 0:
                 self.swapping_mission = False
+                
 
             # check mission progress to see if new sub mission needs to be uploaded
+            
+            # only swap if there is a valid mission, and we are not already swapping
             if self.active_sub_mission_len > 0 and not self.swapping_mission:
-                if self.active_sub_waypoint_idx > self.active_sub_mission_len - 2:
-                    # print(self.active_sub_waypoint_idx)
-                    self.swapping_mission = True
-                    self.next_sub_mission()
-                    self.fsm_state = State.REQUESTING_UPLOAD
+                # only swap if there is room in the mission plan
+                if self.active_sub_mission_offset < self.active_mission_len - 3:
+                    # start swapping when the last waypoint in the sub plan becomes active
+                    if self.active_sub_waypoint_idx > self.active_sub_mission_len - 2:
+                        # print(self.active_sub_waypoint_idx)
+                        self.swapping_mission = True
+                        self.next_sub_mission()
+                        self.fsm_state = State.REQUESTING_UPLOAD
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REPOSITION:

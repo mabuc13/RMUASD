@@ -127,9 +127,11 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
+            drone.up_time = msg.time_usec / 1e6
             drone.roll = msg.roll
             drone.pitch = msg.pitch
             drone.yaw = msg.yaw
+            drone.last_heard = msg.header.stamp
 
     def on_drone_status(self, msg):
         if msg.system_id in self.drones:
@@ -140,16 +142,19 @@ class DroneHandler(object):
             drone.msg_received_gcs = msg.msg_received_gcs
             drone.msg_dropped_gcs = msg.msg_dropped_gcs
             drone.msg_dropped_uas = msg.msg_dropped_uas
+            drone.last_heard = msg.header.stamp
 
     def on_drone_pos(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
             
+            drone.up_time = msg.time_usec / 1e6
             drone.latitude = msg.lat
             drone.longitude = msg.lon
             drone.absolute_alt = msg.alt
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
+            drone.last_heard = msg.header.stamp
 
     def on_mission_ack(self, msg):
         if msg.drone_id in self.drones:
@@ -164,23 +169,25 @@ class DroneHandler(object):
         need2know = DroneInfo(
             drone_id=drone.id,
             position=GPS(drone.latitude, drone.longitude, drone.relative_alt),
-            # next_waypoint=drone.mission[index],
+            next_waypoint=drone.active_waypoint_gps,
             armed=drone.armed,
             ground_speed=drone.ground_speed,
             heading=drone.heading,
             battery_SOC=drone.battery_volt,
             relative_alt=drone.relative_alt,
-            absolute_alt=drone.absolute_alt
+            absolute_alt=drone.absolute_alt,
             # GPS_timestamp=,
             # status=DroneInfo.Run,
-            # mission_index=
+            mission_index=drone.active_mission_idx
         )
+
+        now = rospy.Time.now()
 
         nice2know = NiceInfo(
             drone_id=drone.id,
             drone_handler_state=str(drone.fsm_state),
-            # last_heard=,
-            # up_time=,
+            last_heard=now - drone.last_heard,
+            up_time=int(drone.up_time),
             RPY=[drone.roll, drone.pitch, drone.yaw],
             main_flightmode=drone.main_mode,
             sub_flightmode=drone.sub_mode,
@@ -190,7 +197,7 @@ class DroneHandler(object):
             msg_dropped_uas=drone.msg_dropped_uas,
             active_waypoint_idx=drone.active_sub_waypoint_idx,
             active_mission_len=drone.active_sub_mission_len,
-            # armed=drone.armed,
+            armed=drone.armed,
             manual_input=drone.manual_input,
             hil_simulation=drone.hil_simulation,
             stabilized_mode=drone.stabilized_mode,

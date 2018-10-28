@@ -21,7 +21,7 @@ uint32 msg_dropped_uas
 uint16 active_waypoint_idx	# On drone index
 uint16 active_mission_len	# On drone mission length
 
-# bool armed
+bool armed
 bool manual_input
 bool hil_simulation
 bool stabilized_mode
