@@ -7,7 +7,9 @@ from exportkml import kmlclass
 import rospy
 from gcs.msg import *
 from gcs.srv import *
+from Path_simplifier import PathSimplifier
 from eta_estimator import *
+
 
 class PathPlanner(object):
     def __init__(self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)):
@@ -67,7 +69,6 @@ class PathPlanner(object):
         rel_goal_pos = (int(self.goal.northing - self.global_bottom_left.northing),
                         int(self.goal.easting - self.global_bottom_left.easting))
         rel_path = astar(self.map_zeros, rel_start_pos, rel_goal_pos)
-
         self.path = []
 
         #TODO: Convert this to the GPS format that Kasper made
@@ -76,6 +77,11 @@ class PathPlanner(object):
             self.path.append(Coordinate(northing=(j[0] + self.global_bottom_left.northing),
                                         easting=(j[1] + self.global_bottom_left.easting)))
         self.path.append(self.goal)
+
+        # Simplify path:
+        ps = PathSimplifier(self.path)
+        ps.delete_with_step_size_safe()
+        self.path = ps.get_simple_path()
     def export_kml_path(self, name):
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
@@ -94,13 +100,11 @@ def handle_getPathPlan(req):
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
     planner = PathPlanner(start=start,goal=theend)
-    planner.compute_path();
+    planner.compute_path()
     plan = planner.path
     GPSPlan = [req.start, req.end]
     for point in plan:
         GPSPlan.append(point.GPS_data)
-
-
     return pathPlanResponse(GPSPlan)
 
 def handle_ETA(req):
