@@ -169,7 +169,7 @@ p, li { white-space: pre-wrap; }
                </widget>
               </item>
               <item>
-               <widget class="QLabel" name="label_hight">
+               <widget class="QLabel" name="label_height">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
