@@ -9,7 +9,7 @@ from datetime import datetime
 import drone
 
 from gcs.msg import * # pylint: disable=W0614
-from std_msgs.msg import Int8, String
+from std_msgs.msg import Int8, String, Time
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack
@@ -31,7 +31,8 @@ class DroneHandler(object):
 		# status variables
         rospy.sleep (1) # wait until everything is running
 
-        self.boot_time = rospy.Time.now().to_sec() * 1000
+        self.run_ready = True
+        self.info_ready = True
 
         # Service handlers
         self.mission_request_service = rospy.Service("/drone_handler/mission_request", Trigger, self.mission_request, buff_size=10)
@@ -40,6 +41,9 @@ class DroneHandler(object):
         # self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
         self.drone_info_pub     = rospy.Publisher("/drone_handler/DroneInfo", DroneInfo, queue_size=0) 
         self.nice_info_pub      = rospy.Publisher("/drone_handler/NiceInfo", NiceInfo, queue_size=0) 
+        self.heartbeat_main_pub = rospy.Publisher("/drone_handler/heartbeat/main", Time, queue_size=0)
+        self.heartbeat_run_pub  = rospy.Publisher("/drone_handler/heartbeat/run", Time, queue_size=0)
+        self.heartbeat_info_pub = rospy.Publisher("/drone_handler/heartbeat/info", Time, queue_size=0)
 
         rospy.Subscriber("/gcs/PathRequest", DronePath, self.on_drone_path)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
@@ -155,13 +159,12 @@ class DroneHandler(object):
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
             drone.last_heard = msg.header.stamp
-
+        
     def on_mission_ack(self, msg):
         if msg.drone_id in self.drones:
             drone = self.drones[msg.drone_id]
             drone.on_mission_ack(msg)
             
-
     def send_info_cb(self, event):
         # TODO iterate over all drones
         drone = self.drones[1]
@@ -218,18 +221,18 @@ class DroneHandler(object):
 
             self.drone_info_pub.publish(need2know)
             self.nice_info_pub.publish(nice2know)
-        except:
-            pass
-            
+        except Exception as e:
+            print(e)
+
+
     def mission_request(self, srv):
         # TODO implement for all drones
         drone = self.drones[1]
-
         drone.start_mission()
 
         return TriggerResponse()
 
-    def run(self, event):
+    def run_cb(self, event):
         # TODO implement for all drones
         drone = self.drones[1]
         drone.run()
@@ -238,17 +241,28 @@ class DroneHandler(object):
         # shutdown services
         print("Shutting down")
 
-
-
 if __name__ == "__main__":    
     rospy.init_node('drone_handler')#, anonymous=True)
     rospy.sleep(1)
 
     dh = DroneHandler()
     
+    # This is bad because exceptions in the callbacks will just kill the timers and not the node
     rospy.Timer(rospy.Duration(1/INFO_FREQ), dh.send_info_cb)
-    rospy.Timer(rospy.Duration(1/2), dh.run)
+    rospy.Timer(rospy.Duration(1/2), dh.run_cb)
 
     rospy.on_shutdown(dh.shutdownHandler)
+    # rospy.spin()
 
-    rospy.spin()
+    while not rospy.is_shutdown():
+        
+        # # this makes sure that both function calls is run in the same thread, so it is easier to detect exceptions
+        # if dh.info_ready:
+        #     dh.send_info()
+        #     dh.info_ready = False
+
+        # if dh.run_ready:
+        #     dh.run()
+        #     dh.run_ready = False
+
+        dh.rate.sleep()

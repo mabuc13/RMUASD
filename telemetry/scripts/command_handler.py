@@ -67,7 +67,6 @@ class CommandHandler(object):
     def arm_drone(self, srv):
         command = MAV_CMD_ARM_DISARM
         params = (1,0,0,0,0,0,0)
-
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
         return self.send_mavlink_msg()
