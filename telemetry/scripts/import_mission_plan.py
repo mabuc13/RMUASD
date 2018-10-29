@@ -51,42 +51,4 @@ def import_plan(filename, target_sys=1, target_comp=0):
     return mission_list
 
 if __name__ == "__main__":
-    with open("../plans/test_plan.plan") as file:
-        data = json.load(file)
-
-    mission_list = mavlink_lora_mission_list()
-
-    target_sys = 1
-    target_comp = 0
-
-    for waypoint in data['mission']['items']:
-        print("---------------------")
-
-        params = [float('nan') if param == None else param for param in waypoint['params'] ]
-
-        mission_item = mavlink_lora_mission_item_int(
-            param1=params[0],
-            param2=params[1],
-            param3=params[2],
-            param4=params[3],
-            x=int(waypoint['params'][4]*1e7),
-            y=int(waypoint['params'][5]*1e7),
-            z=waypoint['params'][6],
-            seq=waypoint['doJumpId'],
-            command=waypoint['command'],
-            current=0,
-            autocontinue=1,
-            target_system=target_sys,
-            target_component=target_comp,
-            frame=FRAME_FROM_CMD[waypoint['command']]
-        )
-
-        mission_list.waypoints.append(mission_item)
-
-        
-
-        # for key, value in waypoint.items():
-        #     print("{}: {}".format(key,value))
-        
-    
-    print("---------------------")
+    pass

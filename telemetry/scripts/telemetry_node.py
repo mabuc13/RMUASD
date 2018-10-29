@@ -111,7 +111,7 @@ class Telemetry(object):
             heartbeat_msg = telemetry_heartbeat_status(
                 system_id=msg.sys_id,
                 component_id=msg.comp_id,
-                timestamp=datetime.now().isoformat(),
+                timestamp=rospy.Time.now(),
                 main_mode=MAVLINK_MAIN_MODE_LOOKUP[main_mode],
                 sub_mode=MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode],
                 armed=bool(base_mode & 0x80),
@@ -125,7 +125,7 @@ class Telemetry(object):
             mav_mode_msg = telemetry_mav_mode(
                 system_id=msg.sys_id,
                 component_id=msg.comp_id,
-                timestamp=datetime.now().isoformat(),
+                timestamp=rospy.Time.now(),
                 armed=bool(base_mode & 0x80),
                 manual_input=bool(base_mode & 0x40),
                 hil_simulation=bool(base_mode & 0x20),
@@ -150,7 +150,7 @@ class Telemetry(object):
             status_msg = telemetry_statustext(
                 system_id=msg.sys_id,
                 component_id=msg.comp_id,
-                timestamp=datetime.now().isoformat(),
+                timestamp=rospy.Time.now(),
                 severity_level=severity,
                 severity=MAVLINK_SEVERITY_LOOKUP[severity],
                 text=text)
@@ -163,7 +163,7 @@ class Telemetry(object):
             hud_msg = telemetry_vfr_hud(
                 system_id=msg.sys_id,
                 component_id=msg.comp_id,
-                timestamp=datetime.now().isoformat(),
+                timestamp=rospy.Time.now(),
                 airspeed=airspeed,
                 ground_speed=groundspeed,
                 absolute_alt=alt,
@@ -180,7 +180,7 @@ class Telemetry(object):
             home_pos = telemetry_home_position(
                 system_id=msg.sys_id,
                 component_id=msg.comp_id,
-                timestamp=datetime.now().isoformat(),
+                timestamp=rospy.Time.now(),
                 latitude=latitude / 1e7,
                 longitude=longitude / 1e7,
                 altitude=altitude / 1e3,

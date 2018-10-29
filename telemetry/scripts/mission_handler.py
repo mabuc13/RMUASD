@@ -134,7 +134,7 @@ class MissionHandler(object):
             msg = telemetry_mission_info(
                 system_id=msg.sys_id,
                 component_id=msg.comp_id,
-                timestamp=datetime.now().isoformat(),
+                timestamp=rospy.Time.now(),
                 active_waypoint_idx=self.active_mission_item,
                 active_mission_len=self.active_mission_length,
                 current_item=current

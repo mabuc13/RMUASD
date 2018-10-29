@@ -226,7 +226,7 @@ class CommandHandler(object):
             msg = telemetry_cmd_retry_fail(
                 system_id=self.sys_id,
                 component_id=self.comp_id,
-                timestamp=datetime.now().isoformat(),
+                timestamp=rospy.Time.now(),
                 message="Too many failures"
                 )
             self.cmd_retry_fail_pub.publish(msg)

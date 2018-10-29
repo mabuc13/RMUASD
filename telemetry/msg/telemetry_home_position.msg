@@ -1,6 +1,6 @@
 uint8 system_id
 uint8 component_id
-string timestamp
+time timestamp
 float32 latitude
 float32 longitude
 float32 altitude        # AMSL

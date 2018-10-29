@@ -1,6 +1,6 @@
 uint8 system_id
 uint8 component_id
-string timestamp
+time timestamp
 bool armed
 bool manual_input
 bool hil_simulation

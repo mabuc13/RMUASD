@@ -167,6 +167,7 @@ class DroneHandler(object):
         drone = self.drones[1]
 
         # i keep getting intermittent errors from last_heard not being the correct type
+        # TODO figure out where they come from
         try:
             need2know = DroneInfo(
                 drone_id=drone.id,
@@ -219,6 +220,7 @@ class DroneHandler(object):
             self.nice_info_pub.publish(nice2know)
         except:
             pass
+            
     def mission_request(self, srv):
         # TODO implement for all drones
         drone = self.drones[1]

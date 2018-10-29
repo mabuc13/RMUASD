@@ -1,6 +1,6 @@
 uint8 system_id
 uint8 component_id
-string timestamp        
+time timestamp        
 float32 airspeed        # m/s
 float32 ground_speed    # m/s
 float32 absolute_alt    # MSL
