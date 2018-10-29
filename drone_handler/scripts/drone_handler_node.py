@@ -14,7 +14,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack
 from gcs.msg import DroneInfo, GPS, NiceInfo
-
+ 
 # defines
 INFO_FREQ = 5
 
@@ -166,56 +166,59 @@ class DroneHandler(object):
         # TODO iterate over all drones
         drone = self.drones[1]
 
-        need2know = DroneInfo(
-            drone_id=drone.id,
-            position=GPS(drone.latitude, drone.longitude, drone.relative_alt),
-            next_waypoint=drone.active_waypoint_gps,
-            armed=drone.armed,
-            ground_speed=drone.ground_speed,
-            heading=drone.heading,
-            battery_SOC=drone.battery_volt,
-            relative_alt=drone.relative_alt,
-            absolute_alt=drone.absolute_alt,
-            # GPS_timestamp=,
-            # status=DroneInfo.Run,
-            mission_index=drone.active_mission_idx
-        )
+        # i keep getting intermittent errors from last_heard not being the correct type
+        try:
+            need2know = DroneInfo(
+                drone_id=drone.id,
+                position=GPS(drone.latitude, drone.longitude, drone.relative_alt),
+                next_waypoint=drone.active_waypoint_gps,
+                armed=drone.armed,
+                ground_speed=drone.ground_speed,
+                heading=drone.heading,
+                battery_SOC=drone.battery_volt,
+                relative_alt=drone.relative_alt,
+                absolute_alt=drone.absolute_alt,
+                # GPS_timestamp=,
+                # status=DroneInfo.Run,
+                mission_index=drone.active_mission_idx
+            )
 
-        now = rospy.Time.now()
+            now = rospy.Time.now()
 
-        nice2know = NiceInfo(
-            drone_id=drone.id,
-            drone_handler_state=str(drone.fsm_state),
-            last_heard=now - drone.last_heard,
-            up_time=int(drone.up_time),
-            RPY=[drone.roll, drone.pitch, drone.yaw],
-            main_flightmode=drone.main_mode,
-            sub_flightmode=drone.sub_mode,
-            msg_sent_gcs=drone.msg_sent_gcs,
-            msg_received_gcs=drone.msg_received_gcs,
-            msg_dropped_gcs=drone.msg_dropped_gcs,
-            msg_dropped_uas=drone.msg_dropped_uas,
-            active_waypoint_idx=drone.active_sub_waypoint_idx,
-            active_mission_len=drone.active_sub_mission_len,
-            armed=drone.armed,
-            manual_input=drone.manual_input,
-            hil_simulation=drone.hil_simulation,
-            stabilized_mode=drone.stabilized_mode,
-            guided_mode=drone.guided_mode,
-            auto_mode=drone.auto_mode,
-            test_mode=drone.test_mode,
-            custom_mode=drone.custom_mode,
-            autopilot=drone.autopilot,
-            mav_state=drone.state,
-            mav_type=drone.type,
-            climb_rate=drone.climb_rate,
-            throttle=drone.throttle,
-            home=drone.home_position
-        )
+            nice2know = NiceInfo(
+                drone_id=drone.id,
+                drone_handler_state=str(drone.fsm_state),
+                last_heard=now - drone.last_heard,
+                up_time=int(drone.up_time),
+                RPY=[drone.roll, drone.pitch, drone.yaw],
+                main_flightmode=drone.main_mode,
+                sub_flightmode=drone.sub_mode,
+                msg_sent_gcs=drone.msg_sent_gcs,
+                msg_received_gcs=drone.msg_received_gcs,
+                msg_dropped_gcs=drone.msg_dropped_gcs,
+                msg_dropped_uas=drone.msg_dropped_uas,
+                active_waypoint_idx=drone.active_sub_waypoint_idx,
+                active_mission_len=drone.active_sub_mission_len,
+                armed=drone.armed,
+                manual_input=drone.manual_input,
+                hil_simulation=drone.hil_simulation,
+                stabilized_mode=drone.stabilized_mode,
+                guided_mode=drone.guided_mode,
+                auto_mode=drone.auto_mode,
+                test_mode=drone.test_mode,
+                custom_mode=drone.custom_mode,
+                autopilot=drone.autopilot,
+                mav_state=drone.state,
+                mav_type=drone.type,
+                climb_rate=drone.climb_rate,
+                throttle=drone.throttle,
+                home=drone.home_position
+            )
 
-        self.drone_info_pub.publish(need2know)
-        self.nice_info_pub.publish(nice2know)
-
+            self.drone_info_pub.publish(need2know)
+            self.nice_info_pub.publish(nice2know)
+        except:
+            pass
     def mission_request(self, srv):
         # TODO implement for all drones
         drone = self.drones[1]
