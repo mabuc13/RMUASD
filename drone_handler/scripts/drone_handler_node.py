@@ -135,7 +135,7 @@ class DroneHandler(object):
             drone.roll = msg.roll
             drone.pitch = msg.pitch
             drone.yaw = msg.yaw
-            drone.last_heard = msg.header.stamp
+            # drone.last_heard = msg.header.stamp
 
     def on_drone_status(self, msg):
         if msg.system_id in self.drones:
@@ -146,7 +146,7 @@ class DroneHandler(object):
             drone.msg_received_gcs = msg.msg_received_gcs
             drone.msg_dropped_gcs = msg.msg_dropped_gcs
             drone.msg_dropped_uas = msg.msg_dropped_uas
-            drone.last_heard = msg.header.stamp
+            drone.last_heard = msg.last_heard
 
     def on_drone_pos(self, msg):
         if msg.system_id in self.drones:
@@ -158,7 +158,7 @@ class DroneHandler(object):
             drone.absolute_alt = msg.alt
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
-            drone.last_heard = msg.header.stamp
+            # drone.last_heard = msg.header.stamp
         
     def on_mission_ack(self, msg):
         if msg.drone_id in self.drones:
