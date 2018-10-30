@@ -1,0 +1,15 @@
+from telemetry.srv import SetModeRequest
+
+MANUAL              = SetModeRequest(main_mode=1, sub_mode=0, base_mode=1)
+ALTITUDE_CONTROL    = SetModeRequest(main_mode=2, sub_mode=0, base_mode=1)
+POSITION_CONTROL    = SetModeRequest(main_mode=3, sub_mode=0, base_mode=1)
+ACRO                = SetModeRequest(main_mode=5, sub_mode=0, base_mode=1)
+OFFBOARD            = SetModeRequest(main_mode=6, sub_mode=0, base_mode=1)
+STABILIZED          = SetModeRequest(main_mode=7, sub_mode=0, base_mode=1)
+RATTITUDE           = SetModeRequest(main_mode=8, sub_mode=0, base_mode=1)
+TAKEOFF             = SetModeRequest(main_mode=4, sub_mode=2, base_mode=1)
+LOITER              = SetModeRequest(main_mode=4, sub_mode=3, base_mode=1)
+MISSION             = SetModeRequest(main_mode=4, sub_mode=4, base_mode=1)
+RETURN_TO_HOME      = SetModeRequest(main_mode=4, sub_mode=5, base_mode=1)
+LAND                = SetModeRequest(main_mode=4, sub_mode=6, base_mode=1)
+FOLLOW_ME           = SetModeRequest(main_mode=4, sub_mode=8, base_mode=1)

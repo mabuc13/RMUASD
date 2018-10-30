@@ -42,6 +42,22 @@
             },
             {
                 "autoContinue": true,
+                "command": 19,
+                "doJumpId": 2,
+                "frame": 3,
+                "params": [
+                    10,
+                    0,
+                    0,
+                    null,
+                    55.47190486545463,
+                    10.414827313451298,
+                    15
+                ],
+                "type": "SimpleItem"
+            },
+            {
+                "autoContinue": true,
                 "command": 16,
                 "doJumpId": 3,
                 "frame": 3,

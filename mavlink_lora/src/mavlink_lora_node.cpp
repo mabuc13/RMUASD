@@ -46,6 +46,7 @@ Revision
 #include <mavlink_lora/mavlink_lora_mission_item_int.h>
 #include <mavlink_lora/mavlink_lora_mission_list.h>
 #include <mavlink_lora/mavlink_lora_mission_partial_list.h>
+#include <mavlink_lora/mavlink_lora_mission_ack.h>
 #include <mavlink_lora/mavlink_lora_command_ack.h>
 #include <mavlink_lora/mavlink_lora_command_start_mission.h>
 #include <mavlink_lora/mavlink_lora_command_set_mode.h>
@@ -82,6 +83,7 @@ unsigned long secs_init;
 ros::Publisher msg_pub, pos_pub, atti_pub, status_pub, mission_ack_pub, command_ack_pub;
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 unsigned short msg_id_global_position_int_received;
+uint8_t recorded_sysid;
 
 /* Mission upload operations variables */
 unsigned short mission_up_count = 0; /*< Total count of mission elements to be uploaded*/
@@ -146,6 +148,7 @@ void ml_send_status_msg(void)
 	status.last_heard = last_heard;
 	status.last_heard_sys_status = sys_status_last_heard;
 	status.batt_volt = sys_status_voltage_battery;
+    status.system_id = ml_recorded_sys_id();
 	status.msg_sent_gcs = ml_messages_sent();
 	status.msg_received_gcs = ml_messages_received();
 	status.msg_dropped_gcs = ml_messages_crc_error();
@@ -177,6 +180,8 @@ void ml_parse_msg(unsigned char *msg)
 	// publish the message
 	msg_pub.publish(m);
 
+    recorded_sysid = m.sys_id;
+
 	// handle pos messages
 	if (m.msg_id == MAVLINK_MSG_ID_GLOBAL_POSITION_INT)
 	{
@@ -184,6 +189,7 @@ void ml_parse_msg(unsigned char *msg)
 		pos.header.stamp = last_heard;
 		mavlink_global_position_int_t glob_pos = ml_unpack_msg_global_position_int (&m.payload.front());
 		pos.time_usec = (uint64_t) glob_pos.time_boot_ms*1000;
+        pos.system_id = ml_recorded_sys_id();
 		pos.lat = glob_pos.lat / 1e7;
 		pos.lon = glob_pos.lon / 1e7;
 		pos.alt = glob_pos.alt / 1e3;
@@ -199,6 +205,7 @@ void ml_parse_msg(unsigned char *msg)
 		pos.header.stamp = last_heard;
 		mavlink_gps_raw_int_t gri = ml_unpack_msg_gps_raw_int (&m.payload.front());
 		pos.time_usec = gri.time_usec;
+        pos.system_id = ml_recorded_sys_id();
 		pos.lat = gri.lat / 1e7;
 		pos.lon = gri.lon / 1e7;
 		pos.alt = gri.alt / 1e3;
@@ -214,6 +221,7 @@ void ml_parse_msg(unsigned char *msg)
 		atti.header.stamp = last_heard;
 		mavlink_attitude_t a = ml_unpack_msg_attitude (&m.payload.front());
 		atti.time_usec = (uint64_t) a.time_boot_ms*1000;
+        atti.system_id = ml_recorded_sys_id();
 		atti.yaw = a.yaw;
 		atti.pitch = a.pitch;
 		atti.roll = a.roll;
@@ -278,13 +286,15 @@ void ml_parse_msg(unsigned char *msg)
         mission_uploading = false;
 
         //respond back with result
-        std_msgs::String msg;
-        msg.data = mission_result_parser(ack.type);
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = m.sys_id;
+        msg.result = ack.type;
+        msg.result_text = mission_result_parser(ack.type);
 
         mission_ack_pub.publish(msg);
 
         // DEBUG
-        ROS_INFO_STREAM(msg.data);
+        ROS_INFO_STREAM(msg.result_text);
     }
 
     //handle command ack
@@ -506,8 +516,10 @@ void mission_up_item_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //cancel command
@@ -539,8 +551,10 @@ void mission_clear_all_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //reset retries
@@ -565,8 +579,10 @@ void mission_up_count_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //cancel command
@@ -588,8 +604,10 @@ void mission_up_count_timeout_callback(const ros::TimerEvent&)
 void mission_ack_timeout_callback(const ros::TimerEvent&)
 {        
     //publish error on ack topic
-    std_msgs::String msg;
-    msg.data = mission_result_parser(19); //ack timeout error
+    mavlink_lora::mavlink_lora_mission_ack msg;
+    msg.drone_id = recorded_sysid;
+    msg.result = 19;
+    msg.result_text = mission_result_parser(19); //ack timeout error
     mission_ack_pub.publish(msg); 
     ROS_WARN_STREAM("Wait for acknowledge timed out");
 }
@@ -603,8 +621,10 @@ void mission_up_partial_timeout_callback(const ros::TimerEvent&)
     if (mission_retries > MISSION_MAX_RETRIES)
     {
         //publish error on ack topic
-        std_msgs::String msg;
-        msg.data = mission_result_parser(20); //max retries error
+        mavlink_lora::mavlink_lora_mission_ack msg;
+        msg.drone_id = recorded_sysid;
+        msg.result = 20;
+        msg.result_text = mission_result_parser(20); //max retries error
         mission_ack_pub.publish(msg);
 
         //cancel command
@@ -790,7 +810,7 @@ int main (int argc, char** argv)
     ros::Subscriber local_acc_sp_sub = n.subscribe("mavlink_interface/offboard/new_acc_sp", 1, ml_offboard_new_local_acc_sp_callback);
 
     /* Interface publishers */
-    mission_ack_pub = n.advertise<std_msgs::String>("mavlink_interface/mission/ack", 1);
+    mission_ack_pub = n.advertise<mavlink_lora::mavlink_lora_mission_ack>("mavlink_interface/mission/ack", 1);
     command_ack_pub = n.advertise<mavlink_lora::mavlink_lora_command_ack>("mavlink_interface/command/ack", 1);
 
 	/* initialize serial port */
@@ -807,7 +827,7 @@ int main (int argc, char** argv)
 	ml_set_monitor_all();
 
     /* start local setpoint spam */
-    ros::Timer timer = n.createTimer(ros::Duration(0.125), send_local_setpoint_callback);
+    // ros::Timer timer = n.createTimer(ros::Duration(0.125), send_local_setpoint_callback);
 
 	/* ros main loop */
 	ros::Rate loop_rate(100);

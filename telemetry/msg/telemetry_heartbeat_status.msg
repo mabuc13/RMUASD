@@ -1,6 +1,6 @@
 uint8 system_id
 uint8 component_id
-string timestamp
+time timestamp
 string main_mode
 string sub_mode
 bool armed

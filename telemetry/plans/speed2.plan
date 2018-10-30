@@ -90,13 +90,13 @@
             },
             {
                 "autoContinue": true,
-                "command": 178,
+                "command": 179,
                 "doJumpId": 6,
                 "frame": 2,
                 "params": [
                     1,
-                    10,
-                    -1,
+                    0,
+                    0,
                     0,
                     0,
                     0,
@@ -148,38 +148,6 @@
                     null,
                     55.47195816040039,
                     10.414484024047852,
-                    5
-                ],
-                "type": "SimpleItem"
-            },
-            {
-                "autoContinue": true,
-                "command": 178,
-                "doJumpId": 10,
-                "frame": 2,
-                "params": [
-                    1,
-                    1,
-                    -1,
-                    0,
-                    0,
-                    0,
-                    0
-                ],
-                "type": "SimpleItem"
-            },
-            {
-                "autoContinue": true,
-                "command": 16,
-                "doJumpId": 11,
-                "frame": 3,
-                "params": [
-                    0,
-                    0,
-                    0,
-                    null,
-                    55.472110748291016,
-                    10.414695739746094,
                     5
                 ],
                 "type": "SimpleItem"

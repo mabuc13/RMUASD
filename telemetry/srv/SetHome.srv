@@ -1,0 +1,7 @@
+bool        use_current
+float32     latitude
+float32     longitude
+float32     altitude       # always absolute
+---
+bool        success
+string      message
