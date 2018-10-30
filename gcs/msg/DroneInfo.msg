@@ -1,15 +1,17 @@
+uint32 drone_id
+
 GPS position
-GPS next_goal
-float32 velocity
+GPS next_waypoint
+float32 ground_speed
 float32 heading
 float32 battery_SOC
 float32 relative_alt
+float32 absolute_alt
 
-uint32 drone_id
-string GPS_timestamp
-uint8 status
-uint16 mission_index
-bool armed
+string GPS_timestamp    # timestamp of when GPS info was read on the drone
+uint8 status            # one of the constants below
+uint16 mission_index    # index of the current complete mission (dock to dock)
+bool armed              # is this necessary?
 
 uint8 Run = 1
 uint8 Land = 2
