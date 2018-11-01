@@ -73,6 +73,11 @@ class DroneHandler(object):
             
             drone.update_mission(msg.Path) 
 
+            # from service
+            drone.start_mission()
+
+            return TriggerResponse()
+
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
@@ -183,7 +188,7 @@ class DroneHandler(object):
                 relative_alt=drone.relative_alt,
                 absolute_alt=drone.absolute_alt,
                 # GPS_timestamp=,
-                # status=DroneInfo.Run,
+                status=drone.gcs_status,
                 mission_index=drone.active_mission_idx
             )
 

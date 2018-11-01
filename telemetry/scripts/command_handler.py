@@ -60,7 +60,7 @@ class CommandHandler(object):
         self.retries = 0
         if self.command_timer != None:
             self.command_timer.shutdown()
-        rospy.loginfo(msg.result_text)
+        # rospy.loginfo(msg.result_text)
         # TODO add parser for what command was acknowledged
 
     # TODO Create suitable service messages for these calls (maybe include drone ID)
