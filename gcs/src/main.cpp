@@ -195,7 +195,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
             }
             else
             {
-                std::cout << "Job is null - run" << std::endl;
+                // std::cout << "Job is null - run" << std::endl;
             }
         }else if(msg.status == msg.Land){
             job* aJob = Drones[index]->getJob();
@@ -211,7 +211,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
             }
             else
             {
-                std::cout << "Job is null - land" << std::endl;
+                // std::cout << "Job is null - land" << std::endl;
             }
         }
     }
@@ -429,10 +429,10 @@ int main(int argc, char** argv){
             spins =0;
             for(size_t i = 0; i < activeJobs.size(); i++){
                 if(activeJobs[i]->getStatus()==job::ongoing){
-                    webMsg(activeJobs[i]->getGoal(),
-                           "request=ongoing,ETA="+
-                           std::to_string(ETA(activeJobs[i]))
-                           );
+                    // webMsg(activeJobs[i]->getGoal(),
+                    //        "request=ongoing,ETA="+
+                    //        std::to_string(ETA(activeJobs[i]))
+                    //        );
                 }
             }
         }

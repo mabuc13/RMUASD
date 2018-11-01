@@ -1,2 +1,2 @@
-name=Klinik1,latitude=55.481202,longitude=10.344599,altitude=0,Lab=True
-name=Klinik2,latitude=55.477257,longitude=10.332575,altitude=0,Lab=False
+name=Klinik1,latitude=55.4718505,longitude=10.4147090,altitude=0,Lab=True
+name=Klinik2,latitude=55.4750907,longitude=10.4168913,altitude=0,Lab=False
