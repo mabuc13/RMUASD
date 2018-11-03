@@ -6,13 +6,15 @@ import rospy
 import rospkg
 import time
 import struct
+from datetime import datetime
 from mavlink_defines import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_msg, mavlink_lora_pos
 from telemetry.srv import ChangeSpeed, ChangeSpeedResponse
+from telemetry.msg import telemetry_cmd_retry_fail
 import command_lib
 
 # defines
-MAX_RETRIES = 3
+MAX_RETRIES = 3 
 TIMEOUT = 1.5
 
 class CommandHandler(object):
@@ -26,6 +28,7 @@ class CommandHandler(object):
         self.lat = 0
         self.lon = 0
         self.alt = 0
+        self.home_alt = 0
 
         self.cmd_lib = command_lib.command_lib()
         self.sys_id = 0  # reset when receiving first msg
@@ -36,6 +39,7 @@ class CommandHandler(object):
 
         # topic handlers
         self.mavlink_msg_pub        = rospy.Publisher("/mavlink_tx", mavlink_lora_msg, queue_size=0)
+        self.cmd_retry_fail_pub     = rospy.Publisher("/telemetry/cmd_retry_fail", telemetry_cmd_retry_fail, queue_size=0)
 
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_mavlink_lora_pos)
 
@@ -46,29 +50,29 @@ class CommandHandler(object):
             self.cmd_lib.set_target(self.sys_id, self.comp_id)
 
     def on_mavlink_lora_pos(self,msg):
-        self.lat = msg.lat
+        self.lat = msg.lat 
         self.lon = msg.lon
         self.alt = msg.alt
+        self.home_alt = msg.alt - msg.relative_alt
        
     def on_command_ack(self, msg):
         self.busy = False
         self.retries = 0
         if self.command_timer != None:
             self.command_timer.shutdown()
-        rospy.loginfo(msg.result_text)
+        # rospy.loginfo(msg.result_text)
         # TODO add parser for what command was acknowledged
 
     # TODO Create suitable service messages for these calls (maybe include drone ID)
     def arm_drone(self, srv):
-        command = MAVLINK_CMD_ID_ARM_DISARM
+        command = MAV_CMD_ARM_DISARM
         params = (1,0,0,0,0,0,0)
-
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
         return self.send_mavlink_msg()
 
     def disarm_drone(self, srv):
-        command = MAVLINK_CMD_ID_ARM_DISARM
+        command = MAV_CMD_ARM_DISARM
         params = (0,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -76,7 +80,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def takeoff_drone(self, srv):
-        command = MAVLINK_CMD_NAV_TAKEOFF
+        command = MAV_CMD_NAV_TAKEOFF
 
         yaw = float('nan') if srv.yaw == -1 else srv.yaw
 
@@ -90,7 +94,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def land_drone(self, srv):
-        command = MAVLINK_CMD_NAV_LAND
+        command = MAV_CMD_NAV_LAND
 
         yaw = float('nan') if srv.yaw == -1 else srv.yaw
 
@@ -105,7 +109,7 @@ class CommandHandler(object):
         
     def set_mode(self, srv):
         # custom_mode = struct.pack('<BBBB',srv.sub_mode,srv.main_mode,0,0)
-        command = MAVLINK_CMD_DO_SET_MODE
+        command = MAV_CMD_DO_SET_MODE
         params = (srv.base_mode,srv.main_mode,srv.sub_mode,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -113,7 +117,7 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def guided_enable(self, srv):
-        command = MAVLINK_CMD_NAV_GUIDED_ENABLE
+        command = MAV_CMD_NAV_GUIDED_ENABLE
         params = (1,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
@@ -121,32 +125,67 @@ class CommandHandler(object):
         return self.send_mavlink_msg()
 
     def guided_disable(self, srv):
-        command = MAVLINK_CMD_NAV_GUIDED_ENABLE
+        command = MAV_CMD_NAV_GUIDED_ENABLE
         params = (0,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
         return self.send_mavlink_msg()
 
-    def start_mission(self, msg):
-        command = MAVLINK_CMD_ID_MISSION_START
+    def start_mission(self, srv):
+        command = MAV_CMD_MISSION_START
         params = (0,0,0,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
         return self.send_mavlink_msg()
 
-    def return_home(self,msg):
-        command = MAVLINK_CMD_NAV_RETURN_TO_LAUNCH
+    def return_home(self, srv):
+        command = MAV_CMD_NAV_RETURN_TO_LAUNCH
         params = (0,0,0,0,0,0,0)
+
+        self.cmd_lib.pack_command_long(params, command, self.confirmation)
+
+        return self.send_mavlink_msg()
+
+    def set_home(self, srv):
+        command = MAV_CMD_DO_SET_HOME
+
+        if srv.use_current:
+            params = (1,0,0,0,0,0,0)
+        else:
+            if srv.relative_alt:
+                alt = self.home_alt + srv.altitude
+            else:
+                alt = srv.altitude
+            params = (0,0,0,0,srv.latitude,srv.longitude,alt)
+
+        print(params)
+
+        self.cmd_lib.pack_command_long(params, command, self.confirmation)
+
+        return self.send_mavlink_msg()
+
+    def goto_waypoint(self, srv):
+        command = MAV_CMD_DO_REPOSITION
+
+        lat = int(srv.latitude * 1e7)
+        lon = int(srv.longitude * 1e7)
+
+        if srv.relative_alt:
+            alt = self.home_alt + srv.altitude
+        else:
+            alt = srv.altitude
+        params = (0,1,0,float('nan'),lat,lon,alt)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
         return self.send_mavlink_msg()
 
     def change_speed(self, srv):
-        command = MAVLINK_CMD_DO_CHANGE_SPEED
-        params = (srv.speed_type,srv.speed,srv.throttle,srv.abs_rel,0,0,0)
+        command = MAV_CMD_DO_CHANGE_SPEED
+        # params = (srv.speed_type,srv.speed,srv.throttle,srv.abs_rel,0,0,0)
+        params = (1,srv.speed,-1,0,0,0,0)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
@@ -183,6 +222,13 @@ class CommandHandler(object):
             self.retries = 0
             self.confirmation = 0
             rospy.logwarn("Too many failures - giving up.")
+            msg = telemetry_cmd_retry_fail(
+                system_id=self.sys_id,
+                component_id=self.comp_id,
+                timestamp=rospy.Time.now(),
+                message="Too many failures"
+                )
+            self.cmd_retry_fail_pub.publish(msg)
             self.busy = False
         else:
             rospy.loginfo("Sending command again")

@@ -102,7 +102,7 @@ def handle_getPathPlan(req):
     planner = PathPlanner(start=start,goal=theend)
     planner.compute_path()
     plan = planner.path
-    GPSPlan = [req.start, req.end]
+    GPSPlan = []
     for point in plan:
         GPSPlan.append(point.GPS_data)
     return pathPlanResponse(GPSPlan)

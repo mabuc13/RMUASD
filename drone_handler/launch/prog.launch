@@ -1,0 +1,3 @@
+<launch>
+   <node name="drone_handler" pkg="drone_handler" type="drone_handler_node.py" output="screen" />
+</launch>

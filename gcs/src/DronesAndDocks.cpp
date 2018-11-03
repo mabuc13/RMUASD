@@ -67,6 +67,7 @@ void job::setGoal(dock* goal){
 }
 void job::setStatus(uint8 status){
     this->status = status;
+    std::cout << "Status: " << (int)status << std::endl;
 }
 
 

@@ -84,7 +84,7 @@ class Telemetry(object):
         msg = telemetry_mission_info(
             system_id=self.recorded_sys_id,
             component_id=self.recorded_comp_id,
-            timestamp=datetime.now().isoformat(),
+            timestamp=rospy.Time.now(),
             active_waypoint_idx=self.mission_handler.active_mission_item,
             mission_length=self.mission_handler.active_mission_length            
         )

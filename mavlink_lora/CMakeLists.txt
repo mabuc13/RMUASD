@@ -21,6 +21,7 @@ add_message_files(
   mavlink_lora_mission_item_int.msg
   mavlink_lora_mission_list.msg
   mavlink_lora_mission_partial_list.msg
+  mavlink_lora_mission_ack.msg
   mavlink_lora_command_ack.msg
   mavlink_lora_command_start_mission.msg
   mavlink_lora_command_set_mode.msg

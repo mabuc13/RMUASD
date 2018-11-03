@@ -4,11 +4,13 @@
 from sys import argv
 import rospy
 import rospkg
+from datetime import datetime
 from mavlink_defines import * # pylint: disable=W0614
 from mission_lib import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_mission_item_int, mavlink_lora_mission_list
 from std_srvs.srv import Trigger, TriggerResponse
-from telemetry.srv import UploadFromFile, UploadFromFileResponse
+from telemetry.srv import UploadFromFile, UploadFromFileResponse, UploadMissionResponse
+from telemetry.msg import telemetry_mission_info
 from import_mission_plan import import_plan
 
 # defines
@@ -36,6 +38,10 @@ class MissionHandler(object):
 
         self.mission_list_down  = mavlink_lora_mission_list()
         self.mission_list_up    = mavlink_lora_mission_list()
+        self.active_mission     = mavlink_lora_mission_list(
+            waypoints=[mavlink_lora_mission_item_int()]
+        )
+        # self.active_mission.waypoints.append(mavlink_lora_mission_item_int())
 
         rospack = rospkg.RosPack()
         package_path = rospack.get_path("telemetry")
@@ -47,7 +53,7 @@ class MissionHandler(object):
         # Topic handlers
         self.mavlink_msg_pub        = rospy.Publisher("/mavlink_tx", mavlink_lora_msg, queue_size=0)
         self.mission_upload_pub     = rospy.Publisher("/mavlink_interface/mission/mavlink_upload_mission", mavlink_lora_mission_list, queue_size=0)
-
+        self.mission_info_pub       = rospy.Publisher("/telemetry/mission_info", telemetry_mission_info, queue_size=0)
     def on_mavlink_msg(self, msg):
         if self.first_msg_ok == False:
             self.first_msg_ok = True
@@ -94,6 +100,7 @@ class MissionHandler(object):
                 self.mission_id_next = 0
                 self.busy = False
                 self.active_mission_length = len(self.mission_list_down.waypoints)
+                self.active_mission = self.mission_list_down
                 self.mi.pack_mission_ack(MAV_MISSION_ACCEPTED)
                 self.mavlink_msg_pub.publish(self.mi.msg)
                 # self.mission_list_pub.publish(self.mission_list_down)
@@ -111,12 +118,28 @@ class MissionHandler(object):
             else:
                 self.busy = False
 
-        elif msg.msg_id == MAVLINK_MSG_ID_MISSION_ACK:
-            self.busy = False
-            self.active_mission_length = len(self.mission_list_up.waypoints)
+        # elif msg.msg_id == MAVLINK_MSG_ID_MISSION_ACK:
+        #     self.busy = False
+        #     self.active_mission_length = len(self.mission_list_up.waypoints)
+        #     self.active_mission = self.mission_list_up
 
         elif msg.msg_id == MAVLINK_MSG_ID_MISSION_CURRENT:
             self.active_mission_item = self.mi.unpack_mission_current(msg.payload)
+
+            try:
+                current = self.active_mission.waypoints[self.active_mission_item]
+            except IndexError:
+                current = mavlink_lora_mission_item_int()
+
+            msg = telemetry_mission_info(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=rospy.Time.now(),
+                active_waypoint_idx=self.active_mission_item,
+                active_mission_len=self.active_mission_length,
+                current_item=current
+            )
+            self.mission_info_pub.publish(msg)
 
 
     def on_mission_list(self, msg):
@@ -125,7 +148,9 @@ class MissionHandler(object):
     def on_mission_ack(self, msg):
         self.busy = False
         self.retries = 0
-        rospy.loginfo(msg.data)
+        self.active_mission_length = len(self.mission_list_up.waypoints)
+        self.active_mission = self.mission_list_up
+        rospy.loginfo(msg.result_text)
 
     def send_mavlink_mission_req_list(self):
         self.mi.msg.header.stamp = rospy.Time.now()
@@ -190,13 +215,14 @@ class MissionHandler(object):
     def upload(self, srv):
         if self.busy:
             rospy.logwarn("Can't upload mission. Handler is busy.")
-            return TriggerResponse(False, "Can't upload mission. Handler is busy.")
+            return UploadMissionResponse(False, "Can't upload mission. Handler is busy.")
         else:
             rospy.loginfo("Upload started.")
             self.busy = True
             self.mission_list_up.header.stamp = rospy.Time.now()
+            self.mission_list_up.waypoints = srv.waypoints
             self.mission_upload_pub.publish(self.mission_list_up)
-            return TriggerResponse(True, "Uploading mission.")
+            return UploadMissionResponse(True, "Uploading mission.")
 
     def upload_from_file(self, srv):
         try:
@@ -205,7 +231,7 @@ class MissionHandler(object):
             rospy.logerr("Could not import plan from file")
             rospy.logerr(e)
             return UploadFromFileResponse(False, e)
-            
+
         if self.busy:
             rospy.logwarn("Can't upload mission. Handler is busy.")
             return UploadFromFileResponse(False, "Can't upload mission. Handler is busy.")

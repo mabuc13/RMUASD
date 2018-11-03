@@ -44,6 +44,7 @@ def astar(array, start, goal):
             while current in came_from:
                 data.append(current)
                 current = came_from[current]
+                print(len(close_set))
             return data
 
         close_set.add(current)

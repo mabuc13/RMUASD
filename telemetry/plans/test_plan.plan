@@ -55,7 +55,7 @@
                 "AMSLAltAboveTerrain": null,
                 "Altitude": 5,
                 "AltitudeMode": 0,
-                "autoContinue": true,
+                "autoContinue": false,
                 "command": 16,
                 "doJumpId": 3,
                 "frame": 3,

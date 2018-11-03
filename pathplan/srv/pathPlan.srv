@@ -1,0 +1,7 @@
+#input
+gcs/GPS start
+gcs/GPS end
+
+---
+# output
+gcs/GPS[] path

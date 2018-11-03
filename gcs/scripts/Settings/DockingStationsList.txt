@@ -1,2 +1,2 @@
-name=HIV Læge Butik,longitude=10.3295,latitude=55.47042,altitude=32,Lab=True
-name=Lægernes freds beredskab,longitude=10.329449,latitude=55.470415,altitude=32,Lab=False
+name=Klinik1,latitude=55.481202,longitude=10.344599,altitude=0,Lab=True
+name=Klinik2,latitude=55.477257,longitude=10.332575,altitude=0,Lab=False

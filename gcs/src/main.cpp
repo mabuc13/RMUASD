@@ -135,9 +135,9 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
     srv.request.end = end;
     bool worked = pathPlanClient.call(srv);
     if (worked){
-        cout << "[Ground Control]: " << "PathPlanDone" << endl;
+        // cout << "[Ground Control]: " << "PathPlanDone" << endl;
     }else{
-        cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
+        // cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
     }
 
     return srv.response.path;
@@ -188,18 +188,30 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         Drones[index]->setPosition(msg.position);
         if(msg.status == msg.Run){
             job* aJob = Drones[index]->getJob();
-            if(aJob->getStatus() != job::ongoing){
-                aJob->setStatus(job::ongoing);
+            if(aJob != NULL){
+                if(aJob->getStatus() != job::ongoing){
+                    aJob->setStatus(job::ongoing);
+                }
+            }
+            else
+            {
+                std::cout << "Job is null - run" << std::endl;
             }
         }else if(msg.status == msg.Land){
             job* aJob = Drones[index]->getJob();
-            if(aJob->getStatus() == job::ongoing){
-                if(aJob->getGoal() == aJob->getQuestHandler()){
-                    aJob->setStatus(job::done);
-                }else{
-                    aJob->setStatus(job::onhold);
-                    webMsg(aJob->getQuestHandler(),"request=arrived");
+            if(aJob != NULL){
+                if(aJob->getStatus() == job::ongoing){
+                    if(aJob->getGoal() != aJob->getQuestHandler()){
+                        aJob->setStatus(job::done);
+                    }else{
+                        aJob->setStatus(job::onhold);
+                        webMsg(aJob->getQuestHandler(),"request=arrived");
+                    }
                 }
+            }
+            else
+            {
+                std::cout << "Job is null - land" << std::endl;
             }
         }
     }
@@ -310,7 +322,7 @@ void initialize(void){
     GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("pathplan/GPS2GPSdist");
 
     sleep(2);
-
+    /*
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
     cout << "[Ground Control]: webServer Username: " << srv.request.username <<endl;
@@ -356,26 +368,30 @@ void initialize(void){
     gcs::DronePath p;
     p.DroneID = 2;
     p.Path = plan;
-    RouteRequest_pub.publish(p);*/
+    RouteRequest_pub.publish(p);
+    if(tries == maxTries){
+        ROS_ERROR("Could not obtain IP");
+    }
+    */
 }
 
 
 int main(int argc, char** argv){
     ros::init(argc,argv,"gcs");
     initialize();
-    unsigned long spins;
-    ros::Rate r(1);
+    unsigned long spins = 0;
+    ros::Rate r(10);
+
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
+
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
             for(size_t i = 0; i < Drones.size();i++){
                 if(Drones[i]->isAvailable()){
-                    cout << "[Ground Control]: " << "Error here " << endl;
                     activeJobs.push_back(jobQ.front());
-                    cout << "[Ground Control]: " << "Error end" << endl;
                     jobQ.pop_front();
                     Drones[i]->setJob(activeJobs.back());
                     Drones[i]->setAvailable(false);
@@ -388,10 +404,12 @@ int main(int argc, char** argv){
         // ############### Do path planing for all jobs waiting for new Path plan ################
         for(size_t i = 0; i < activeJobs.size();i++){
             if(activeJobs[i]->getStatus()==job::wait4pathplan){
-                std::vector<gcs::GPS> path =
-                        pathPlan(activeJobs[i]->getDrone()->getPosition(),
-                                       activeJobs[i]->getGoal()->getPosition()
-                                 );
+                gcs::GPS start = activeJobs[i]->getDrone()->getPosition();
+                gcs::GPS end = activeJobs[i]->getGoal()->getPosition();
+                // always start and stop above docking stations
+                start.altitude = 32;
+                end.altitude = 32;
+                std::vector<gcs::GPS> path = pathPlan(start, end);
 
                 gcs::DronePath msg;
                 msg.Path = path;
@@ -407,7 +425,7 @@ int main(int argc, char** argv){
         }
 
         // ############## Send out INFO on Drone ETA ######################
-        if(spins == 10000){
+        if(spins > 9){
             spins =0;
             for(size_t i = 0; i < activeJobs.size(); i++){
                 if(activeJobs[i]->getStatus()==job::ongoing){

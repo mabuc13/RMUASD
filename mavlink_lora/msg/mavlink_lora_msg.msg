@@ -6,4 +6,3 @@ uint8 comp_id
 uint32 msg_id
 uint8[] payload
 uint16 checksum
-
