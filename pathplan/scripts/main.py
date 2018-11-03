@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     print("waypoints: ", len(path))
 
-    ps = PathSimplifier(path)
+    ps = PathSimplifier(path,step_size=32)
     ps.delete_with_step_size_safe()
     path = ps.get_simple_path()
 
