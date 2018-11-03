@@ -283,7 +283,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
 void initialize(void){
     nh = new ros::NodeHandle();
     DroneStatus_sub = nh->subscribe("/telemetry/DroneStatus",100,DroneStatus_Handler);
-    RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/PathRequest",100);
+    RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
     WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
 
