@@ -147,8 +147,12 @@ class Drone(object):
     def start_mission(self):
         self.new_mission = True
 
-        if self.active_mission_len > 0:
+        # if the drone is already flying, it has to start running sub missions
+        if self.state == "Active":
             self.running_sub_missions = True
+        
+        self.active_mission_gps = self.pending_mission_gps
+        self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
         self.active_mission_len = len(self.pending_mission_gps)
         self.active_sub_mission_offset = 0
         print("New mission")
@@ -229,6 +233,7 @@ class Drone(object):
                 # from the grounded state, the sub mission is the same as the whole mission
                 self.active_sub_mission = self.active_mission_ml
 
+                self.running_sub_missions = False
                 self.new_mission = False
                 self.fsm_state = State.REQUESTING_UPLOAD
             
@@ -336,14 +341,14 @@ class Drone(object):
                             self.fsm_state = State.REQUESTING_UPLOAD
 
 
-            if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 15:
+            if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 20:
                 # request = LandDroneRequest(on_the_spot=False, precision_land=1, yaw=-1,
                 #     lat=self.active_waypoint_gps.latitude, lon=self.active_waypoint_gps.longitude ,alt=0)
                 # response = self.land(request)
                 # if response.success:
                 #     self.fsm_state = State.LANDING
                 self.fsm_state = State.LANDING
-
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.LANDING:
             if self.state == "Standby":
                 self.fsm_state = State.GROUNDED

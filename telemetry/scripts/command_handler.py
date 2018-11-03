@@ -15,7 +15,7 @@ import command_lib
 
 # defines
 MAX_RETRIES = 3 
-TIMEOUT = 1.5
+TIMEOUT = 2
 
 class CommandHandler(object):
 
@@ -36,6 +36,8 @@ class CommandHandler(object):
 
         self.mavlink_msg = mavlink_lora_msg()
         self.command_timer = None
+
+        self.active_command = ""
 
         # topic handlers
         self.mavlink_msg_pub        = rospy.Publisher("/mavlink_tx", mavlink_lora_msg, queue_size=0)
@@ -60,7 +62,9 @@ class CommandHandler(object):
         self.retries = 0
         if self.command_timer != None:
             self.command_timer.shutdown()
-        # rospy.loginfo(msg.result_text)
+        
+        if msg.command in MAVLINK_CMD_LOOKUP:
+            rospy.loginfo("{} ({})".format(msg.result_text, MAVLINK_CMD_LOOKUP[msg.command]))
         # TODO add parser for what command was acknowledged
 
     # TODO Create suitable service messages for these calls (maybe include drone ID)
@@ -193,16 +197,17 @@ class CommandHandler(object):
 
     def send_mavlink_msg(self):
         if self.busy:
-            rospy.logwarn("Can't execute command. Handler is busy.")
             success = False
-            message = "Can't execute command. Handler is busy." 
+            message = "Can't execute command ({}). Handler is busy.".format(self.active_command) 
+            rospy.logwarn(message)
         else:
             self.busy = True
             self.mavlink_msg.header.stamp = rospy.Time.now()
             self.mavlink_msg = self.cmd_lib.msg
             self.mavlink_msg_pub.publish(self.mavlink_msg)
+            self.active_command = MAVLINK_CMD_LOOKUP[self.cmd_lib.command]
             success = True
-            message = "Command sent"
+            message = "Command sent ({})".format(self.active_command)
             rospy.loginfo(message)
 
             # start timeout
@@ -216,7 +221,7 @@ class CommandHandler(object):
 
     def command_timeout(self, event):
         self.retries += 1
-        rospy.loginfo("Command timeout!")
+        rospy.loginfo("Command timeout! ({})".format(self.active_command))
 
         if self.retries > MAX_RETRIES:
             self.retries = 0
@@ -231,7 +236,7 @@ class CommandHandler(object):
             self.cmd_retry_fail_pub.publish(msg)
             self.busy = False
         else:
-            rospy.loginfo("Sending command again")
+            rospy.loginfo("Sending command again ({})".format(self.active_command))
             self.confirmation += 1
             self.mavlink_msg_pub.publish(self.mavlink_msg)
             

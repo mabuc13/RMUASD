@@ -9,6 +9,7 @@ from gcs.msg import *
 from gcs.srv import *
 from Path_simplifier import PathSimplifier
 from eta_estimator import *
+import simplifier_rmuast
 
 
 class PathPlanner(object):
@@ -24,6 +25,8 @@ class PathPlanner(object):
         self.path = []
         self.map_padding = 100  # padding on top, bottom, left and right of map
         self.map_zeros = np.zeros((self.global_map_height, self.global_map_width), dtype=np.int)
+
+        self.rmuast_simplifier = simplifier_rmuast.FlightPlanner()
 
         self.set_global_coordinates()
     def set_global_coordinates(self):
@@ -77,15 +80,23 @@ class PathPlanner(object):
             self.path.append(Coordinate(northing=(j[0] + self.global_bottom_left.northing),
                                         easting=(j[1] + self.global_bottom_left.easting)))
         self.path.append(self.goal)
-
+        
         # Simplify path:
-        ps = PathSimplifier(self.path)
+        # self.export_kml_path("not_simple")
+
+        # self.rmuast_simplifier.loadPath(self.path)
+
+        # self.rmuast_simplifier.simplifyFlightPlan(dist=0.1)
+        # self.path = self.rmuast_simplifier.getSimpleCoordinates()
+        # self.export_kml_path("simple")
+        ps = PathSimplifier(self.path, step_size=20)
         ps.delete_with_step_size_safe()
         self.path = ps.get_simple_path()
     def export_kml_path(self, name):
+        print("Exporting")
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
-        kml.begin(name+'klm', 'Example', 'Example on the use of kmlclass', 0.1)
+        kml.begin(name+'.kml', 'Example', 'Example on the use of kmlclass', 0.1)
         # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
         # altitude: use 'absolute' or 'relativeToGround'
         kml.trksegbegin('', '', 'red', 'absolute')
