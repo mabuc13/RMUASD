@@ -75,8 +75,7 @@ class DroneHandler(object):
 
             # from service
             drone.start_mission()
-
-            return TriggerResponse()
+        
 
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:

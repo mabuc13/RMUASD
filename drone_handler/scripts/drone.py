@@ -13,6 +13,9 @@ BUFFER_SIZE = 30
 DESIRED_RELATIVE_ALT = 20
 
 MAV_CMD_NAV_WAYPOINT = 16
+MAV_CMD_NAV_LOITER_UNLIM = 17
+MAV_CMD_NAV_LOITER_TIME = 19
+MAV_CMD_NAV_LAND = 21
 MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6
 
 class State(Enum):
@@ -144,8 +147,12 @@ class Drone(object):
     def start_mission(self):
         self.new_mission = True
 
-        if self.active_mission_len > 0:
+        # if the drone is already flying, it has to start running sub missions
+        if self.state == "Active":
             self.running_sub_missions = True
+        
+        self.active_mission_gps = self.pending_mission_gps
+        self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
         self.active_mission_len = len(self.pending_mission_gps)
         self.active_sub_mission_offset = 0
         print("New mission")
@@ -158,6 +165,7 @@ class Drone(object):
             current = 0
             if itr == 0:
                 current = 1
+
             mission_item = mavlink_lora_mission_item_int(
                 param1=0,                       # hold time in seconds
                 param2=2,                       # acceptance radius [m]
@@ -176,6 +184,13 @@ class Drone(object):
             )
             sequence_number += 1
             ml_list.waypoints.append(mission_item)
+
+        # set last waypoint to a landing command
+        ml_list.waypoints[-1].command = MAV_CMD_NAV_LAND
+        ml_list.waypoints[-1].param1 = 0        # abort alt
+        ml_list.waypoints[-1].param2 = 2        # precision land
+        ml_list.waypoints[-1].z = 0
+        ml_list.waypoints[-1].autocontinue = 1
         ml_list.header.stamp = rospy.Time.now()
 
         return ml_list
@@ -218,6 +233,7 @@ class Drone(object):
                 # from the grounded state, the sub mission is the same as the whole mission
                 self.active_sub_mission = self.active_mission_ml
 
+                self.running_sub_missions = False
                 self.new_mission = False
                 self.fsm_state = State.REQUESTING_UPLOAD
             
@@ -324,27 +340,31 @@ class Drone(object):
                             self.next_sub_mission()
                             self.fsm_state = State.REQUESTING_UPLOAD
 
-            if self.active_mission_idx == self.active_mission_len - 1 and self.ground_speed < 0.2:
-                request = LandDroneRequest(on_the_spot=True, alt=0)
-                response = self.land(request)
-                if response.success:
-                    self.fsm_state = State.LANDING
 
+            if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 20:
+                # request = LandDroneRequest(on_the_spot=False, precision_land=1, yaw=-1,
+                #     lat=self.active_waypoint_gps.latitude, lon=self.active_waypoint_gps.longitude ,alt=0)
+                # response = self.land(request)
+                # if response.success:
+                #     self.fsm_state = State.LANDING
+                self.fsm_state = State.LANDING
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.LANDING:
             if self.state == "Standby":
                 self.fsm_state = State.GROUNDED
                 self.gcs_status = DroneInfo.Land
-                self.active_mission_ml  = mavlink_lora_mission_list()
-                self.active_sub_mission = mavlink_lora_mission_list()
-                self.active_mission_len = 0
-                self.active_mission_idx = 0     
-                self.active_sub_mission_offset = 0  
-            else:
-                if self.cmd_try_again:
-                    request = LandDroneRequest(on_the_spot=True, alt=0)
-                    response = self.land(request)
-                    if response.success:
-                        self.cmd_try_again = False
+                # self.active_mission_ml  = mavlink_lora_mission_list()
+                # self.active_sub_mission = mavlink_lora_mission_list()
+                # self.active_mission_len = 0
+                # self.active_mission_idx = 0
+                # self.active_sub_mission_offset = 0  
+            # else:
+            #     if self.cmd_try_again:
+            #         request = LandDroneRequest(on_the_spot=False, precision_land=1, yaw=-1,
+            #             lat=self.active_waypoint_gps.latitude, lon=self.active_waypoint_gps.longitude ,alt=0)
+            #         response = self.land(request)
+            #         if response.success:
+            #             self.cmd_try_again = False
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REPOSITION:
