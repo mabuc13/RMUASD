@@ -27,12 +27,13 @@ namespace drone_monitor {
 ** Implementation
 *****************************************************************************/
 bool operator!=(const gcs::GPS& op1, const gcs::GPS& op2){
-    return op1.latitude != op2.latitude &&op1.longitude != op2.longitude && op1.altitude &&op2.altitude;
+    return op1.latitude != op2.latitude || op1.longitude != op2.longitude || op1.altitude &&op2.altitude;
 }
 
 QNode::QNode(int argc, char** argv ) :
 	init_argc(argc),
-	init_argv(argv)
+    init_argv(argv),
+    closeDown(false)
 	{}
 
 QNode::~QNode() {
@@ -51,8 +52,9 @@ bool QNode::init() {
 	ros::start(); // explicitly needed since our nodehandle is going out of scope.
 	ros::NodeHandle n;
 	// Add your ros communications here.
-    n.subscribe<gcs::DroneInfo>("/drone_handler/DroneInfo",1,&QNode::handle_DroneInfo,this);
-    n.subscribe<gcs::NiceInfo>("/drone_handler/NiceInfo",1,&QNode::handle_NiceInfo,this);
+    this->_droneInfo_sub = n.subscribe<gcs::DroneInfo>("/drone_handler/DroneInfo",1,&QNode::handle_DroneInfo,this);
+    this->_niceInfo_sub = n.subscribe<gcs::NiceInfo>("/drone_handler/NiceInfo",1,&QNode::handle_NiceInfo,this);
+    std::cout << "Ros Monitor started" << std::endl;
 
 	start();
 	return true;
@@ -61,15 +63,24 @@ bool QNode::init() {
 void QNode::run() {
 	ros::Rate loop_rate(1);
 	int count = 0;
-	while ( ros::ok() ) {
+    while ( ros::ok() && !closeDown ) {
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
-	std::cout << "Ros shutdown, proceeding to close the gui." << std::endl;
-	Q_EMIT rosShutdown(); // used to signal the gui for a shutdown (useful to roslaunch)
+    if(!closeDown){
+        std::cout << "Ros shutdown, proceeding to close the gui." << std::endl;
+        Q_EMIT rosShutdown(); // used to signal the gui for a shutdown (useful to roslaunch)
+    }else{
+        std::cout << "Gui shutdown proceeding to close thread" << endl;
+    }
+}
+
+void QNode::close(){
+    closeDown = true;
 }
 
 void QNode::handle_NiceInfo(gcs::NiceInfo msg){
+    std::cout << "Nice Info Recieved" << endl;
     aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
     theDrone->drone_ID = msg.drone_id;
 
@@ -167,6 +178,7 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     }
 }
 void QNode::handle_DroneInfo(gcs::DroneInfo msg){
+    cout << "DroneInfo recieved" << endl;
     aDrone* theDrone= &_Drones[int(msg.drone_id)];
     theDrone->drone_ID = msg.drone_id;
     if(theDrone->armed != msg.armed){
@@ -191,7 +203,9 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
     }
     if(theDrone->position != msg.position){
         theDrone->position = msg.position;
-        Q_EMIT sig_position(theDrone->position);
+        Q_EMIT sig_position(theDrone->position.altitude,
+                            theDrone->position.longitude,
+                            theDrone->position.latitude);
     }
     if(theDrone->height != msg.relative_alt){
         theDrone->height = msg.relative_alt;
@@ -200,6 +214,12 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
     if(theDrone->velocity != msg.ground_speed){
         theDrone->velocity = msg.ground_speed;
         Q_EMIT sig_velocity(theDrone->velocity);
+    }
+    if(theDrone->next_waypoint != msg.next_waypoint){
+        theDrone->next_waypoint = msg.next_waypoint;
+        Q_EMIT sig_nextWayPoint(theDrone->next_waypoint.altitude,
+                                theDrone->next_waypoint.longitude,
+                                theDrone->next_waypoint.latitude);
     }
 }
 }  // namespace drone_monitor

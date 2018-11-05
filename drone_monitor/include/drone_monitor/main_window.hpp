@@ -12,7 +12,7 @@
 ** Includes
 *****************************************************************************/
 
-#include <QtGui/QMainWindow>
+#include <QtWidgets>
 #include "ui_main_window.h"
 #include "qnode.hpp"
 
@@ -55,7 +55,8 @@ public Q_SLOTS:
 
 	void set_RPY(vector<double> RPY);
 	void set_heading(double heading);
-	void set_position(gcs::GPS pos);
+	void set_position(double altitude,double longitude, double latitude);
+	void set_nextWayPoint(double altitude,double longitude, double latitude);
 	void set_Height(double height);
 	void set_velocity(double velocity);
 

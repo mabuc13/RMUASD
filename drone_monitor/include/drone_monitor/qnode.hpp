@@ -50,6 +50,7 @@ struct aDrone{
 	vector<double> RPY;
 	double heading;
 	gcs::GPS position;
+	gcs::GPS next_waypoint;
 	double height;
 	double velocity;
 	string autoPilot;
@@ -81,6 +82,7 @@ public:
 	virtual ~QNode();
 	bool init();
 	void run();
+	void close();
 
 Q_SIGNALS:
 	void loggingUpdated();
@@ -94,7 +96,8 @@ Q_SIGNALS:
 
 	void sig_RPY(vector<double> RPY);
 	void sig_heading(double heading);
-	void sig_position(gcs::GPS pos);
+	void sig_position(double alt,double lon,double lat);
+	void sig_nextWayPoint(double alt,double lon,double lat);
 	void sig_Height(double height);
 	void sig_velocity(double velocity);
 
@@ -108,14 +111,16 @@ Q_SIGNALS:
 private:
 	int init_argc;
 	char** init_argv;
-	ros::Publisher chatter_publisher;
-    QStringListModel logging_model;
+	ros::Subscriber _niceInfo_sub;
+	ros::Subscriber _droneInfo_sub;
 
 	void handle_NiceInfo(gcs::NiceInfo msg);
 	void handle_DroneInfo(gcs::DroneInfo msg);
 
 	map<int,aDrone> _Drones;
 	int _currentDrone;
+
+	bool closeDown;
 };
 
 }  // namespace drone_monitor

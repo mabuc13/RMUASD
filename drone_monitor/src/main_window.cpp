@@ -41,7 +41,8 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode, SIGNAL(sig_uptime(double)), this, SLOT(set_uptime(double)));
     QObject::connect(&qnode, SIGNAL(sig_RPY(vector<double>)), this, SLOT(set_RPY(vector<double>)));
     QObject::connect(&qnode, SIGNAL(sig_heading(double)), this, SLOT(set_heading(double)));
-    QObject::connect(&qnode, SIGNAL(sig_position(gcs::GPS)), this, SLOT(set_position(gcs::GPS)));
+    QObject::connect(&qnode, SIGNAL(sig_position(double,double,double)), this, SLOT(set_position(double,double,double)));
+    QObject::connect(&qnode, SIGNAL(sig_nextWayPoint(double,double,double)), this, SLOT(set_nextWayPoint(double,double,double)));
     QObject::connect(&qnode, SIGNAL(sig_Height(double)), this, SLOT(set_Height(double)));
     QObject::connect(&qnode, SIGNAL(sig_velocity(double)), this, SLOT(set_velocity(double)));
     QObject::connect(&qnode, SIGNAL(sig_autoPilot(string)), this, SLOT(set_autoPilot(string)));
@@ -50,6 +51,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode, SIGNAL(sig_otherFlightmode(bool,bool,bool,bool,bool,bool,bool)), this, SLOT(set_otherFlightmode(bool,bool,bool,bool,bool,bool,bool)));
     QObject::connect(&qnode,SIGNAL(sig_mavlinkState(string)),this,SLOT(set_mavlinkState(string)));
     QObject::connect(&qnode,SIGNAL(sig_mavlinkType(string)),this,SLOT(set_mavlinkType(string)));
+    qnode.init();
 }
 
 MainWindow::~MainWindow() {}
@@ -65,19 +67,19 @@ MainWindow::~MainWindow() {}
 
 void MainWindow::set_armed(bool isArmed){
     if(isArmed){
-        ui.label_armed->setText(QString("<font color='green'>ARMED</font>"));
+        ui.label_armed->setText(QString("<p><span style=' font-size:12pt; font-weight:600; color:#00ff00;'>Armed</span></p>"));
     }else{
-        ui.label_armed->setText(QString("<font color='red'>ARMED</font>"));
+        ui.label_armed->setText(QString("<p><span style=' font-size:12pt; font-weight:600; color:#ff0000;'>Not Armed</span></p>"));
     }
-
 }
+
 void MainWindow::set_status(int status){
     if(status == 1){
-        ui.label_status->setText(QString("Running Mission"));
+        ui.label_status->setText(QString("<span style=' font-size:12pt; font-weight:600;'>Running Mission</span>"));
     }else if(status == 2){
-        ui.label_status->setText(QString("On Ground"));
+        ui.label_status->setText(QString("<span style=' font-size:12pt; font-weight:600;'>On Ground</span>"));
     }else if(status == 3){
-        ui.label_status->setText(QString("On hold"));
+        ui.label_status->setText(QString("<span style=' font-size:12pt; font-weight:600;'>On Hold</span>"));
     }
 }
 void MainWindow::set_battery(double SOC){
@@ -108,9 +110,37 @@ void MainWindow::set_heading(double heading){
     //text.push_back(QString("s"));
     ui.label_heading->setText(text);
 }
-void MainWindow::set_position(gcs::GPS pos){
+void MainWindow::set_position(double altitude,double longitude, double latitude){
+    QString text;
+    QLocale obj;
 
+    text.push_back(obj.toString(latitude,'f',6));
+    text.push_back(QString("°"));
+    ui.label_latitude->setText(text);
+    text.clear();
+
+    text.push_back(obj.toString(longitude,'f',6));
+    text.push_back(QString("°"));
+    ui.label_longitude->setText(text);
 }
+void MainWindow::set_nextWayPoint(double altitude,double longitude, double latitude){
+    QString text;
+    QLocale obj;
+    text.push_back(obj.toString(altitude,'f',1));
+    text.push_back(QString("m"));
+    ui.label_nextAltitude->setText(text);
+    text.clear();
+
+    text.push_back(obj.toString(latitude,'f',6));
+    text.push_back(QString("°"));
+    ui.label_nextLatitude->setText(text);
+    text.clear();
+
+    text.push_back(obj.toString(longitude,'f',6));
+    text.push_back(QString("°"));
+    ui.label_nextLongitude->setText(text);
+}
+
 void MainWindow::set_Height(double height){
     QString text;
     QLocale obj;
@@ -165,7 +195,8 @@ void MainWindow::set_mavlinkType(string type){
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-	QMainWindow::closeEvent(event);
+    QMainWindow::closeEvent(event);
+    qnode.close();
 }
 
 }  // namespace drone_monitor

@@ -23,19 +23,26 @@ catkin_package()
 
 # this comes from qt_build's qt-ros.cmake which is automatically
 # included via the dependency call in package.xml
-rosbuild_prepare_qt4(QtCore QtGui) # Add the appropriate components to the component list here
+#rosbuild_prepare_qt4(QtCore QtGui) # Add the appropriate components to the component list here
 
 ##############################################################################
 # Sections
 ##############################################################################
 
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+
+find_package(Qt5Widgets CONFIG REQUIRED)
+find_package(Qt5Core REQUIRED)
+
 file(GLOB QT_FORMS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ui/*.ui)
 file(GLOB QT_RESOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} resources/*.qrc)
 file(GLOB_RECURSE QT_MOC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} FOLLOW_SYMLINKS include/drone_monitor/*.hpp)
 
-QT4_ADD_RESOURCES(QT_RESOURCES_CPP ${QT_RESOURCES})
-QT4_WRAP_UI(QT_FORMS_HPP ${QT_FORMS})
-QT4_WRAP_CPP(QT_MOC_HPP ${QT_MOC})
+QT5_ADD_RESOURCES(QT_RESOURCES_CPP ${QT_RESOURCES})
+QT5_WRAP_UI(QT_FORMS_HPP ${QT_FORMS})
+QT5_WRAP_CPP(QT_MOC_HPP ${QT_MOC})
 
 ##############################################################################
 # Sources
@@ -47,6 +54,7 @@ file(GLOB_RECURSE QT_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} FOLLOW_SYMLINK
 # Binaries
 ##############################################################################
 
-add_executable(drone_monitor ${QT_SOURCES} ${QT_RESOURCES_CPP} ${QT_FORMS_HPP} ${QT_MOC_HPP})
-target_link_libraries(drone_monitor ${QT_LIBRARIES} ${catkin_LIBRARIES})
+add_executable(drone_monitor ${QT_SOURCES} ${QT_RESOURCES_CPP} ${QT_FORMS_HPP} ${QT_MOC_HPP}
+	build/ui_main_window.h)
+target_link_libraries(drone_monitor Qt5::Widgets ${QT_LIBRARIES} ${catkin_LIBRARIES})
 install(TARGETS drone_monitor RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

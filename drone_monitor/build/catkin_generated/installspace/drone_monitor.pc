@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: drone_monitor
+Description: Description of drone_monitor
+Version: 0.1.0
+Cflags: 
+Libs: -L/usr/local/lib 
+Requires: 
