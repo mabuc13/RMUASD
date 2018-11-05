@@ -27,7 +27,7 @@
 
 #include <string>
 #include <QThread>
-#include <QStringListModel>
+#include <QString>
 #include <map>
 
 
@@ -73,6 +73,9 @@ struct aDrone{
 	double climb_rate;
 	size_t throttle;
 	gcs::GPS home;
+	int missionIndex;
+	int drone_wayPoints;
+	int drone_missionLength;
 };
 
 class QNode : public QThread {
@@ -91,22 +94,26 @@ Q_SIGNALS:
 	void sig_status(int status);
 
 	void sig_battery(double SOC);
-	void sig_time(string time);
+	void sig_time(QString time);
 	void sig_uptime(double sec);
 
-	void sig_RPY(vector<double> RPY);
+	void sig_RPY(double R,double P,double Y);
 	void sig_heading(double heading);
 	void sig_position(double alt,double lon,double lat);
-	void sig_nextWayPoint(double alt,double lon,double lat);
 	void sig_Height(double height);
 	void sig_velocity(double velocity);
 
-	void sig_autoPilot(string text);
-	void sig_subFlightmode(string text);
-	void sig_mainFlightmode(string text);
+	void sig_nextWayPoint(double alt,double lon,double lat);
+	void sig_missionLength(int len);
+	void sig_missionIndex(int len);
+	void sig_droneMission(int index, int len);
+
+	void sig_autoPilot(QString text);
+	void sig_subFlightmode(QString text);
+	void sig_mainFlightmode(QString text);
 	void sig_otherFlightmode(bool manual, bool simulation, bool stabilized, bool guided, bool autoM, bool test, bool custom);
-	void sig_mavlinkState(string state);
-	void sig_mavlinkType(string type);
+	void sig_mavlinkState(QString state);
+	void sig_mavlinkType(QString type);
 
 private:
 	int init_argc;

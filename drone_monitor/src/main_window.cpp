@@ -37,20 +37,22 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode, SIGNAL(sig_armed(bool)), this, SLOT(set_armed(bool)));
     QObject::connect(&qnode, SIGNAL(sig_status(int)), this, SLOT(set_status(int)));
     QObject::connect(&qnode, SIGNAL(sig_battery(double)), this, SLOT(set_battery(double)));
-    QObject::connect(&qnode, SIGNAL(sig_time(string)), this, SLOT(set_time(string)));
+    QObject::connect(&qnode, SIGNAL(sig_time(QString)), this, SLOT(set_time(QString)));
     QObject::connect(&qnode, SIGNAL(sig_uptime(double)), this, SLOT(set_uptime(double)));
-    QObject::connect(&qnode, SIGNAL(sig_RPY(vector<double>)), this, SLOT(set_RPY(vector<double>)));
+    QObject::connect(&qnode, SIGNAL(sig_RPY(double,double,double)), this, SLOT(set_RPY(double,double,double)));
     QObject::connect(&qnode, SIGNAL(sig_heading(double)), this, SLOT(set_heading(double)));
     QObject::connect(&qnode, SIGNAL(sig_position(double,double,double)), this, SLOT(set_position(double,double,double)));
     QObject::connect(&qnode, SIGNAL(sig_nextWayPoint(double,double,double)), this, SLOT(set_nextWayPoint(double,double,double)));
     QObject::connect(&qnode, SIGNAL(sig_Height(double)), this, SLOT(set_Height(double)));
     QObject::connect(&qnode, SIGNAL(sig_velocity(double)), this, SLOT(set_velocity(double)));
-    QObject::connect(&qnode, SIGNAL(sig_autoPilot(string)), this, SLOT(set_autoPilot(string)));
-    QObject::connect(&qnode, SIGNAL(sig_subFlightmode(string)), this, SLOT(set_subFlightmode(string)));
-    QObject::connect(&qnode, SIGNAL(sig_mainFlightmode(string)), this, SLOT(set_mainFlightmode(string)));
+    QObject::connect(&qnode, SIGNAL(sig_autoPilot(QString)), this, SLOT(set_autoPilot(QString)));
+    QObject::connect(&qnode, SIGNAL(sig_subFlightmode(QString)), this, SLOT(set_subFlightmode(QString)));
+    QObject::connect(&qnode, SIGNAL(sig_mainFlightmode(QString)), this, SLOT(set_mainFlightmode(QString)));
     QObject::connect(&qnode, SIGNAL(sig_otherFlightmode(bool,bool,bool,bool,bool,bool,bool)), this, SLOT(set_otherFlightmode(bool,bool,bool,bool,bool,bool,bool)));
-    QObject::connect(&qnode,SIGNAL(sig_mavlinkState(string)),this,SLOT(set_mavlinkState(string)));
-    QObject::connect(&qnode,SIGNAL(sig_mavlinkType(string)),this,SLOT(set_mavlinkType(string)));
+    QObject::connect(&qnode,SIGNAL(sig_mavlinkState(QString)),this,SLOT(set_mavlinkState(QString)));
+    QObject::connect(&qnode,SIGNAL(sig_mavlinkType(QString)),this,SLOT(set_mavlinkType(QString)));
+    QObject::connect(&qnode,SIGNAL(sig_missionIndex(int)),this,SLOT(set_missionIndex(int)));
+    QObject::connect(&qnode,SIGNAL(sig_missionLength(int)),this,SLOT(set_missionLength(int)));
     qnode.init();
 }
 
@@ -78,6 +80,12 @@ void MainWindow::set_status(int status){
         ui.label_status->setText(QString("<span style=' font-size:12pt; font-weight:600;'>Running Mission</span>"));
     }else if(status == 2){
         ui.label_status->setText(QString("<span style=' font-size:12pt; font-weight:600;'>On Ground</span>"));
+        ui.label_ETA->setText(QString("N/A"));
+        ui.label_missinLenght->setText(QString("N/A"));
+        ui.label_missionIndex->setText(QString("N/A"));
+        ui.label_nextAltitude->setText(QString("N/A"));
+        ui.label_nextLatitude->setText(QString("N/A"));
+        ui.label_longitude->setText(QString("N/A"));
     }else if(status == 3){
         ui.label_status->setText(QString("<span style=' font-size:12pt; font-weight:600;'>On Hold</span>"));
     }
@@ -90,8 +98,8 @@ void MainWindow::set_battery(double SOC){
     ui.label_battery->setText(text);
 
 }
-void MainWindow::set_time(string time){
-    ui.label_time->setText(time.c_str());
+void MainWindow::set_time(QString time){
+    ui.label_time->setText(time);
 }
 void MainWindow::set_uptime(double sec){
     QString text;
@@ -100,8 +108,15 @@ void MainWindow::set_uptime(double sec){
     text.push_back(QString("s"));
     ui.label_uptime->setText(text);
 }
-void MainWindow::set_RPY(vector<double> RPY){
-
+void MainWindow::set_RPY(double R, double P, double Y){
+    QString text;
+    QLocale obj;
+    text.push_back(obj.toString(R,'f',1));
+    text.push_back(", ");
+    text.push_back(obj.toString(P,'f',1));
+    text.push_back(", ");
+    text.push_back(obj.toString(Y,'f',1));
+    ui.label_RPY->setText(text);
 }
 void MainWindow::set_heading(double heading){
     QString text;
@@ -140,6 +155,18 @@ void MainWindow::set_nextWayPoint(double altitude,double longitude, double latit
     text.push_back(QString("°"));
     ui.label_nextLongitude->setText(text);
 }
+void MainWindow::set_missionIndex(int len){
+    QString text;
+    QLocale obj;
+    text.push_back(obj.toString(double(len),'f',0));
+    ui.label_missionIndex->setText(text);
+}
+void MainWindow::set_missionLength(int len){
+    QString text;
+    QLocale obj;
+    text.push_back(obj.toString(double(len),'f',0));
+    ui.label_missinLenght->setText(text);
+}
 
 void MainWindow::set_Height(double height){
     QString text;
@@ -155,24 +182,33 @@ void MainWindow::set_velocity(double velocity){
     text.push_back(QString("m/s"));
     ui.label_velocity->setText(text);
 }
-void MainWindow::set_autoPilot(string text){
-    ui.label_autoPilot->setText(text.c_str());
+void MainWindow::set_autoPilot(QString text){
+    ui.label_autoPilot->setText(text);
 }
-void MainWindow::set_subFlightmode(string text){
-    ui.label_filghtmode_sub->setText(text.c_str());
+void MainWindow::set_subFlightmode(QString text){
+    ui.label_filghtmode_sub->setText(text);
 
 }
-void MainWindow::set_mainFlightmode(string text){
-    ui.label_flightmode_main->setText(text.c_str());
+void MainWindow::set_mainFlightmode(QString text){
+    ui.label_flightmode_main->setText(text);
 }
 void MainWindow::set_otherFlightmode(bool manual, bool simulation, bool stabilized, bool guided, bool autoM, bool test, bool custom){
-
+    QString text;
+    if(manual) text.push_back(QString("manual,"));
+    if(simulation) text.push_back(QString("simulation,"));
+    if(stabilized) text.push_back(QString("stabilized,"));
+    if(guided) text.push_back(QString("guided,"));
+    if(autoM) text.push_back(QString("auto,"));
+    if(test) text.push_back(QString("test,"));
+    if(custom) text.push_back(QString("custom,"));
+    if(text.size() == 0) text.push_back(QString("none"));
+    ui.label_flightmode_other->setText(text);
 }
-void MainWindow::set_mavlinkState(string state){
-    ui.label_mavlinkState->setText(state.c_str());
+void MainWindow::set_mavlinkState(QString state){
+    ui.label_mavlinkState->setText(state);
 }
-void MainWindow::set_mavlinkType(string type){
-    ui.label_mavlinkType->setText(type.c_str());
+void MainWindow::set_mavlinkType(QString type){
+    ui.label_mavlinkType->setText(type);
 }
 
 /**

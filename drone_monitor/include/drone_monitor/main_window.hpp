@@ -50,22 +50,25 @@ public Q_SLOTS:
 	void set_status(int status);
 
 	void set_battery(double SOC);
-	void set_time(string time);
+	void set_time(QString time);
 	void set_uptime(double sec);
 
-	void set_RPY(vector<double> RPY);
+	void set_RPY(double R, double P, double Y);
 	void set_heading(double heading);
 	void set_position(double altitude,double longitude, double latitude);
-	void set_nextWayPoint(double altitude,double longitude, double latitude);
 	void set_Height(double height);
 	void set_velocity(double velocity);
 
-	void set_autoPilot(string text);
-	void set_subFlightmode(string text);
-	void set_mainFlightmode(string text);
+	void set_nextWayPoint(double altitude,double longitude, double latitude);
+	void set_missionIndex(int len);
+	void set_missionLength(int len);
+
+	void set_autoPilot(QString text);
+	void set_subFlightmode(QString text);
+	void set_mainFlightmode(QString text);
 	void set_otherFlightmode(bool manual, bool simulation, bool stabilized, bool guided, bool autoM, bool test, bool custom);
-	void set_mavlinkState(string state);
-	void set_mavlinkType(string type);
+	void set_mavlinkState(QString state);
+	void set_mavlinkType(QString type);
 
 private:
 	Ui::MainWindowDesign ui;

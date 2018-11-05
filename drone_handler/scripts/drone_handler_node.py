@@ -14,7 +14,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack
 from gcs.msg import DroneInfo, GPS, NiceInfo
- 
+
 # defines
 INFO_FREQ = 5
 
@@ -24,7 +24,7 @@ update_interval = 10
 class DroneHandler(object):
 
     def __init__(self):
-        
+
         # hardcode the drone ID to 1 which is the drone we will be using
         self.drones = {1: drone.Drone()}
 
@@ -39,13 +39,13 @@ class DroneHandler(object):
 
         # Topic handlers
         # self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
-        self.drone_info_pub     = rospy.Publisher("/drone_handler/DroneInfo", DroneInfo, queue_size=0) 
-        self.nice_info_pub      = rospy.Publisher("/drone_handler/NiceInfo", NiceInfo, queue_size=0) 
+        self.drone_info_pub     = rospy.Publisher("/drone_handler/DroneInfo", DroneInfo, queue_size=0)
+        self.nice_info_pub      = rospy.Publisher("/drone_handler/NiceInfo", NiceInfo, queue_size=0)
         self.heartbeat_main_pub = rospy.Publisher("/drone_handler/heartbeat/main", Time, queue_size=0)
         self.heartbeat_run_pub  = rospy.Publisher("/drone_handler/heartbeat/run", Time, queue_size=0)
         self.heartbeat_info_pub = rospy.Publisher("/drone_handler/heartbeat/info", Time, queue_size=0)
 
-        rospy.Subscriber("/gcs/PathRequest", DronePath, self.on_drone_path)
+        rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
         rospy.Subscriber("/telemetry/mav_mode", telemetry_mav_mode, self.on_mav_mode)
         rospy.Subscriber("/telemetry/statustext", telemetry_statustext, self.on_statustext)
@@ -70,8 +70,8 @@ class DroneHandler(object):
     def on_drone_path(self, msg):
         if msg.DroneID in self.drones:
             drone = self.drones[msg.DroneID]
-            
-            drone.update_mission(msg.Path) 
+
+            drone.update_mission(msg.Path)
 
             # from service
             drone.start_mission()
@@ -100,7 +100,7 @@ class DroneHandler(object):
             drone.auto_mode         = msg.auto_mode
             drone.test_mode         = msg.test_mode
             drone.custom_mode       = msg.custom_mode
-        
+
     def on_statustext(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
@@ -156,7 +156,7 @@ class DroneHandler(object):
     def on_drone_pos(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
-            
+
             drone.up_time = msg.time_usec / 1e6
             drone.latitude = msg.lat
             drone.longitude = msg.lon
@@ -164,12 +164,12 @@ class DroneHandler(object):
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
             # drone.last_heard = msg.header.stamp
-        
+
     def on_mission_ack(self, msg):
         if msg.drone_id in self.drones:
             drone = self.drones[msg.drone_id]
             drone.on_mission_ack(msg)
-            
+
     def send_info_cb(self, event):
         # TODO iterate over all drones
         drone = self.drones[1]
@@ -246,12 +246,12 @@ class DroneHandler(object):
         # shutdown services
         print("Shutting down")
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     rospy.init_node('drone_handler')#, anonymous=True)
     rospy.sleep(1)
 
     dh = DroneHandler()
-    
+
     # This is bad because exceptions in the callbacks will just kill the timers and not the node
     rospy.Timer(rospy.Duration(1/INFO_FREQ), dh.send_info_cb)
     rospy.Timer(rospy.Duration(1/2), dh.run_cb)
@@ -260,7 +260,7 @@ if __name__ == "__main__":
     # rospy.spin()
 
     while not rospy.is_shutdown():
-        
+
         # # this makes sure that both function calls is run in the same thread, so it is easier to detect exceptions
         # if dh.info_ready:
         #     dh.send_info()

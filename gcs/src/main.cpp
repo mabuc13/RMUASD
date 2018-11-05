@@ -13,6 +13,7 @@
 #include <gcs/GPS.h>
 #include <gcs/DroneInfo.h>
 #include <gcs/DronePath.h>
+#include <gcs/DroneSingleValue.h>
 #include <std_msgs/String.h>
 #include <internet/getIp.h>
 #include <gcs/pathPlan.h>
@@ -61,6 +62,8 @@ ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePa
 
 ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_handler)
 ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
+
+ros::Publisher ETA_pub;
 
 ros::ServiceClient pathPlanClient;
 ros::ServiceClient EtaClient;
@@ -193,10 +196,6 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
                     aJob->setStatus(job::ongoing);
                 }
             }
-            else
-            {
-                std::cout << "Job is null - run" << std::endl;
-            }
         }else if(msg.status == msg.Land){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
@@ -208,10 +207,6 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
                         webMsg(aJob->getQuestHandler(),"request=arrived");
                     }
                 }
-            }
-            else
-            {
-                std::cout << "Job is null - land" << std::endl;
             }
         }
     }
@@ -233,7 +228,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
             }
         }else if(msg.hasValue("request")){  // ##########  REQUEST ##############
             cout << "[Ground Control]: " << "request recived" << endl;
-            dock* goalDock;
+            dock* goalDock = NULL;
             string dockName = msg.getValue("name");
             for(size_t i = 0; i < Docks.size(); i++){
                 if(Docks[i]->getName() == dockName){
@@ -255,7 +250,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
                 if(activeJobs[i]->getStatus() == job::onhold){
                     if(activeJobs[i]->getQuestHandler()->getName() == msg.getValue("name")){
 
-                        dock* goalDock;
+                        dock* goalDock = NULL;
                         string dockName = msg.getValue("return");
                         if(dockName.size() <1){ // if no return addresse find nearest lab
                             goalDock = closestLab(activeJobs[i]->getDrone());
@@ -294,8 +289,9 @@ void WebInfo_Handler(std_msgs::String msg_in){
 
 void initialize(void){
     nh = new ros::NodeHandle();
-    DroneStatus_sub = nh->subscribe("/telemetry/DroneStatus",100,DroneStatus_Handler);
+    DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
+    ETA_pub = nh->advertise<gcs::DroneSingleValue>("gcs/ETA",100);
     WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
 
@@ -429,11 +425,25 @@ int main(int argc, char** argv){
             spins =0;
             for(size_t i = 0; i < activeJobs.size(); i++){
                 if(activeJobs[i]->getStatus()==job::ongoing){
-                    webMsg(activeJobs[i]->getGoal(),
+                    double eta = ETA(activeJobs[i]);
+                    webMsg(activeJobs[i]->getQuestHandler(),
                            "request=ongoing,ETA="+
-                           std::to_string(ETA(activeJobs[i]))
+                           std::to_string(eta)
                            );
+                    gcs::DroneSingleValue msg;
+                    msg.value = eta;
+                    msg.drone_id = activeJobs[i]->getDrone()->getID();
+                    ETA_pub.publish(msg);
                 }
+            }
+        }
+
+        // ############### Delete Finnished Jobs ######################
+        for(size_t i = 0 ; i< activeJobs.size();i++){
+            if(activeJobs[i]->getStatus() == job::done){
+                delete activeJobs[i];
+                activeJobs.erase(activeJobs.begin()+i);
+                i--;
             }
         }
 

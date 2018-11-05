@@ -80,7 +80,6 @@ void QNode::close(){
 }
 
 void QNode::handle_NiceInfo(gcs::NiceInfo msg){
-    std::cout << "Nice Info Recieved" << endl;
     aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
     theDrone->drone_ID = msg.drone_id;
 
@@ -94,23 +93,23 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     }
     if(theDrone->autoPilot != msg.autopilot){
         theDrone->autoPilot = msg.autopilot;
-        Q_EMIT sig_autoPilot(theDrone->autoPilot);
+        Q_EMIT sig_autoPilot(theDrone->autoPilot.c_str());
     }
     if(theDrone->mavlinkState != msg.mav_state){
         theDrone->mavlinkState = msg.mav_state;
-        Q_EMIT sig_mavlinkState(theDrone->mavlinkState);
+        Q_EMIT sig_mavlinkState(theDrone->mavlinkState.c_str());
     }
     if(theDrone->mavlinkType != msg.mav_type){
         theDrone->mavlinkType = msg.mav_type;
-        Q_EMIT sig_mavlinkType(theDrone->mavlinkType);
+        Q_EMIT sig_mavlinkType(theDrone->mavlinkType.c_str());
     }
     if(theDrone->mainFlightMode != msg.main_flightmode){
         theDrone->mainFlightMode = msg.main_flightmode;
-        Q_EMIT sig_mainFlightmode(theDrone->mainFlightMode);
+        Q_EMIT sig_mainFlightmode(theDrone->mainFlightMode.c_str());
     }
     if(theDrone->subFlightmode !=msg.sub_flightmode){
         theDrone->subFlightmode= msg.sub_flightmode;
-        Q_EMIT sig_subFlightmode(theDrone->subFlightmode);
+        Q_EMIT sig_subFlightmode(theDrone->subFlightmode.c_str());
     }
     if(theDrone->msg_sent_gcs != msg.msg_sent_gcs){
         theDrone->msg_sent_gcs = msg.msg_sent_gcs;
@@ -128,7 +127,12 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
         theDrone->msg_dropped_uas = msg.msg_dropped_uas;
         //TODO
     }
-    //uint16 active_waypoint_idx	# On drone index
+    if(theDrone->drone_wayPoints !=msg.active_waypoint_idx	||
+            theDrone->drone_missionLength != msg.active_mission_len){
+        theDrone->drone_wayPoints = msg.active_waypoint_idx;
+        theDrone->drone_missionLength = msg.active_waypoint_idx;
+        Q_EMIT sig_droneMission(theDrone->drone_wayPoints,theDrone->drone_missionLength);
+    }
     //uint16 active_mission_len	# On drone mission length
 
     if(theDrone->armed != msg.armed){
@@ -162,7 +166,7 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
         theDrone->RPY[0] = msg.RPY[0];
         theDrone->RPY[1] = msg.RPY[1];
         theDrone->RPY[2] = msg.RPY[2];
-        Q_EMIT sig_RPY(theDrone->RPY);
+        Q_EMIT sig_RPY(theDrone->RPY[0],theDrone->RPY[1],theDrone->RPY[2]);
     }
     if(theDrone->climb_rate != msg.climb_rate){
         theDrone->climb_rate = msg.climb_rate;
@@ -178,7 +182,6 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     }
 }
 void QNode::handle_DroneInfo(gcs::DroneInfo msg){
-    cout << "DroneInfo recieved" << endl;
     aDrone* theDrone= &_Drones[int(msg.drone_id)];
     theDrone->drone_ID = msg.drone_id;
     if(theDrone->armed != msg.armed){
@@ -193,10 +196,10 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
         theDrone->SOC = msg.battery_SOC;
         Q_EMIT sig_battery(theDrone->SOC);
     }
-    /*if(theDrone->time != msg.GPS_timestamp){
+    if(theDrone->time != msg.GPS_timestamp){
         theDrone->time = msg.GPS_timestamp;
-        sig_battery(theDrone->time);
-    }*/
+        sig_time(theDrone->time.c_str());
+    }
     if(theDrone->heading != msg.heading){
         theDrone->heading = msg.heading;
         Q_EMIT sig_heading(theDrone->heading);
@@ -220,6 +223,10 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
         Q_EMIT sig_nextWayPoint(theDrone->next_waypoint.altitude,
                                 theDrone->next_waypoint.longitude,
                                 theDrone->next_waypoint.latitude);
+    }
+    if(theDrone->missionIndex != msg.mission_index){
+        theDrone->missionIndex = msg.mission_index;
+        Q_EMIT sig_missionIndex(theDrone->missionIndex);
     }
 }
 }  // namespace drone_monitor
