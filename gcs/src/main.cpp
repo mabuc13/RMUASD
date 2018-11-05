@@ -196,6 +196,10 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
                     aJob->setStatus(job::ongoing);
                 }
             }
+            else
+            {
+                // std::cout << "Job is null - run" << std::endl;
+            }
         }else if(msg.status == msg.Land){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
@@ -208,9 +212,12 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
                     }
                 }
             }
+            else
+            {
+                // std::cout << "Job is null - run" << std::endl;
+            }
         }
     }
-}
 
 void WebInfo_Handler(std_msgs::String msg_in){
     CSVmsg msg(msg_in.data);
