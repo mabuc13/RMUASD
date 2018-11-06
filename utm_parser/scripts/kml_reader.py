@@ -22,6 +22,7 @@ class kml_no_fly_zones_parser():
         """
         self.debug = debug
         self.placemarks = 0
+        self.true_zone_length = -1
 
     def download_and_parse_data(self):
         """
@@ -99,6 +100,7 @@ class kml_no_fly_zones_parser():
                                     element_name = 'NaN'
 
                                 coordinate3d_placemark = []
+                                self.true_zone_length += 1
                                 for coordinate in coordinates_str_split:
                                     coordinate3d = []
                                     sub_coordinates = coordinate.split(',')
@@ -150,6 +152,7 @@ class kml_no_fly_zones_parser():
                                 del coordinates_str_split[-1] # delete the last element since it is just empty and not 3 elements
 
                                 coordinate3d_placemark = []
+                                self.true_zone_length += 1
                                 for coordinate in coordinates_str_split:
                                     coordinate3d = []
                                     sub_coordinates = coordinate.split(',')
@@ -179,6 +182,7 @@ class kml_no_fly_zones_parser():
                         del coordinates_str_split[-1] # delete the last element since it is just empty and not 3 elements
 
                         coordinate3d_placemark = []
+                        self.true_zone_length += 1
                         for coordinate in coordinates_str_split:
                             coordinate3d = []
                             sub_coordinates = coordinate.split(',')
@@ -261,7 +265,7 @@ class kml_no_fly_zones_parser():
         Returns no-fly zone name of the argument provided no-fly zone (note that if the parsing failed with the name it returns 'NaN')
         Input: zone number
         Output: no-fly zone name
-        """
+        """	
         if 0 <= zone_no < len(self.coordinate3d_combined):
             return self.coordinate3d_combined[zone_no]['name']
         else:

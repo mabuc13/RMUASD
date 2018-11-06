@@ -11,6 +11,8 @@ find_package(catkin REQUIRED
   rospy 
   message_generation
   std_msgs
+  gcs
+  
 )
 
 ## System dependencies are found with CMake's conventions
@@ -49,13 +51,14 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
- 
+  array1d.msg
+  dnfz.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
    FILES
-
+   get_snfz.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -69,6 +72,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
+  gcs
 )
 
 ################################################
