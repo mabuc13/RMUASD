@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>Example</name>
+<description>Example on the use of kmlclass</description>
+<Style id="red">
+  <LineStyle>
+    <color>ff0000ff</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="green">
+  <LineStyle>
+    <color>ff00ff00</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="blue">
+  <LineStyle>
+    <color>ffff0000</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="cyan">
+  <LineStyle>
+    <color>ffffff00</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="yellow">
+  <LineStyle>
+    <color>ff00ffff</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Style id="grey">
+  <LineStyle>
+    <color>ff888888</color>
+    <width>0.1</width>
+  </LineStyle>
+</Style>
+<Placemark>
+<name></name>
+<description></description>
+<styleUrl>#red</styleUrl>
+<LineString>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>
+10.3154186970,055.4715902750,0.000
+10.3174813174,055.4727183738,0.000
+10.3195440556,055.4738464370,0.000
+10.3216045067,055.4749025980,0.000
+10.3236674766,055.4760305901,0.000
+10.3246941844,055.4764508398,0.000
+10.3267573233,055.4775787787,0.000
+10.3272682955,055.4777170251,0.000
+10.3292928659,055.4776950582,0.000
+10.3303051501,055.4776840622,0.000
+10.3323466894,055.4781651089,0.000
+10.3343907066,055.4787179875,0.000
+10.3364323483,055.4791989655,0.000
+10.3384740392,055.4796799091,0.000
+10.3405157795,055.4801608184,0.000
+10.3425600126,055.4807135592,0.000
+10.3445990000,055.4812020000,0.000
+</coordinates>
+</LineString>
+</Placemark>
+</Document>
+</kml>
