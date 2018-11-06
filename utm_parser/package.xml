@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package>
+  <name>utm_parser</name>
+  <version>0.0.0</version>
+  <description>Parsing the data from UTM and editing for pathplanning</description>
+
+  <!-- One maintainer tag required, multiple allowed, one person per tag -->
+  <!-- Example:  -->
+  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
+  <maintainer email="mabuc13@student.sdu.dk">Mark Buch</maintainer>
+
+
+  <license>BSD-clause-3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>message_generation</buildtool_depend>
+  <build_depend>gcs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  
+  <export>
+
+  </export>
+</package>

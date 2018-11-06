@@ -1,0 +1,8 @@
+gcs/GPS coordinate_lower_left
+gcs/GPS coordinate_upper_right
+
+---
+array1d[] snfz_map
+float32 resolution 
+uint16 map_width
+uint16 map_height
