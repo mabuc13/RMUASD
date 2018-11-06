@@ -218,6 +218,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
             }
         }
     }
+}
 
 void WebInfo_Handler(std_msgs::String msg_in){
     CSVmsg msg(msg_in.data);
