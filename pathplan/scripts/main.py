@@ -3,7 +3,10 @@
 import numpy as np
 from coordinate import Coordinate
 from AStar_1 import astar
+from AStar_2 import astar as newAstar
 from exportkml import kmlclass
+from math import sqrt
+import time
 from Path_simplifier import PathSimplifier
 #from beginner_tutorials.srv import *
 #import rospy
@@ -94,14 +97,31 @@ def compute_path_with_astar(start, goal):
 if __name__ == "__main__":
 
     # Small runway
-    start_pos = Coordinate(lat=55.481202, lon=10.344599)
-    goal_pos = Coordinate(lat=55.477257, lon=10.332575)
+    #start_pos = Coordinate(lat=55.481202, lon=10.344599)
+    #goal_pos = Coordinate(lat=55.479860, lon=10.340543)
 
     # All of runway
-    #start_pos = Coordinate(lat=55.471520, lon=10.315290)
-    #goal_pos = Coordinate(lat=55.481202, lon=10.344599)
+    start_pos = Coordinate(lat=55.471520, lon=10.315290)
+    goal_pos = Coordinate(lat=55.481202, lon=10.344599)
 
-    path = compute_path_with_astar(start_pos, goal_pos)
+    # Old pathplanner with map:
+    #path = compute_path_with_astar(start_pos, goal_pos)
+
+    print("Distance: ",
+          sqrt((start_pos.easting - goal_pos.easting) ** 2 + (start_pos.northing - goal_pos.northing) ** 2))
+
+    # New without map:
+    t0 = time.time()
+    path_reversed = newAstar(start_pos, goal_pos, step_multiplier=8)
+    t1 = time.time()
+
+    print("Found a path in %s seconds." % (t1 - t0))
+
+    path = []
+    for j in reversed(path_reversed):
+        path.append(j)
+    path.pop(-1)
+    path.append(goal_pos)
 
     '''
     print("hem: ", path[0].hemisphere,
@@ -116,15 +136,15 @@ if __name__ == "__main__":
 
     print("waypoints: ", len(path))
 
-    ps = PathSimplifier(path)
-    ps.delete_with_step_size_safe()
+    ps = PathSimplifier(path, step_size=16)
+    ps.delete_with_step_size_safe(threshold=8)
     path = ps.get_simple_path()
 
     print("waypoints: ", len(path))
 
     # width: defines the line width, use e.g. 0.1 - 1.0
     kml = kmlclass()
-    kml.begin('lufthavn_2.kml', 'Example', 'Example on the use of kmlclass', 0.1)
+    kml.begin('new_astar.kml', 'Example', 'Example on the use of kmlclass', 0.1)
     # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
     # altitude: use 'absolute' or 'relativeToGround'
     kml.trksegbegin('', '', 'red', 'absolute')

@@ -2,90 +2,54 @@
 
 import numpy as np
 from coordinate import Coordinate
-from AStar_1 import astar
+from AStar_2 import astar
 from exportkml import kmlclass
 import rospy
 from gcs.msg import *
 from gcs.srv import *
 from Path_simplifier import PathSimplifier
 from eta_estimator import *
+import time
 
 
 class PathPlanner(object):
     def __init__(self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)):
+        # Default position at HCA Airport: lat=55.470415, lon=10.329449
         self.start = Coordinate(GPS_data=start.GPS_data)
         self.goal = Coordinate(GPS_data=goal.GPS_data)
-
-        # Default position at HCA Airport: lat=55.470415, lon=10.329449
-        self.global_bottom_left = start
-        self.global_top_right = goal
-        self.global_map_width = 0
-        self.global_map_height = 0
         self.path = []
-        self.map_padding = 100  # padding on top, bottom, left and right of map
-        self.map_zeros = np.zeros((self.global_map_height, self.global_map_width), dtype=np.int)
 
-        self.set_global_coordinates()
-    def set_global_coordinates(self):
-        if self.start.northing < self.goal.northing:
-            if self.start.easting < self.goal.easting:
-                self.global_bottom_left.northing = self.start.northing - self.map_padding
-                self.global_bottom_left.easting = self.start.easting - self.map_padding
-                self.global_top_right.northing = self.goal.northing + self.map_padding
-                self.global_top_right.easting = self.goal.easting + self.map_padding
-            else:
-                self.global_bottom_left.northing = self.start.northing - self.map_padding
-                self.global_bottom_left.easting = self.goal.easting - self.map_padding
-                self.global_top_right.northing = self.goal.northing + self.map_padding
-                self.global_top_right.easting = self.start.easting + self.map_padding
-        else:
-            if self.start.easting < self.goal.easting:
-                self.global_bottom_left.northing = self.goal.northing - self.map_padding
-                self.global_bottom_left.easting = self.start.easting - self.map_padding
-                self.global_top_right.northing = self.start.northing + self.map_padding
-                self.global_top_right.easting = self.goal.easting + self.map_padding
-            else:
-                self.global_bottom_left.northing = self.goal.northing - self.map_padding
-                self.global_bottom_left.easting = self.goal.easting - self.map_padding
-                self.global_top_right.northing = self.start.northing + self.map_padding
-                self.global_top_right.easting = self.start.easting + self.map_padding
-
-        self.global_bottom_left.update_geo_coordinates()
-        self.global_top_right.update_geo_coordinates()
-
-        self.global_map_width = int(self.global_top_right.easting - self.global_bottom_left.easting)
-        self.global_map_height = int(self.global_top_right.northing - self.global_bottom_left.northing)
-
-        self.map_zeros = np.zeros((self.global_map_height, self.global_map_width), dtype=np.int)
-    def set_map_padding(self, new_padding):
-        self.map_padding = new_padding
-        self.set_global_coordinates()
     def set_start_and_goal(self, start, goal):
         self.start = Coordinate(lat=start.latitude, lon=start.longitude)
         self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
-    def compute_path(self):
-        rel_start_pos = (int(self.start.northing - self.global_bottom_left.northing),
-                         int(self.start.easting - self.global_bottom_left.easting))
-        rel_goal_pos = (int(self.goal.northing - self.global_bottom_left.northing),
-                        int(self.goal.easting - self.global_bottom_left.easting))
-        rel_path = astar(self.map_zeros, rel_start_pos, rel_goal_pos)
-        self.path = []
 
-        #TODO: Convert this to the GPS format that Kasper made
+    def compute_path(self):
+        print("Distance: ",
+              sqrt((self.start.easting - self.goal.easting) ** 2 + (self.start.northing - self.goal.northing) ** 2))
+        print("Computing path...")
+        t0 = time.time()
+        path_reversed = astar(self.start, self.goal, step_multiplier=8)
+        t1 = time.time()
+        print("Found a path in %s seconds." % (t1 - t0))
+
+        self.path = []
         self.path.append(self.start)
-        for j in reversed(rel_path):
-            self.path.append(Coordinate(northing=(j[0] + self.global_bottom_left.northing),
-                                        easting=(j[1] + self.global_bottom_left.easting)))
+        for j in reversed(path_reversed):
+            self.path.append(j)
+        self.path.pop(-1)
         self.path.append(self.goal)
 
+        print("Number of waypoints: " + len(self.path))
         # Simplify path:
-        ps = PathSimplifier(self.path)
-        ps.delete_with_step_size_safe()
+        ps = PathSimplifier(self.path, step_size=16)
+        ps.delete_with_step_size_safe(threshold=8)
         self.path = ps.get_simple_path()
+        print("Number of waypoints after simplifier: " + len(self.path))
+
     def export_kml_path(self, name):
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
-        kml.begin(name+'klm', 'Example', 'Example on the use of kmlclass', 0.1)
+        kml.begin(name+'.klm', 'Example', 'Example on the use of kmlclass', 0.1)
         # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
         # altitude: use 'absolute' or 'relativeToGround'
         kml.trksegbegin('', '', 'red', 'absolute')
@@ -96,7 +60,8 @@ class PathPlanner(object):
 
 
 def handle_getPathPlan(req):
-    print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) + ") to lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude)+")")
+    print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
+          ") to lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
     planner = PathPlanner(start=start,goal=theend)
