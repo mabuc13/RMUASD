@@ -147,8 +147,12 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
 }
 int ETA(job* aJob){
     gcs::getEta srv;
-    srv.request.path = aJob->getDrone()->getPath();
-    srv.request.speed = 10; //TODO
+
+    std::vector<gcs::GPS> path = aJob->getDrone()->getPath();
+    std::deque<gcs::GPS> part(path.begin()+aJob->getDrone()->getMissionIndex(),path.end());
+    part.push_front(aJob->getDrone()->getPosition());
+    srv.request.path = std::vector<gcs::GPS> (part.begin(),part.end());
+    srv.request.speed = aJob->getDrone()->getVelocity();
 
     bool worked = EtaClient.call(srv);
     if (worked){
@@ -189,6 +193,8 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << endl;
     }else{ // ################### Update Drone state #############################
         Drones[index]->setPosition(msg.position);
+        Drones[index]->setMissionIndex(msg.mission_index);
+        Drones[index]->setVelocity(msg.ground_speed);
         if(msg.status == msg.Run){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
