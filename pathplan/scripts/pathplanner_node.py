@@ -10,6 +10,7 @@ from gcs.srv import *
 from Path_simplifier import PathSimplifier
 from eta_estimator import *
 import time
+import simplifier_rmuast
 
 
 class PathPlanner(object):
@@ -18,6 +19,8 @@ class PathPlanner(object):
         self.start = Coordinate(GPS_data=start.GPS_data)
         self.goal = Coordinate(GPS_data=goal.GPS_data)
         self.path = []
+
+        self.rmuast_simplifier = simplifier_rmuast.FlightPlanner()
 
     def set_start_and_goal(self, start, goal):
         self.start = Coordinate(lat=start.latitude, lon=start.longitude)
@@ -47,9 +50,10 @@ class PathPlanner(object):
         print("Number of waypoints after simplifier: " + len(self.path))
 
     def export_kml_path(self, name):
+        print("Exporting")
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
-        kml.begin(name+'.klm', 'Example', 'Example on the use of kmlclass', 0.1)
+        kml.begin(name+'.kml', 'Example', 'Example on the use of kmlclass', 0.1)
         # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
         # altitude: use 'absolute' or 'relativeToGround'
         kml.trksegbegin('', '', 'red', 'absolute')
@@ -67,7 +71,7 @@ def handle_getPathPlan(req):
     planner = PathPlanner(start=start,goal=theend)
     planner.compute_path()
     plan = planner.path
-    GPSPlan = [req.start, req.end]
+    GPSPlan = []
     for point in plan:
         GPSPlan.append(point.GPS_data)
     return pathPlanResponse(GPSPlan)

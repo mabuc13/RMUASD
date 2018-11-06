@@ -45,6 +45,7 @@ class command_lib():
         self.msg = mavlink_lora_msg(sys_id=0, comp_id=0)   
         self.target_sys = 1
         self.target_comp = 1
+        self.command = ""
 
     def set_target(self, target_sys, target_comp):
         # self.target_sys = target_sys
@@ -55,7 +56,7 @@ class command_lib():
         self.msg.msg_id = MAVLINK_MSG_ID_COMMAND_LONG
         self.msg.payload_len = MAVLINK_MSG_ID_COMMAND_LONG_LEN
         self.msg.payload = struct.pack('<7fHBBB', params[0], params[1], params[2], params[3], params[4], params[5], params[6], command, self.target_sys, self.target_comp, confirmation)
-
+        self.command = command
 	# def unpack_mission_current(self, payload):
 	# 	current = struct.unpack('<H', payload)
 	# 	return current

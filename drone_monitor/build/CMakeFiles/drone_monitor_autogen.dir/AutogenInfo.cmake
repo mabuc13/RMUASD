@@ -1,0 +1,35 @@
+# Meta
+set(AM_MULTI_CONFIG "FALSE")
+set(AM_PARALLEL "4")
+set(AM_VERBOSITY "")
+# Directories
+set(AM_CMAKE_SOURCE_DIR "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor")
+set(AM_CMAKE_BINARY_DIR "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build")
+set(AM_CMAKE_CURRENT_SOURCE_DIR "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor")
+set(AM_CMAKE_CURRENT_BINARY_DIR "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build")
+set(AM_CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE "")
+set(AM_BUILD_DIR "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build/drone_monitor_autogen")
+set(AM_INCLUDE_DIR "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build/drone_monitor_autogen/include")
+# Files
+set(AM_SOURCES "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/src/main.cpp;/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/src/main_window.cpp;/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/src/qnode.cpp")
+set(AM_HEADERS "")
+set(AM_SETTINGS_FILE "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build/CMakeFiles/drone_monitor_autogen.dir/AutogenOldSettings.txt")
+# Qt
+set(AM_QT_VERSION_MAJOR 5)
+set(AM_QT_MOC_EXECUTABLE "/home/waarbubble/Programs/Qt5.7.0/5.7/gcc_64/bin/moc")
+set(AM_QT_UIC_EXECUTABLE "/home/waarbubble/Programs/Qt5.7.0/5.7/gcc_64/bin/uic")
+# MOC settings
+set(AM_MOC_SKIP "")
+set(AM_MOC_DEFINITIONS "QT_CORE_LIB;QT_GUI_LIB;QT_NO_DEBUG;QT_WIDGETS_LIB;ROSCONSOLE_BACKEND_LOG4CXX;ROS_PACKAGE_NAME=\"drone_monitor\"")
+set(AM_MOC_INCLUDES "/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build;/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor;/home/waarbubble/catkin_ws2/devel/include;/home/waarbubble/catkin_ws2/src/RMUASD/gcs/include;/opt/ros/kinetic/include;/opt/ros/kinetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp;/home/waarbubble/Programs/Qt5.7.0/5.7/gcc_64/include;/home/waarbubble/Programs/Qt5.7.0/5.7/gcc_64/include/QtWidgets;/home/waarbubble/Programs/Qt5.7.0/5.7/gcc_64/include/QtGui;/home/waarbubble/Programs/Qt5.7.0/5.7/gcc_64/include/QtCore;/home/waarbubble/Programs/Qt5.7.0/5.7/gcc_64/./mkspecs/linux-g++;/usr/include")
+set(AM_MOC_OPTIONS "")
+set(AM_MOC_RELAXED_MODE "")
+set(AM_MOC_MACRO_NAMES "Q_OBJECT;Q_GADGET;Q_NAMESPACE")
+set(AM_MOC_DEPEND_FILTERS "")
+set(AM_MOC_PREDEFS_CMD "")
+# UIC settings
+set(AM_UIC_SKIP "")
+set(AM_UIC_TARGET_OPTIONS "")
+set(AM_UIC_OPTIONS_FILES "")
+set(AM_UIC_OPTIONS_OPTIONS "")
+set(AM_UIC_SEARCH_PATHS "")

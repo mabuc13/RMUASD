@@ -1,0 +1,3 @@
+<launch>
+   <node name="drone_monitor" pkg="drone_monitor" type="drone_monitor" output="screen" />
+</launch>
