@@ -55,8 +55,9 @@ add_message_files(
   array1d.msg
   dnfz.msg
 =======
-
->>>>>>> Can download and parse static NFZ from the UTM server
+  array1d.msg
+  dnfz.msg
+>>>>>>> Static NFZ is now downloaded and parsed throgh a ros service, where the client_example.py shows how to interface with the ros service
 )
 
 ## Generate services in the 'srv' folder
@@ -66,8 +67,8 @@ add_service_files(
    get_snfz.srv
    post_drone_info.srv
 =======
-
->>>>>>> Can download and parse static NFZ from the UTM server
+   get_snfz.srv
+>>>>>>> Static NFZ is now downloaded and parsed throgh a ros service, where the client_example.py shows how to interface with the ros service
 )
 
 ## Generate actions in the 'action' folder
@@ -84,7 +85,8 @@ generate_messages(
 <<<<<<< f16fb5400808b0c1e2c52d6be36150a69d8bfb8c
   gcs
 =======
->>>>>>> Can download and parse static NFZ from the UTM server
+  gcs
+>>>>>>> Static NFZ is now downloaded and parsed throgh a ros service, where the client_example.py shows how to interface with the ros service
 )
 
 ################################################

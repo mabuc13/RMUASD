@@ -374,7 +374,6 @@ class utm_parser(object):
                 #self.print_nested_list(self.utm_coords)
                 utm_ll = self.coord_conv.geodetic_to_utm(coord_ll.latitude, coord_ll.longitude)
                 utm_ur = self.coord_conv.geodetic_to_utm(coord_ur.latitude, coord_ur.longitude)
-
                 if self.debug:
                     print "Utm ll, utm UR: ", utm_ll, utm_ur
                 self.create_empty_map(utm_ll, utm_ur)
@@ -382,6 +381,62 @@ class utm_parser(object):
                 return return_map
 
 
+
+    def extract_coords(self, g_coords):
+        """
+        This method gets rid of the names of the zones, and stores each coordinate set within a nested list
+        each entry in this list corresponds to the coords defining one zone.
+        The format of the retunred coordinates will be UTM
+
+        :param g_coords: the data from the kml parser.
+        :return: nested list with all coordinates in utm format
+
+        """
+        if self.debug:
+            print "Entering extract coords"
+        counter = 0
+        try:
+
+            if self.debug:
+                print
+                "Extracting and converting coordinates"
+
+            for zone in g_coords:
+                zone_transformed = []
+                for element in zone['coordinates']:
+                    utm_coord = self.coord_conv.geodetic_to_utm(element[0], element[1])
+                    zone_transformed.append(utm_coord)
+                self.utm_coords.append(zone_transformed)
+
+
+        except Exception as e:
+            print e
+            rospy.logerr("Failed to extract coords from kml_parser")
+            rospy.logerr(e)
+        else:
+            if self.debug:
+                print "Sucessfully extracted coords"
+            #print self.geoditic_coords
+
+            return self.utm_coords
+
+
+                if self.debug:
+                    print "Utm ll, utm UR: ", utm_ll, utm_ur
+                self.create_empty_map(utm_ll, utm_ur)
+                return_map = self.snfz_into_empty_map(self.utm_coords, utm_ur, utm_ll)
+                return return_map
+
+    def print_nested_list(self, nested_list):
+        if self.debug:
+            print "Entering print_nested_list"
+        outer_cnt = 0
+        for i in nested_list:
+            print "Outer list element ", outer_cnt, " With coordinates: \n"
+
+            for j in nested_list[outer_cnt]:
+                print j, '\n'
+            outer_cnt += 1
 
     def extract_coords(self, g_coords):
         """
