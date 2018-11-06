@@ -69,12 +69,17 @@ public:
   std::vector<gcs::GPS> getPath(void);
   bool isAvailable(void);
   job* getJob(void);
+  double getVelocity();
+  size_t getMissionIndex();
 
 
   void setAvailable(bool avail);
   void setPath(const std::vector<gcs::GPS> &path);
   void setJob(job* aJob);
   void setPosition(gcs::GPS position);
+  void setVelocity(double v);
+  void setMissionIndex(size_t i);
+
 
 private:
   job* currentJob = (NULL);
@@ -82,6 +87,8 @@ private:
   gcs::GPS position;
   ID_t ID;
   std::vector<gcs::GPS> thePath;
+  double velocity;
+  size_t pathIndex;
 
 };
 

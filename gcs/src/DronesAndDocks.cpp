@@ -93,14 +93,19 @@ bool drone::isAvailable(void){
 job* drone::getJob(void){
     return currentJob;
 }
+double drone::getVelocity(){
+    return velocity;
+}
+size_t drone::getMissionIndex(){
+    return pathIndex;
+}
+
 void drone::setAvailable(bool avail){
     this->isFree = avail;
 }
-
 void drone::setPath(const std::vector<gcs::GPS> &path){
     this->thePath = path;
 }
-
 void drone::setJob(job* aJob){
     if(aJob != NULL){
         if (this->currentJob != NULL){
@@ -116,4 +121,10 @@ void drone::setJob(job* aJob){
 }
 void drone::setPosition(gcs::GPS position){
     this->position = position;
+}
+void drone::setVelocity(double v){
+    this->velocity = v;
+}
+void drone::setMissionIndex(size_t i){
+    this->pathIndex = i;
 }

@@ -14,8 +14,9 @@
 #include <ros/network.h>
 #include <string>
 #include <std_msgs/String.h>
-#include <sstream>
+#include <iostream>
 #include "../include/drone_monitor/qnode.hpp"
+#include <ctime>
 
 /*****************************************************************************
 ** Namespaces
@@ -54,6 +55,7 @@ bool QNode::init() {
 	// Add your ros communications here.
     this->_droneInfo_sub = n.subscribe<gcs::DroneInfo>("/drone_handler/DroneInfo",1,&QNode::handle_DroneInfo,this);
     this->_niceInfo_sub = n.subscribe<gcs::NiceInfo>("/drone_handler/NiceInfo",1,&QNode::handle_NiceInfo,this);
+    this->_ETA_sub = n.subscribe<gcs::DroneSingleValue>("/gcs/ETA",1,&QNode::handle_ETA,this);
     std::cout << "Ros Monitor started" << std::endl;
 
 	start();
@@ -78,6 +80,15 @@ void QNode::run() {
 void QNode::close(){
     closeDown = true;
 }
+void QNode::handle_ETA(gcs::DroneSingleValue msg){
+    aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
+    theDrone->drone_ID = msg.drone_id;
+    if(theDrone->ETA != msg.value){
+        theDrone->ETA = msg.value;
+        //cout << "[GUI]: ETA: " <<  theDrone->ETA << " - " << ros::Time::now().sec;
+        Q_EMIT sig_ETA(theDrone->ETA-std::time(NULL));
+    }
+}
 
 void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
@@ -89,7 +100,7 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     }
     if(theDrone->drone_handler_state != msg.drone_handler_state){
         theDrone->drone_handler_state = msg.drone_handler_state;
-        //TODO
+        Q_EMIT sig_droneHandlerState(QString(theDrone->drone_handler_state.c_str()));
     }
     if(theDrone->autoPilot != msg.autopilot){
         theDrone->autoPilot = msg.autopilot;
@@ -130,7 +141,7 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     if(theDrone->drone_wayPoints !=msg.active_waypoint_idx	||
             theDrone->drone_missionLength != msg.active_mission_len){
         theDrone->drone_wayPoints = msg.active_waypoint_idx;
-        theDrone->drone_missionLength = msg.active_waypoint_idx;
+        theDrone->drone_missionLength = msg.active_mission_len;
         Q_EMIT sig_droneMission(theDrone->drone_wayPoints,theDrone->drone_missionLength);
     }
     //uint16 active_mission_len	# On drone mission length
@@ -139,12 +150,12 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
         theDrone->armed = msg.armed;
         Q_EMIT sig_armed(theDrone->armed);
     }
-    if(theDrone->manual != msg.manual_input &&
-            theDrone->simulation != msg.hil_simulation &&
-            theDrone->stabilized != msg.stabilized_mode &&
-            theDrone->guided != msg.guided_mode &&
-            theDrone->autoM != msg.auto_mode &&
-            theDrone->test != msg.test_mode &&
+    if(theDrone->manual != msg.manual_input ||
+            theDrone->simulation != msg.hil_simulation ||
+            theDrone->stabilized != msg.stabilized_mode ||
+            theDrone->guided != msg.guided_mode ||
+            theDrone->autoM != msg.auto_mode ||
+            theDrone->test != msg.test_mode ||
             theDrone->custom != msg.custom_mode)
     {
         theDrone->manual = msg.manual_input;
@@ -159,8 +170,8 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     if(theDrone->RPY.size() < 3){
         theDrone->RPY = vector<double>(3);
     }
-    if(theDrone->RPY[0] != msg.RPY[0]&&
-            theDrone->RPY[1] != msg.RPY[1] &&
+    if(theDrone->RPY[0] != msg.RPY[0] ||
+            theDrone->RPY[1] != msg.RPY[1] ||
             theDrone->RPY[2] != msg.RPY[2])
     {
         theDrone->RPY[0] = msg.RPY[0];

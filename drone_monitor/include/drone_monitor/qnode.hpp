@@ -23,6 +23,7 @@
 	#include <gcs/GPS.h>
 	#include <gcs/DroneInfo.h>
 	#include <gcs/NiceInfo.h>
+	#include <gcs/DroneSingleValue.h>
 #endif
 
 #include <string>
@@ -76,6 +77,7 @@ struct aDrone{
 	int missionIndex;
 	int drone_wayPoints;
 	int drone_missionLength;
+	size_t ETA;
 };
 
 class QNode : public QThread {
@@ -107,6 +109,7 @@ Q_SIGNALS:
 	void sig_missionLength(int len);
 	void sig_missionIndex(int len);
 	void sig_droneMission(int index, int len);
+	void sig_ETA(int sec);
 
 	void sig_autoPilot(QString text);
 	void sig_subFlightmode(QString text);
@@ -114,15 +117,18 @@ Q_SIGNALS:
 	void sig_otherFlightmode(bool manual, bool simulation, bool stabilized, bool guided, bool autoM, bool test, bool custom);
 	void sig_mavlinkState(QString state);
 	void sig_mavlinkType(QString type);
+	void sig_droneHandlerState(QString text);
 
 private:
 	int init_argc;
 	char** init_argv;
 	ros::Subscriber _niceInfo_sub;
 	ros::Subscriber _droneInfo_sub;
+	ros::Subscriber _ETA_sub;
 
 	void handle_NiceInfo(gcs::NiceInfo msg);
 	void handle_DroneInfo(gcs::DroneInfo msg);
+	void handle_ETA(gcs::DroneSingleValue msg);
 
 	map<int,aDrone> _Drones;
 	int _currentDrone;

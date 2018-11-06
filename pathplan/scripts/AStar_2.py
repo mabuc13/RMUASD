@@ -21,7 +21,7 @@ def astar(coord_start, coord_goal, step_multiplier=1, dynamic=False):
     start = (int(coord_start.easting), int(coord_start.northing))
     goal = (int(coord_goal.easting), int(coord_goal.northing))
 
-    goal_dist_thresh = step_multiplier/2
+    goal_dist_thresh = step_multiplier
     neighbors = [(0, 1*step_multiplier), (0, -1*step_multiplier), (1*step_multiplier, 0), (-1*step_multiplier, 0),
                  (1*step_multiplier, 1*step_multiplier), (1*step_multiplier, -1*step_multiplier),
                  (-1*step_multiplier, 1*step_multiplier), (-1*step_multiplier, -1*step_multiplier)]
