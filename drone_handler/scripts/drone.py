@@ -49,9 +49,9 @@ class Drone(object):
         self.pending_mission_gps = []
         self.active_waypoint_gps = GPS()
         self.active_mission_gps = []
-        self.active_mission_len = 0
         self.active_mission_ml  = mavlink_lora_mission_list()
         self.active_sub_mission = mavlink_lora_mission_list()
+        self.active_mission_len = 0
         self.active_mission_idx = 0             # index for the complete plan
         self.active_sub_mission_offset = 0      # at what index does the sub plan start
         self.swapping_mission = False

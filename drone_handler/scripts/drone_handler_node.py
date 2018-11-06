@@ -188,7 +188,8 @@ class DroneHandler(object):
                 absolute_alt=drone.absolute_alt,
                 # GPS_timestamp=,
                 status=drone.gcs_status,
-                mission_index=drone.active_mission_idx
+                mission_index=drone.active_mission_idx,
+                mission_length=drone.active_mission_len
             )
 
             now = rospy.Time.now()
