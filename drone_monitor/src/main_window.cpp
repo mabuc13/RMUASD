@@ -53,6 +53,9 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode,SIGNAL(sig_mavlinkType(QString)),this,SLOT(set_mavlinkType(QString)));
     QObject::connect(&qnode,SIGNAL(sig_missionIndex(int)),this,SLOT(set_missionIndex(int)));
     QObject::connect(&qnode,SIGNAL(sig_missionLength(int)),this,SLOT(set_missionLength(int)));
+    QObject::connect(&qnode,SIGNAL(sig_droneMission(int,int)),this,SLOT(set_droneMission(int,int)));
+    QObject::connect(&qnode,SIGNAL(sig_ETA(int)),this,SLOT(set_ETA(int)));
+    QObject::connect(&qnode,SIGNAL(sig_droneHandlerState(QString)),this,SLOT(set_droneHandlerState(QString)));
     qnode.init();
 }
 
@@ -209,6 +212,29 @@ void MainWindow::set_mavlinkState(QString state){
 }
 void MainWindow::set_mavlinkType(QString type){
     ui.label_mavlinkType->setText(type);
+}
+
+void MainWindow::set_droneHandlerState(QString text){
+    ui.label_droneHandler->setText(text);
+
+}
+void MainWindow::set_ETA(int sec){
+    QString text;
+    QLocale obj;
+    text.push_back("T-");
+    text.push_back(obj.toString(double(sec),'f',0));
+    text.push_back(QString("s"));
+    ui.label_ETA->setText(text);
+}
+void MainWindow::set_droneMission(int index, int len){
+    QString text;
+    QLocale obj;
+    text.push_back("[");
+    text.push_back(obj.toString(double(index),'f',0));
+    text.push_back("/");
+    text.push_back(obj.toString(double(len),'f',0));
+    text.push_back(QString("]"));
+    ui.label_droneMission->setText(text);
 }
 
 /**

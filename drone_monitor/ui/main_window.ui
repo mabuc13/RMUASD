@@ -250,7 +250,7 @@ p, li { white-space: pre-wrap; }
              <property name="geometry">
               <rect>
                <x>10</x>
-               <y>140</y>
+               <y>120</y>
                <width>101</width>
                <height>21</height>
               </rect>
@@ -263,7 +263,7 @@ p, li { white-space: pre-wrap; }
              <property name="geometry">
               <rect>
                <x>10</x>
-               <y>160</y>
+               <y>140</y>
                <width>111</width>
                <height>21</height>
               </rect>
@@ -428,6 +428,13 @@ p, li { white-space: pre-wrap; }
                  </widget>
                 </item>
                 <item>
+                 <widget class="QLabel" name="label_22">
+                  <property name="text">
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Drone Mission:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
                  <spacer name="verticalSpacer_5">
                   <property name="orientation">
                    <enum>Qt::Vertical</enum>
@@ -487,6 +494,13 @@ p, li { white-space: pre-wrap; }
                  </widget>
                 </item>
                 <item>
+                 <widget class="QLabel" name="label_droneMission">
+                  <property name="text">
+                   <string>N/A</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
                  <spacer name="verticalSpacer_6">
                   <property name="orientation">
                    <enum>Qt::Vertical</enum>
@@ -533,7 +547,7 @@ p, li { white-space: pre-wrap; }
                <x>10</x>
                <y>30</y>
                <width>271</width>
-               <height>131</height>
+               <height>136</height>
               </rect>
              </property>
              <layout class="QFormLayout" name="formLayout">
@@ -616,6 +630,20 @@ p, li { white-space: pre-wrap; }
               </item>
               <item row="5" column="1">
                <widget class="QLabel" name="label_mavlinkState">
+                <property name="text">
+                 <string>N/A</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="0">
+               <widget class="QLabel" name="label_23">
+                <property name="text">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Drone Handler:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QLabel" name="label_droneHandler">
                 <property name="text">
                  <string>N/A</string>
                 </property>

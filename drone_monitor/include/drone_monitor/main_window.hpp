@@ -62,6 +62,8 @@ public Q_SLOTS:
 	void set_nextWayPoint(double altitude,double longitude, double latitude);
 	void set_missionIndex(int len);
 	void set_missionLength(int len);
+	void set_droneMission(int index, int len);
+	void set_ETA(int sec);
 
 	void set_autoPilot(QString text);
 	void set_subFlightmode(QString text);
@@ -69,6 +71,7 @@ public Q_SLOTS:
 	void set_otherFlightmode(bool manual, bool simulation, bool stabilized, bool guided, bool autoM, bool test, bool custom);
 	void set_mavlinkState(QString state);
 	void set_mavlinkType(QString type);
+	void set_droneHandlerState(QString text);
 
 private:
 	Ui::MainWindowDesign ui;

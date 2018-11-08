@@ -42,12 +42,12 @@ class PathPlanner(object):
         self.path.pop(-1)
         self.path.append(self.goal)
 
-        print("Number of waypoints: " + len(self.path))
+        print("Number of waypoints: " + str(len(self.path)))
         # Simplify path:
         ps = PathSimplifier(self.path, step_size=16)
         ps.delete_with_step_size_safe(threshold=8)
         self.path = ps.get_simple_path()
-        print("Number of waypoints after simplifier: " + len(self.path))
+        print("Number of waypoints after simplifier: " + str(len(self.path)))
 
     def export_kml_path(self, name):
         print("Exporting")
@@ -56,7 +56,7 @@ class PathPlanner(object):
         kml.begin(name+'.kml', 'Example', 'Example on the use of kmlclass', 0.1)
         # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
         # altitude: use 'absolute' or 'relativeToGround'
-        kml.trksegbegin('', '', 'red', 'absolute')
+        kml.trksegbegin('', '', 'blue', 'absolute')
         for i in self.path:
             kml.trkpt(i.lat, i.lon, 0.0)
         kml.trksegend()
@@ -97,5 +97,28 @@ if __name__ == '__main__':
     s = rospy.Service('pathplan/getPlan',pathPlan, handle_getPathPlan)
     s2= rospy.Service('pathplan/getEta',getEta,handle_ETA)
     s3= rospy.Service('pathplan/GPS2GPSdist',gps2distance,handle_distanceCalculations)
+    """
+    ll = GPS()
+    ll.latitude = 55.425762
+    ll.longitude = 10.379273
+    ll.altitude = 0
+    #55.425762, 10.379273
+    #55.425013, 10.380078
+    ur = GPS()
+    ur.latitude = 55.425013
+    ur.longitude = 10.39517
+
+    #55.424200, 10.39517
+    ur.altitude = 0.0
+
+    start = Coordinate(lat=55.437022, lon=10.412464)
+    end = Coordinate(lat=55.431777, lon=10.443342)
+
+    planner = PathPlanner(start=start, goal=end)
+    planner.compute_path()
+    plan = planner.path
+
+    planner.export_kml_path("Test_plan")
+    """
     print("[Path planner]: "+"Path planner running")
     rospy.spin()
