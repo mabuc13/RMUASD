@@ -117,6 +117,7 @@ void drone::setJob(job* aJob){
         }
     }else{
         isFree = true;
+        this->currentJob = NULL;
     }
 }
 void drone::setPosition(gcs::GPS position){

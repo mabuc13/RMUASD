@@ -32,7 +32,13 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
 {
 	ui.setupUi(this); // Calling this incidentally connects all ui's triggers to on_...() callbacks in this class.
 	setWindowIcon(QIcon(":/images/icon.png"));
+
+    //############### Element initialization #####################
 	ui.tab_manager->setCurrentIndex(0); // ensure the first tab is showing - qt-designer should have this already hardwired, but often loses it (settings?).
+    ui.textEdit_terminal->setStyleSheet("background-color: black");
+    ui.label_droneHandler->setWordWrap(true);
+
+    //############### Manualy connected SLOTS and SIGNALS ###############
     QObject::connect(&qnode, SIGNAL(rosShutdown()), this, SLOT(close()));
     QObject::connect(&qnode, SIGNAL(sig_armed(bool)), this, SLOT(set_armed(bool)));
     QObject::connect(&qnode, SIGNAL(sig_status(int)), this, SLOT(set_status(int)));
@@ -56,7 +62,10 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode,SIGNAL(sig_droneMission(int,int)),this,SLOT(set_droneMission(int,int)));
     QObject::connect(&qnode,SIGNAL(sig_ETA(int)),this,SLOT(set_ETA(int)));
     QObject::connect(&qnode,SIGNAL(sig_droneHandlerState(QString)),this,SLOT(set_droneHandlerState(QString)));
+    QObject::connect(&qnode,SIGNAL(sig_telemetryStatus(int,QString)),this,SLOT(set_telemetryStatus(int,QString)));
     qnode.init();
+
+
 }
 
 MainWindow::~MainWindow() {}
@@ -235,6 +244,34 @@ void MainWindow::set_droneMission(int index, int len){
     text.push_back(obj.toString(double(len),'f',0));
     text.push_back(QString("]"));
     ui.label_droneMission->setText(text);
+}
+
+void MainWindow::set_telemetryStatus(int severity, QString text){
+
+
+
+    if(severity == 5){
+        ui.textEdit_terminal->setTextColor(QColor(255,255,0));
+    }else if(severity == 4){
+        ui.textEdit_terminal->setTextColor(QColor(255,200,0));
+    }else if(severity == 3){
+        ui.textEdit_terminal->setTextColor(QColor(255,150,0));
+    }else if(severity == 2){
+        ui.textEdit_terminal->setTextColor(QColor(255,100,0));
+    }else if(severity == 1){
+        ui.textEdit_terminal->setTextColor(QColor(255,50,0));
+    }else if(severity == 0){
+        ui.textEdit_terminal->setTextColor(QColor(255,0,0));
+    }else{
+        ui.textEdit_terminal->setTextColor(QColor(255,255,255));
+    }
+
+    bool atBtn = false;
+    if(ui.textEdit_terminal->verticalScrollBar()->value() == ui.textEdit_terminal->verticalScrollBar()->maximum())
+        atBtn = true;
+    ui.textEdit_terminal->insertPlainText(text);
+    if(atBtn)
+        ui.textEdit_terminal->verticalScrollBar()->setValue(ui.textEdit_terminal->verticalScrollBar()->maximum());
 }
 
 /**
