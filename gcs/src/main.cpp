@@ -144,6 +144,8 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
     }
 
     return srv.response.path;
+    std::vector<gcs::GPS>v = {start,end};
+    return v;
 }
 int ETA(job* aJob){
     gcs::getEta srv;
@@ -156,9 +158,9 @@ int ETA(job* aJob){
 
     bool worked = EtaClient.call(srv);
     if (worked){
-        cout << "[Ground Control]: " << "ETA calculated " << srv.response.eta << endl;
+        //cout << "[Ground Control]: " << "ETA calculated " << srv.response.eta << endl;
     }else{
-        cout << "[Ground Control]: " << "ETA failed"<< endl;
+        //cout << "[Ground Control]: " << "ETA failed"<< endl;
     }
     return srv.response.eta;
 }
@@ -172,7 +174,7 @@ void webMsg(dock* reciver, string msg){
     m+=msg;
     msgOut.data=m;
     WebInfo_pub.publish(msgOut);
-    cout << "[Ground Control]: " << m << endl;
+    //cout << "[Ground Control]: " << m << endl;
 }
 
 
@@ -439,15 +441,15 @@ int main(int argc, char** argv){
             spins =0;
             for(size_t i = 0; i < activeJobs.size(); i++){
                 if(activeJobs[i]->getStatus()==job::ongoing){
-                    double eta = ETA(activeJobs[i]);
-                    webMsg(activeJobs[i]->getQuestHandler(),
-                           "request=ongoing,ETA="+
-                           std::to_string(eta)
-                           );
-                    gcs::DroneSingleValue msg;
-                    msg.value = eta;
-                    msg.drone_id = activeJobs[i]->getDrone()->getID();
-                    ETA_pub.publish(msg);
+                    // double eta = ETA(activeJobs[i]);
+                    // webMsg(activeJobs[i]->getQuestHandler(),
+                    //        "request=ongoing,ETA="+
+                    //        std::to_string(eta)
+                    //        );
+                    // gcs::DroneSingleValue msg;
+                    // msg.value = eta;
+                    // msg.drone_id = activeJobs[i]->getDrone()->getID();
+                    // ETA_pub.publish(msg);
                 }
             }
         }

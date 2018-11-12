@@ -11,11 +11,16 @@ from enum import Enum
 # defines 
 BUFFER_SIZE = 30
 DESIRED_RELATIVE_ALT = 20
+MISSION_SPEED = 5  # m/s
+WP_ACCEPTANCE_RADIUS = 10
 
 MAV_CMD_NAV_WAYPOINT = 16
 MAV_CMD_NAV_LOITER_UNLIM = 17
 MAV_CMD_NAV_LOITER_TIME = 19
 MAV_CMD_NAV_LAND = 21
+MAV_CMD_DO_CHANGE_SPEED = 178
+
+MAV_FRAME_MISSION = 2
 MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6
 
 class State(Enum):
@@ -153,22 +158,43 @@ class Drone(object):
         
         self.active_mission_gps = self.pending_mission_gps
         self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
-        self.active_mission_len = len(self.pending_mission_gps)
+        self.active_mission_len = len(self.pending_mission_gps) + 1
         self.active_sub_mission_offset = 0
         print("New mission")
 
     def gps_to_mavlink(self, gps_list):
-        sequence_number = 0
+        sequence_number = 1
 
         ml_list = mavlink_lora_mission_list()
+
+        # insert speed command as first item
+        speed_cmd = mavlink_lora_mission_item_int(
+                param1=1,                       # speed type - ground speed
+                param2=MISSION_SPEED,           # speed - m/s
+                param3=-1,                      # throttle
+                param4=1,                       # absolute speed
+                x=0,
+                y=0,
+                z=0,
+                seq=0,
+                command=MAV_CMD_DO_CHANGE_SPEED,
+                current=1,
+                autocontinue=1,
+                target_system=self.id,
+                target_component=0,
+                frame=MAV_FRAME_MISSION
+        )
+
+        ml_list.waypoints.append(speed_cmd)
+
         for itr, waypoint in enumerate(gps_list):
             current = 0
-            if itr == 0:
-                current = 1
+            # if itr == 0:
+            #     current = 1
 
             mission_item = mavlink_lora_mission_item_int(
                 param1=0,                       # hold time in seconds
-                param2=2,                       # acceptance radius [m]
+                param2=WP_ACCEPTANCE_RADIUS,    # acceptance radius [m]
                 param3=0,                       # orbit CW or CCW
                 param4=float('nan'),
                 x=int(waypoint.latitude*1e7),
@@ -184,6 +210,8 @@ class Drone(object):
             )
             sequence_number += 1
             ml_list.waypoints.append(mission_item)
+
+
 
         # set last waypoint to a landing command
         ml_list.waypoints[-1].command = MAV_CMD_NAV_LAND

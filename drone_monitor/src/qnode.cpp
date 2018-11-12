@@ -56,7 +56,8 @@ bool QNode::init() {
     this->_droneInfo_sub = n.subscribe<gcs::DroneInfo>("/drone_handler/DroneInfo",1,&QNode::handle_DroneInfo,this);
     this->_niceInfo_sub = n.subscribe<gcs::NiceInfo>("/drone_handler/NiceInfo",1,&QNode::handle_NiceInfo,this);
     this->_ETA_sub = n.subscribe<gcs::DroneSingleValue>("/gcs/ETA",1,&QNode::handle_ETA,this);
-    std::cout << "Ros Monitor started" << std::endl;
+    this->_TelemetryStatus_sub = n.subscribe<telemetry::telemetry_statustext>("/telemetry/statustext",10,&QNode::handle_telemetryStatus,this);
+    std::cout << "Ros Monitor started" << std::endl << std::flush;
 
 	start();
 	return true;
@@ -80,16 +81,19 @@ void QNode::run() {
 void QNode::close(){
     closeDown = true;
 }
+
+void QNode::handle_telemetryStatus(telemetry::telemetry_statustext msg){
+    string text ="["+msg.severity+"]: " + msg.text+"\n";
+    Q_EMIT sig_telemetryStatus(msg.severity_level,text.c_str());
+}
 void QNode::handle_ETA(gcs::DroneSingleValue msg){
     aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
     theDrone->drone_ID = msg.drone_id;
     if(theDrone->ETA != msg.value){
         theDrone->ETA = msg.value;
-        //cout << "[GUI]: ETA: " <<  theDrone->ETA << " - " << ros::Time::now().sec;
         Q_EMIT sig_ETA(theDrone->ETA-std::time(NULL));
     }
 }
-
 void QNode::handle_NiceInfo(gcs::NiceInfo msg){
     aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
     theDrone->drone_ID = msg.drone_id;

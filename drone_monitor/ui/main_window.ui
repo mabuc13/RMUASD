@@ -35,7 +35,7 @@ QGroupBox::title {
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout">
-    <item>
+    <item alignment="Qt::AlignLeft|Qt::AlignTop">
      <widget class="QTabWidget" name="tab_manager">
       <property name="minimumSize">
        <size>
@@ -264,7 +264,7 @@ p, li { white-space: pre-wrap; }
               <rect>
                <x>10</x>
                <y>140</y>
-               <width>111</width>
+               <width>151</width>
                <height>21</height>
               </rect>
              </property>
@@ -538,6 +538,12 @@ p, li { white-space: pre-wrap; }
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
            <widget class="QGroupBox" name="groupBox_4">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>200</height>
+             </size>
+            </property>
             <property name="title">
              <string>Drone Info:</string>
             </property>
@@ -586,17 +592,17 @@ p, li { white-space: pre-wrap; }
                 </property>
                </widget>
               </item>
-              <item row="3" column="0">
-               <widget class="QLabel" name="label_21">
-                <property name="text">
-                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;AutoPilot:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                </property>
-               </widget>
-              </item>
               <item row="2" column="1">
                <widget class="QLabel" name="label_flightmode_other">
                 <property name="text">
                  <string>none</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="label_21">
+                <property name="text">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;AutoPilot:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                 </property>
                </widget>
               </item>
@@ -635,33 +641,65 @@ p, li { white-space: pre-wrap; }
                 </property>
                </widget>
               </item>
-              <item row="6" column="0">
-               <widget class="QLabel" name="label_23">
-                <property name="text">
-                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Drone Handler:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="1">
-               <widget class="QLabel" name="label_droneHandler">
-                <property name="text">
-                 <string>N/A</string>
-                </property>
-               </widget>
-              </item>
              </layout>
+            </widget>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBox_6">
+            <property name="title">
+             <string>Node Info</string>
+            </property>
+            <widget class="QLabel" name="label_23">
+             <property name="geometry">
+              <rect>
+               <x>20</x>
+               <y>30</y>
+               <width>104</width>
+               <height>14</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Drone Handler:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+            <widget class="QLabel" name="label_droneHandler">
+             <property name="geometry">
+              <rect>
+               <x>140</x>
+               <y>30</y>
+               <width>181</width>
+               <height>41</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>N/A</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+             </property>
+            </widget>
+            <widget class="Line" name="line_3">
+             <property name="geometry">
+              <rect>
+               <x>10</x>
+               <y>70</y>
+               <width>311</width>
+               <height>20</height>
+              </rect>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
             </widget>
            </widget>
           </item>
          </layout>
         </item>
         <item>
-         <widget class="QTextBrowser" name="textBrowser">
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>200</height>
-           </size>
+         <widget class="QTextEdit" name="textEdit_terminal">
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
