@@ -24,6 +24,7 @@
 	#include <gcs/DroneInfo.h>
 	#include <gcs/NiceInfo.h>
 	#include <gcs/DroneSingleValue.h>
+	#include <telemetry/telemetry_statustext.h>
 #endif
 
 #include <string>
@@ -118,6 +119,7 @@ Q_SIGNALS:
 	void sig_mavlinkState(QString state);
 	void sig_mavlinkType(QString type);
 	void sig_droneHandlerState(QString text);
+	void sig_telemetryStatus(int severity, QString text);
 
 private:
 	int init_argc;
@@ -125,10 +127,12 @@ private:
 	ros::Subscriber _niceInfo_sub;
 	ros::Subscriber _droneInfo_sub;
 	ros::Subscriber _ETA_sub;
+	ros::Subscriber _TelemetryStatus_sub;
 
 	void handle_NiceInfo(gcs::NiceInfo msg);
 	void handle_DroneInfo(gcs::DroneInfo msg);
 	void handle_ETA(gcs::DroneSingleValue msg);
+	void handle_telemetryStatus(telemetry::telemetry_statustext msg);
 
 	map<int,aDrone> _Drones;
 	int _currentDrone;

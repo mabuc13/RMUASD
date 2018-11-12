@@ -136,14 +136,16 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
     gcs::pathPlan srv;
     srv.request.start = start;
     srv.request.end = end;
-    bool worked = pathPlanClient.call(srv);
+    /*bool worked = pathPlanClient.call(srv);
     if (worked){
         // cout << "[Ground Control]: " << "PathPlanDone" << endl;
     }else{
         // cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
     }
 
-    return srv.response.path;
+    return srv.response.path;*/
+    std::vector<gcs::GPS>v = {start,end};
+    return v;
 }
 int ETA(job* aJob){
     gcs::getEta srv;
