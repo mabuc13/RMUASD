@@ -158,7 +158,7 @@ class Drone(object):
         
         self.active_mission_gps = self.pending_mission_gps
         self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
-        self.active_mission_len = len(self.pending_mission_gps)
+        self.active_mission_len = len(self.pending_mission_gps) + 1
         self.active_sub_mission_offset = 0
         print("New mission")
 

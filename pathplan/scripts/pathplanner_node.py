@@ -44,7 +44,7 @@ class PathPlanner(object):
 
         print("Number of waypoints: " + str(len(self.path)))
         # Simplify path:
-        ps = PathSimplifier(self.path, step_size=16)
+        ps = PathSimplifier(self.path, step_size=4)
         ps.delete_with_step_size_safe(threshold=8)
         self.path = ps.get_simple_path()
         print("Number of waypoints after simplifier: " + str(len(self.path)))
