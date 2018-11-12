@@ -42,12 +42,13 @@ public:
   void setGoal(dock* goal);
   void setStatus(uint8 status);
 
-  static const uint8 done = 6;
-  static const uint8 ready4takeOff = 5;
-  static const uint8 wait4pathplan = 4;
-  static const uint8 onhold = 3;
-  static const uint8 ongoing = 2;
-  static const uint8 queued = 1;
+  static const uint8 done = 7;
+  static const uint8 ready4takeOff = 6;
+  static const uint8 wait4pathplan = 5;
+  static const uint8 onhold = 4;
+  static const uint8 ongoing = 3;
+  static const uint8 queued = 2;
+  static const uint8 noMission = 1;
 
 
 private:

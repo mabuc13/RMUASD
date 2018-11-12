@@ -15,12 +15,23 @@
 #include <string>
 #include <std_msgs/String.h>
 #include <iostream>
+#include <string>
 #include "../include/drone_monitor/qnode.hpp"
 #include <ctime>
 
 /*****************************************************************************
 ** Namespaces
 *****************************************************************************/
+namespace patch
+{
+    template < typename T > std::string to_string( const T& n )
+    {
+        std::ostringstream stm ;
+        stm << n ;
+        return stm.str() ;
+    }
+}
+
 
 namespace drone_monitor {
 
@@ -57,6 +68,7 @@ bool QNode::init() {
     this->_niceInfo_sub = n.subscribe<gcs::NiceInfo>("/drone_handler/NiceInfo",1,&QNode::handle_NiceInfo,this);
     this->_ETA_sub = n.subscribe<gcs::DroneSingleValue>("/gcs/ETA",1,&QNode::handle_ETA,this);
     this->_TelemetryStatus_sub = n.subscribe<telemetry::telemetry_statustext>("/telemetry/statustext",10,&QNode::handle_telemetryStatus,this);
+    this->_JobState_sub = n.subscribe<gcs::DroneSingleValue>("/gcs/JobState",10, &QNode::handle_JobState,this);
     std::cout << "Ros Monitor started" << std::endl << std::flush;
 
 	start();
@@ -81,9 +93,17 @@ void QNode::run() {
 void QNode::close(){
     closeDown = true;
 }
+void QNode::handle_JobState(gcs::DroneSingleValue msg){
+    aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
+    theDrone->drone_ID = msg.drone_id;
+    if(theDrone->gcsJobState != msg.value){
+        theDrone->gcsJobState = msg.value;
+        Q_EMIT sig_gcsJobState(theDrone->gcsJobState,msg.text.c_str());
+    }
+}
 
 void QNode::handle_telemetryStatus(telemetry::telemetry_statustext msg){
-    string text ="["+msg.severity+"]: " + msg.text+"\n";
+    string text ="["+msg.severity+"][" +patch::to_string(ros::Time::now().sec) +"]: " + msg.text+"\n";
     Q_EMIT sig_telemetryStatus(msg.severity_level,text.c_str());
 }
 void QNode::handle_ETA(gcs::DroneSingleValue msg){
@@ -203,10 +223,6 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
         theDrone->armed = msg.armed;
         Q_EMIT sig_armed(theDrone->armed);
     }
-    if(theDrone->status != msg.status){
-        theDrone->status = msg.status;
-        Q_EMIT sig_status(theDrone->status);
-    }
     if(theDrone->SOC != msg.battery_SOC){
         theDrone->SOC = msg.battery_SOC;
         Q_EMIT sig_battery(theDrone->SOC);
@@ -242,6 +258,10 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
     if(theDrone->missionIndex != msg.mission_index){
         theDrone->missionIndex = msg.mission_index;
         Q_EMIT sig_missionIndex(theDrone->missionIndex);
+    }
+    if(theDrone->status != msg.status){
+        theDrone->status = msg.status;
+        Q_EMIT sig_status(theDrone->status);
     }
 }
 }  // namespace drone_monitor

@@ -64,6 +64,8 @@ ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_ha
 ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
 
 ros::Publisher ETA_pub;
+ros::Publisher JobState_pub;
+ros::Publisher Heartbeat_pub;
 
 ros::ServiceClient pathPlanClient;
 ros::ServiceClient EtaClient;
@@ -227,7 +229,6 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         }
     }
 }
-
 void WebInfo_Handler(std_msgs::String msg_in){
     CSVmsg msg(msg_in.data);
     cout << "[Ground Control]: "<< "MSG recived: "<<msg_in.data << endl;
@@ -265,7 +266,6 @@ void WebInfo_Handler(std_msgs::String msg_in){
             for(size_t i = 0; i < activeJobs.size();i++){
                 if(activeJobs[i]->getStatus() == job::onhold){
                     if(activeJobs[i]->getQuestHandler()->getName() == msg.getValue("name")){
-
                         dock* goalDock = NULL;
                         string dockName = msg.getValue("return");
                         if(dockName.size() <1){ // if no return addresse find nearest lab
@@ -278,7 +278,6 @@ void WebInfo_Handler(std_msgs::String msg_in){
                                 }
                             }
                         }
-
                         if(goalDock == NULL){
                             goalDock=closestLab(activeJobs[i]->getDrone());
                             if(goalDock == NULL){
@@ -307,9 +306,10 @@ void initialize(void){
     nh = new ros::NodeHandle();
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
-    ETA_pub = nh->advertise<gcs::DroneSingleValue>("gcs/ETA",100);
+    ETA_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/ETA",100);
     WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
+    JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
@@ -369,21 +369,6 @@ void initialize(void){
     }else{
         cout << "[Ground Control]: ignoring IP service" << endl;
     }
-
-    /*job aJob(Docks[0]);
-    drone aDrone(22,Docks[0]->getPosition());
-    aJob.setDrone(&aDrone);
-    std::vector<gcs::GPS> plan = pathPlan(Docks[0]->getPosition(),Docks[1]->getPosition());
-    aDrone.setPath(plan);
-    ETA(&aJob);
-    GPSdistance(Docks[0]->getPosition(),Docks[1]->getPosition());
-    gcs::DronePath p;
-    p.DroneID = 2;
-    p.Path = plan;
-    RouteRequest_pub.publish(p);
-    if(tries == maxTries){
-        ROS_ERROR("Could not obtain IP");
-    }
     */
 }
 
@@ -441,17 +426,43 @@ int main(int argc, char** argv){
             spins =0;
             for(size_t i = 0; i < activeJobs.size(); i++){
                 if(activeJobs[i]->getStatus()==job::ongoing){
-                    // double eta = ETA(activeJobs[i]);
-                    // webMsg(activeJobs[i]->getQuestHandler(),
-                    //        "request=ongoing,ETA="+
-                    //        std::to_string(eta)
-                    //        );
-                    // gcs::DroneSingleValue msg;
-                    // msg.value = eta;
-                    // msg.drone_id = activeJobs[i]->getDrone()->getID();
-                    // ETA_pub.publish(msg);
+                     double eta = ETA(activeJobs[i]);
+                     webMsg(activeJobs[i]->getQuestHandler(),
+                            "request=ongoing,ETA="+
+                            std::to_string(eta)
+                            );
+                     gcs::DroneSingleValue msg;
+                     msg.value = eta;
+                     msg.drone_id = activeJobs[i]->getDrone()->getID();
+                     ETA_pub.publish(msg);
                 }
             }
+        }
+
+        // #################### Job state pub ########################
+        for(size_t i = 0 ; i < Drones.size(); i++){
+            gcs::DroneSingleValue msg;
+            msg.drone_id = Drones[i]->getID();
+            if(Drones[i]->getJob() != NULL){
+                msg.value = Drones[i]->getJob()->getStatus();
+                if(msg.value == job::queued){
+                    msg.text = "Queued";
+                }else if(msg.value == job::ongoing){
+                    msg.text = "Ongoing";
+                }else if(msg.value == job::onhold){
+                    msg.text = "Onhold";
+                }else if(msg.value == job::wait4pathplan){
+                    msg.text = "Waiting for pathplan";
+                }else if(msg.value == job::ready4takeOff){
+                    msg.text = "Ready for takeoff";
+                }else if(msg.value == job::done){
+                    msg.text = "Done";
+                }
+            }else{
+                msg.value = job::noMission;
+                msg.text = "No Job assigned";
+            }
+            JobState_pub.publish(msg);
         }
 
         // ############### Delete Finnished Jobs ######################

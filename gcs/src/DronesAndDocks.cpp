@@ -22,7 +22,7 @@ bool dock::isLab(void){
 
 
 //################# Job #########################
-job::job(dock* station):status(1),worker(NULL),goal(NULL),QuestGiver(NULL){
+job::job(dock* station):status(1),worker(NULL),goal(NULL),QuestGiver(NULL),status(job::noMission){
     goal = station;
     QuestGiver = station;
 }
@@ -67,7 +67,7 @@ void job::setGoal(dock* goal){
 }
 void job::setStatus(uint8 status){
     this->status = status;
-    std::cout << "Status: " << (int)status << std::endl;
+    std::cout <<"[Ground control]: "<< "Job: " << this->getQuestHandler()->getName() << " - Status: " << (int)status << std::endl;
 }
 
 

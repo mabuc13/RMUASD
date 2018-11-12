@@ -63,6 +63,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode,SIGNAL(sig_ETA(int)),this,SLOT(set_ETA(int)));
     QObject::connect(&qnode,SIGNAL(sig_droneHandlerState(QString)),this,SLOT(set_droneHandlerState(QString)));
     QObject::connect(&qnode,SIGNAL(sig_telemetryStatus(int,QString)),this,SLOT(set_telemetryStatus(int,QString)));
+    QObject::connect(&qnode,SIGNAL(sig_gcsJobState(int,QString)),this,SLOT(set_gcsJobState(int,QString)));
     qnode.init();
 
 
@@ -272,6 +273,15 @@ void MainWindow::set_telemetryStatus(int severity, QString text){
     ui.textEdit_terminal->insertPlainText(text);
     if(atBtn)
         ui.textEdit_terminal->verticalScrollBar()->setValue(ui.textEdit_terminal->verticalScrollBar()->maximum());
+}
+void MainWindow::set_gcsJobState(int state, QString text){
+    QString t;
+    QLocale obj;
+    t.push_back("[");
+    t.push_back(obj.toString(double(state),'f',0));
+    t.push_back(QString("]: "));
+    t.push_back(text);
+    ui.label_gcsJobStatus->setText(t);
 }
 
 /**

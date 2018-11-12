@@ -73,6 +73,7 @@ public Q_SLOTS:
 	void set_mavlinkType(QString type);
 	void set_droneHandlerState(QString text);
 	void set_telemetryStatus(int severity, QString text);
+	void set_gcsJobState(int state,QString text);
 
 private:
 	Ui::MainWindowDesign ui;
