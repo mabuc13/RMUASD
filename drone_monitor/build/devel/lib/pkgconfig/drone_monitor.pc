@@ -1,8 +1,0 @@
-prefix=/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build/devel
-
-Name: drone_monitor
-Description: Description of drone_monitor
-Version: 0.1.0
-Cflags: 
-Libs: -L/home/waarbubble/catkin_ws2/src/RMUASD/drone_monitor/build/devel/lib 
-Requires: 
