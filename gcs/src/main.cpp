@@ -441,15 +441,15 @@ int main(int argc, char** argv){
             spins =0;
             for(size_t i = 0; i < activeJobs.size(); i++){
                 if(activeJobs[i]->getStatus()==job::ongoing){
-                    double eta = ETA(activeJobs[i]);
-                    webMsg(activeJobs[i]->getQuestHandler(),
-                           "request=ongoing,ETA="+
-                           std::to_string(eta)
-                           );
-                    gcs::DroneSingleValue msg;
-                    msg.value = eta;
-                    msg.drone_id = activeJobs[i]->getDrone()->getID();
-                    ETA_pub.publish(msg);
+                    // double eta = ETA(activeJobs[i]);
+                    // webMsg(activeJobs[i]->getQuestHandler(),
+                    //        "request=ongoing,ETA="+
+                    //        std::to_string(eta)
+                    //        );
+                    // gcs::DroneSingleValue msg;
+                    // msg.value = eta;
+                    // msg.drone_id = activeJobs[i]->getDrone()->getID();
+                    // ETA_pub.publish(msg);
                 }
             }
         }
