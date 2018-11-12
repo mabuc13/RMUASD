@@ -12,6 +12,7 @@ from enum import Enum
 BUFFER_SIZE = 30
 DESIRED_RELATIVE_ALT = 20
 MISSION_SPEED = 5  # m/s
+WP_ACCEPTANCE_RADIUS = 10
 
 MAV_CMD_NAV_WAYPOINT = 16
 MAV_CMD_NAV_LOITER_UNLIM = 17
@@ -193,7 +194,7 @@ class Drone(object):
 
             mission_item = mavlink_lora_mission_item_int(
                 param1=0,                       # hold time in seconds
-                param2=2,                       # acceptance radius [m]
+                param2=WP_ACCEPTANCE_RADIUS,    # acceptance radius [m]
                 param3=0,                       # orbit CW or CCW
                 param4=float('nan'),
                 x=int(waypoint.latitude*1e7),
