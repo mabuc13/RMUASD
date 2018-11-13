@@ -57,6 +57,16 @@ class command_lib():
         self.msg.payload_len = MAVLINK_MSG_ID_COMMAND_LONG_LEN
         self.msg.payload = struct.pack('<7fHBBB', params[0], params[1], params[2], params[3], params[4], params[5], params[6], command, self.target_sys, self.target_comp, confirmation)
         self.command = command
+
+    def pack_command_landing_target(self, angle_x, angle_y, target_id):
+        distance = 0
+        size_x = 0
+        size_y = 0
+        frame = 0#MAV_FRAME_BODY_FRD
+        self.msg.msg_id = MAVLINK_MSG_ID_LANDING_TARGET
+        self.msg.payload_len = MAVLINK_MSG_ID_LANDING_TARGET_LEN
+        self.msg.payload = struct.pack('<QfffffBB', 0, angle_x, angle_y, distance, size_x, size_y, target_id, frame)
+
 	# def unpack_mission_current(self, payload):
 	# 	current = struct.unpack('<H', payload)
 	# 	return current
