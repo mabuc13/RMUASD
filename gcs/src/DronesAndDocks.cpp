@@ -22,7 +22,7 @@ bool dock::isLab(void){
 
 
 //################# Job #########################
-job::job(dock* station):status(1),worker(NULL),goal(NULL),QuestGiver(NULL),status(job::noMission){
+job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued){
     goal = station;
     QuestGiver = station;
 }
