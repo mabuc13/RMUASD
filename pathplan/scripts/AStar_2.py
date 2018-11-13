@@ -24,7 +24,7 @@ def static_collision_detector(a):
 def astar(coord_start, coord_goal, step_multiplier=1, dynamic=False):
     start = (int(coord_start.easting), int(coord_start.northing))
     goal = (int(coord_goal.easting), int(coord_goal.northing))
-
+    
     resolution = 2500
 
     lower_left = Coordinate(easting=coord_start.easting-resolution, northing=coord_start.northing-resolution)
@@ -40,9 +40,9 @@ def astar(coord_start, coord_goal, step_multiplier=1, dynamic=False):
     print "Map resoluton: ", map_res
     map_image = np.zeros((map.map_width, map.map_height, 1), np.uint8)
 
-    c2 = len(map.snfz_map)
+    c2 = len(map.snfz_map) -1
     for line in reversed(map.snfz_map):
-        c1 = len(line.row)
+        c1 = len(line.row) -1 
         for i in reversed(line.row):
             if i != 0:
                 map_image[c2][c1] = 255 #map.map_width -

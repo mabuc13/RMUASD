@@ -59,6 +59,7 @@ add_message_files(
 add_service_files(
    FILES
    get_snfz.srv
+   post_drone_info.srv
 )
 
 ## Generate actions in the 'action' folder
