@@ -93,7 +93,7 @@ public:
 
 Q_SIGNALS:
 	void loggingUpdated();
-  void rosShutdown();
+    void rosShutdown();
 	void sig_armed(bool isArmed);
 	void sig_status(int status);
 

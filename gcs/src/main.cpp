@@ -19,6 +19,7 @@
 #include <gcs/pathPlan.h>
 #include <gcs/getEta.h>
 #include <gcs/gps2distance.h>
+#include <node_monitor/heartbeat.h>
 
 #include <DronesAndDocks.hpp>
 #include <TextCsvReader.hpp>
@@ -75,37 +76,14 @@ ros::ServiceClient client;
 
 ros::NodeHandle* nh;
 
-
+node_monitor::heartbeat heartbeat_msg;
 
 std::deque<job*> jobQ;
 std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
 
-
-
-
-bool appendDockingStation(string textIn){
-    CSVmsg text(textIn);
-    if(text.hasValue("name") &&
-       text.hasValue("longitude") &&
-       text.hasValue("latitude") &&
-       text.hasValue("altitude"))
-    {
-        Docks.push_back(
-            new dock(text.getValue("name"),
-                 text.getNumValue("latitude"),
-                 text.getNumValue("longitude"),
-                 text.getNumValue("altitude"),
-                 text.getValue("lab") == "true"
-            )
-        );
-        return true;
-    }else{
-        return false;
-    }
-}
-
+// ######### Service calls ###########
 double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     gcs::gps2distance srv;
     srv.request.point1 = point1;
@@ -117,21 +95,6 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
         cout << "[Ground Control]: " << "Distance Calc failed"<< endl;
     }
     return srv.response.distance;
-}
-
-dock* closestLab(drone* theDrone){ // TODO
-    double distance = INFINITY;
-    dock* theLab;
-    for(size_t i = 0; i < Docks.size(); i++){
-        if(Docks[i]->isLab()){
-            double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
-            if(d < distance){
-                distance = d;
-                theLab = Docks[i];
-            }
-        }
-    }
-    return theLab;
 }
 std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
 
@@ -167,6 +130,27 @@ int ETA(job* aJob){
     return srv.response.eta;
 }
 
+// ######### Helper functions ###########
+bool appendDockingStation(string textIn){
+    CSVmsg text(textIn);
+    if(text.hasValue("name") &&
+       text.hasValue("longitude") &&
+       text.hasValue("latitude") &&
+       text.hasValue("altitude"))
+    {
+        Docks.push_back(
+            new dock(text.getValue("name"),
+                 text.getNumValue("latitude"),
+                 text.getNumValue("longitude"),
+                 text.getNumValue("altitude"),
+                 text.getValue("lab") == "true"
+            )
+        );
+        return true;
+    }else{
+        return false;
+    }
+}
 void webMsg(dock* reciver, string msg){
     std_msgs::String msgOut;
     string m;
@@ -178,8 +162,22 @@ void webMsg(dock* reciver, string msg){
     WebInfo_pub.publish(msgOut);
     //cout << "[Ground Control]: " << m << endl;
 }
+dock* closestLab(drone* theDrone){ // TODO
+    double distance = INFINITY;
+    dock* theLab;
+    for(size_t i = 0; i < Docks.size(); i++){
+        if(Docks[i]->isLab()){
+            double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
+            if(d < distance){
+                distance = d;
+                theLab = Docks[i];
+            }
+        }
+    }
+    return theLab;
+}
 
-
+// ######### Message Handers ##########
 void DroneStatus_Handler(gcs::DroneInfo msg){
     // ###################### Is Drone Registered #####################
     bool isANewDrone = true;
@@ -310,6 +308,7 @@ void initialize(void){
     WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
     JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
+    Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("gcs/Heartbeat",100);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
@@ -377,12 +376,17 @@ int main(int argc, char** argv){
     ros::init(argc,argv,"gcs");
     initialize();
     unsigned long spins = 0;
-    ros::Rate r(10);
 
+    int rate = 10;
+    ros::Rate r(rate);
+    heartbeat_msg.rate = rate;
+    heartbeat_msg.severity = node_monitor::heartbeat::nothing;
+    heartbeat_msg.header.frame_id ="gcs";
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
-
+        heartbeat_msg.header.stamp = ros::Time::now();
+        Heartbeat_pub.publish(heartbeat_msg);
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
@@ -422,7 +426,7 @@ int main(int argc, char** argv){
         }
 
         // ############## Send out INFO on Drone ETA ######################
-        if(spins > 9){
+        if(spins >= rate){
             spins =0;
             for(size_t i = 0; i < activeJobs.size(); i++){
                 if(activeJobs[i]->getStatus()==job::ongoing){
