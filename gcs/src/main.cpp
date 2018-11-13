@@ -122,6 +122,7 @@ int ETA(job* aJob){
     srv.request.speed = aJob->getDrone()->getVelocity();
 
     bool worked = EtaClient.call(srv);
+<<<<<<< HEAD
 <<<<<<< 84ba09f220ad810ae42a8ab7956c152432838a63
     if (worked){
         //cout << "[Ground Control]: " << "ETA calculated " << srv.response.eta << endl;
@@ -129,12 +130,17 @@ int ETA(job* aJob){
         //cout << "[Ground Control]: " << "ETA failed"<< endl;
     }
 =======
+=======
+>>>>>>> 18451226e4166216c7f896b5111a1aec766d8789
     // if (worked){
     //     cout << "[Ground Control]: " << "ETA calculated " << srv.response.eta << endl;
     // }else{
     //     cout << "[Ground Control]: " << "ETA failed"<< endl;
     // }
+<<<<<<< HEAD
 >>>>>>> Test out precision landing
+=======
+>>>>>>> 18451226e4166216c7f896b5111a1aec766d8789
     return srv.response.eta;
 }
 
