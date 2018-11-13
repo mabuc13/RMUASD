@@ -39,7 +39,8 @@ class ROSserver(object):
                 print("[Internet node]: "+str(e))
     def toInternet(self,data):     # Read msg heading for the internet and check if New IP address is specifyd
         with self.printLock:
-            print("[Internet node]: "+data.data)
+            # print("[Internet node]: "+data.data)
+            pass
         data=str(data.data)
         data.replace(" ","")
         serPortChanged = False
@@ -64,7 +65,8 @@ class ROSserver(object):
     def sendPck(self):             # Check if any new messages are available and send them of
         if len(self.toSend) >0:
             with self.printLock:
-                print("[Internet node]: "+self.toSend[0])
+                # print("[Internet node]: "+self.toSend[0])
+                pass
             with self.senderLock:
                 self.s.send(self.toSend.pop(0).encode())
         else:

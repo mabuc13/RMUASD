@@ -77,7 +77,7 @@ def handle_getPathPlan(req):
     return pathPlanResponse(GPSPlan)
 
 def handle_ETA(req):
-    print("[Path planner]: Calculating ETA")
+    # print("[Path planner]: Calculating ETA")
     obj = eta()
     etaT = obj.eta_estimate(req.path,req.speed)
 
