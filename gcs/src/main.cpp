@@ -122,6 +122,7 @@ int ETA(job* aJob){
     srv.request.speed = aJob->getDrone()->getVelocity();
 
     bool worked = EtaClient.call(srv);
+
     // if (worked){
     //     cout << "[Ground Control]: " << "ETA calculated " << srv.response.eta << endl;
     // }else{
