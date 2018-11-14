@@ -374,6 +374,7 @@ class utm_parser(object):
                 #self.print_nested_list(self.utm_coords)
                 utm_ll = self.coord_conv.geodetic_to_utm(coord_ll.latitude, coord_ll.longitude)
                 utm_ur = self.coord_conv.geodetic_to_utm(coord_ur.latitude, coord_ur.longitude)
+
                 if self.debug:
                     print "Utm ll, utm UR: ", utm_ll, utm_ur
                 self.create_empty_map(utm_ll, utm_ur)

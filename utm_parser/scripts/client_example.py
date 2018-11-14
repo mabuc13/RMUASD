@@ -45,7 +45,7 @@ if __name__ == "__main__":
     for line in map.snfz_map:
         c1 = 0
         for i in line.row:
-            if i != 0:
+            if i == 255:
                 map_image[map.map_width-c2][c1][0] = 255
                 map_image[map.map_width-c2][c1][1] = 255
                 map_image[map.map_width-c2][c1][2] = 255

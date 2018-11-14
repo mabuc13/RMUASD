@@ -51,24 +51,16 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-<<<<<<< f16fb5400808b0c1e2c52d6be36150a69d8bfb8c
   array1d.msg
   dnfz.msg
-=======
-  array1d.msg
-  dnfz.msg
->>>>>>> Static NFZ is now downloaded and parsed throgh a ros service, where the client_example.py shows how to interface with the ros service
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
    FILES
-<<<<<<< f16fb5400808b0c1e2c52d6be36150a69d8bfb8c
    get_snfz.srv
-   post_drone_info.srv
 =======
-   get_snfz.srv
->>>>>>> Static NFZ is now downloaded and parsed throgh a ros service, where the client_example.py shows how to interface with the ros service
+>>>>>>> Added dynamic no flight zones publisher, which publishes whenever new dynamic information is available
 )
 
 ## Generate actions in the 'action' folder
@@ -82,11 +74,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
-<<<<<<< f16fb5400808b0c1e2c52d6be36150a69d8bfb8c
   gcs
-=======
-  gcs
->>>>>>> Static NFZ is now downloaded and parsed throgh a ros service, where the client_example.py shows how to interface with the ros service
 )
 
 ################################################
