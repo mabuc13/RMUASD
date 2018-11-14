@@ -25,8 +25,9 @@ import json
 import cv2
 import numpy as np
 from gcs.msg import *
+from std_msgs.msg import String
 
-from utm_parser.srv import get_snfz
+from utm_parser.srv import *
 from utm_parser.msg import *
 #import sh
 import csv
@@ -35,7 +36,7 @@ from termcolor import colored
 from kml_reader import kml_no_fly_zones_parser
 from time import gmtime, strftime
 from utm import utmconv
-from math import acos, asin, sqrt, sin, cos, pi
+import math
 # Disable warning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -47,6 +48,7 @@ class utm_parser(object):
         }
         self.kml = kml_no_fly_zones_parser(0)
         self.static_filename = ''
+        self.utm_trafic_debug = 1
         self.geoditic_coords = []
         self.utm_coords = []
         self.coord_conv = utmconv()
@@ -60,9 +62,34 @@ class utm_parser(object):
         self.map_length = 0
         self.map_width = 0
         self.map_height = 0
+        self.path = []
+        self.post_payload = {
+        'uav_id': 3000,
+        'uav_auth_key': 'abcd1234',
+        'uav_op_status': 3,
+        'pos_cur_lat_dd': 55.371653,
+        'pos_cur_lng_dd': 10.428223,
+        'pos_cur_alt_m': 30,
+        'pos_cur_hdg_deg': 7,
+        'pos_cur_vel_mps': 10,
+        'pos_cur_gps_timestamp': 123456,
+        'wp_next_lat_dd': 55.371653,
+        'wp_next_lng_dd': 10.428223,
+        'wp_next_alt_m': 10,
+        'wp_next_hdg_deg': 0,
+        'wp_next_vel_mps': 0,
+        'wp_next_eta_epoch': 0,
+        'uav_bat_soc': 100
+    }
+        self.latest_dynamic_data = self.get_dynamic_nfz()
+        self.published_first_dnfz = 0
     #ROS STUFF
         self.get_snfz_service = rospy.Service("/utm_parser/get_snfz", get_snfz, self.get_snfz_handler, buff_size=10)
+        #self.post_drone_service = rospy.Service("/utm_parser/post_drone_info", post_drone_info, self.post_drone_info_handler, buff_size=10) ##SUBSCRIBE
+        self.drone_info_sub = rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.post_drone_info_handler)
+        self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
 
+        self.dnfz_pub = rospy.Publisher('/utm/dynamic_no_fly_zones', String, queue_size=10)
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
@@ -74,17 +101,24 @@ class utm_parser(object):
     fisk.latitude = 0
     fisk.altitude  = 9
     """
+    def save_path(self, msg):
+        self.path = msg
+        if self.debug:
+            print "Got path and stored it: ", self.path
 
     def get_snfz_handler(self, req):
-
+        if self.debug:
+            print "Processing get_snfz service with coordinates lower left: ", req.coordinate_lower_left
+            print "and coordinate upper right: ", req.coordinate_upper_right
         map = self.get_static_nfz(req.coordinate_lower_left, req.coordinate_upper_right)
+        #self.show_map(map)
         #self.show_map(map)
         ros_map = []
         if self.debug:
             print "About to go from image to array for ROS"
+            print len(map)
+            print self.map_width, self.map_height
         count_out = 0
-        print len(map)
-        print self.map_width, self.map_height
         for i in map:
             count_out += 1
             map_row = array1d()
@@ -99,6 +133,72 @@ class utm_parser(object):
         if self.debug:
             "Done going from image to ros array"
         return ros_map, self.map_res, self.map_width, self.map_height
+
+    def post_drone_info_handler(self, msg):
+        self.post_payload['uav_id'] = 3012
+        self.post_payload['uav_auth_key'] = '96ba4387cb37a2cbc5f05de53d5eab0c9583f1e102f8fe10ccab04c361234d6cd8cc47c0db4a46e569f03b61374745ebb433c84fac5f4bdfb8d89d2eb1d1ec0f'
+        #self.payload.uav_op_status = 3
+        GPS_pos = msg.position
+        self.post_payload['pos_cur_lat_dd'] = GPS_pos.latitude
+        self.post_payload['pos_cur_lng_dd'] = GPS_pos.longitude
+        self.post_payload['pos_cur_alt_m'] = GPS_pos.altitude
+
+        wp_geo = msg.next_waypoint
+        """
+        utm_pos = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
+        utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
+        head_vec = [utm_wp[3]-utm_pos[3], utm_wp[4]-utm_pos[4]]
+        if self.debug:
+            print "Vector for heading: ", head_vec
+        vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+        """
+        self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
+        self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
+        #self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp
+        self.post_payload['wp_next_lat_dd'] = wp_geo.latitude
+        self.post_payload['wp_next_lng_dd'] = wp_geo.longitude
+        self.post_payload['wp_next_alt_m'] = wp_geo.altitude
+
+        self.post_payload['wp_next_hdg_deg'] = 10
+        self.post_payload['wp_next_vel_mps'] = 10
+        self.post_payload['wp_next_eta_epoch'] = time.time()
+
+        self.post_payload['uav_bat_soc'] = msg.battery_SOC
+        self.push_drone_data(self.post_payload)
+
+    def push_drone_data(self, payload):
+        if self.utm_trafic_debug:
+            print colored('Trying to POST the data...', 'yellow')
+        r = ''
+        try:
+            r = requests.post(url='https://droneid.dk/rmuasd/utm/tracking_data.php', data=payload, timeout=2)
+            r.raise_for_status()
+        except requests.exceptions.Timeout:
+            # Maybe set up for a retry, or continue in a retry loop
+            if self.utm_trafic_debug:
+                print colored('Request has timed out', 'red')
+        except requests.exceptions.TooManyRedirects:
+            # Tell the user their URL was bad and try a different one
+            if self.utm_trafic_debug:
+                print colored('Request has too many redirects', 'red')
+        except requests.exceptions.HTTPError as err:
+            if self.utm_trafic_debug:
+                print colored('HTTP error', 'red')
+                print colored(err, 'yellow')
+            # sys.exit(1) # Consider the exit since it might be unintentional in some cases
+        except requests.exceptions.RequestException as err:
+            # Catastrophic error; bail.
+            print colored('Request error', 'red')
+            print colored(err, 'yellow')
+
+            sys.exit(1)
+        else:
+            if r.text == '1':  # This check can in theory be omitted since the header check should catch an error
+                if self.utm_trafic_debug:
+                    print colored('Success!\n', 'green')
+                    print colored('Status code: %i' % r.status_code, 'yellow')
+                    print colored('Content type: %s' % r.headers['content-type'], 'yellow')
+                return r.text
 
     def create_kml(self, file_name, data): #Formats special characters out of a string and saves it as a kml file with file_name
 
@@ -145,13 +245,16 @@ class utm_parser(object):
             r.raise_for_status()
         except requests.exceptions.Timeout:
             # Maybe set up for a retry, or continue in a retry loop
-            print
-            colored('Request has timed out', 'red')
+            if self.utm_trafic_debug:
+                print
+                colored('Request has timed out', 'red')
         except requests.exceptions.TooManyRedirects:
             # Tell the user their URL was bad and try a different one
-            print
-            colored('Request has too many redirects', 'red')
+            if self.utm_trafic_debug:
+                print
+                colored('Request has too many redirects', 'red')
         except requests.exceptions.HTTPError as err:
+
             print
             colored('HTTP error', 'red')
             print
@@ -165,10 +268,11 @@ class utm_parser(object):
             colored(err, 'yellow')
             sys.exit(1)
         else:
-            print
-            colored('Status code: %i' % r.status_code, 'yellow')
-            print
-            colored('Content type: %s' % r.headers['content-type'], 'yellow')
+            if self.utm_trafic_debug:
+                print
+                colored('Status code: %i' % r.status_code, 'yellow')
+                print
+                colored('Content type: %s' % r.headers['content-type'], 'yellow')
 
             data_dict = ''
             try:
@@ -190,18 +294,20 @@ class utm_parser(object):
                 try:
 
                     #print data_dict
-                    print "Current time: ", time.time()
-                    print "Trial and error: ", data_dict[0]['valid_from_epoch']
-                    time_to_active = float(data_dict[0]['valid_from_epoch']) - right_now
-                    print "Time to active: ", time_to_active
-                    ending = float(data_dict[0]['valid_to_epoch'])
-                    print "Time left: ", ending - right_now
+                    if self.utm_trafic_debug:
+                        print "Current time: ", time.time()
+                        print "Trial and error: ", data_dict[0]['valid_from_epoch']
+                        time_to_active = float(data_dict[0]['valid_from_epoch']) - right_now
+                        print "Time to active: ", time_to_active
+                        ending = float(data_dict[0]['valid_to_epoch'])
+                        print "Time left: ", ending - right_now
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve DNFZ, maybe there is none")
                     rospy.logerr(e)
                 else:
-                    print "DNFZ data from the server: " , data_dict
+                    #if self.utm_trafic_debug:
+                        #print "DNFZ data from the server: " , data_dict
                     return data_dict
 
     def get_static_nfz(self, coord_ll, coord_ur):
@@ -221,10 +327,12 @@ class utm_parser(object):
             r.raise_for_status()
         except requests.exceptions.Timeout:
             # Maybe set up for a retry, or continue in a retry loop
-            print colored('Request has timed out', 'red')
+            if self.utm_trafic_debug:
+                print colored('Request has timed out', 'red')
         except requests.exceptions.TooManyRedirects:
             # Tell the user their URL was bad and try a different one
-            print colored('Request has too many redirects', 'red')
+            if self.utm_trafic_debug:
+                print colored('Request has too many redirects', 'red')
         except requests.exceptions.HTTPError as err:
             print colored('HTTP error', 'red')
             print colored(err, 'yellow')
@@ -235,8 +343,9 @@ class utm_parser(object):
             print colored(err, 'yellow')
             sys.exit(1)
         else:
-            print colored('Status code: %i' % r.status_code, 'yellow')
-            print colored('Content type: %s' % r.headers['content-type'], 'yellow')
+            if self.utm_trafic_debug:
+                print colored('Status code: %i' % r.status_code, 'yellow')
+                print colored('Content type: %s' % r.headers['content-type'], 'yellow')
 
             data_dict = ''
             try:
@@ -265,6 +374,7 @@ class utm_parser(object):
                 #self.print_nested_list(self.utm_coords)
                 utm_ll = self.coord_conv.geodetic_to_utm(coord_ll.latitude, coord_ll.longitude)
                 utm_ur = self.coord_conv.geodetic_to_utm(coord_ur.latitude, coord_ur.longitude)
+
                 if self.debug:
                     print "Utm ll, utm UR: ", utm_ll, utm_ur
                 self.create_empty_map(utm_ll, utm_ur)
@@ -328,6 +438,10 @@ class utm_parser(object):
     def create_empty_map(self, ll_utm, ur_utm):
         delta_x = ur_utm[3] - ll_utm[3]
         delta_y = ur_utm[4] - ll_utm[4]
+        #if self.debug:
+         #   print "lower left:", ll_utm
+         #   print "upper right: ", utm_ur
+         #   print "Delta_y ", delta_y
         if delta_x > delta_y:
             resolution = delta_x / 3000
         else:
@@ -338,6 +452,8 @@ class utm_parser(object):
         height = int(delta_y/resolution)
         self.map_width = width
         self.map_height = height
+        if self.debug:
+            print "About to create empty map with width, height: ", width, height
         self.empty_map = np.zeros((width, height, 3), np.uint8)
         if self.debug:
             print "Created empty map with height, width: ", height, width
@@ -354,32 +470,43 @@ class utm_parser(object):
             for j in i:
 
                 if j[3] < upper_right[3] and j[3] > down_left[3] and j[4] < upper_right[4] and j[4] > down_left[4]:
-                    print "Found SNFZ within map!!"
+                    if self.debug:
+                        print "Found SNFZ within map!!"
                     index_width = int((j[3]- down_left[3])/self.map_res)
                     index_heigth = int((j[4]- down_left[4])/self.map_res)
-
+                    #cv2.circle(snfz_map, (index_width, index_heigth), 30, (0, 0, 255), -1)
                     #current_zone_width.append(index_width)
                     current_zone.append([index_width, index_heigth])
-                    print "Zone counter: ", zone_counter
+                    if self.debug:
+                        print "Zone counter: ", zone_counter
                     if snfz_map[index_width][index_heigth][0] == 0:
                         snfz_map[index_width][index_heigth][0] = zone_counter#snfz_map[index_width, index_heigth] = 1
                     if self.debug:
                         print "Found coordinate within map which is NFZ: ", j, "\n Which has index: ", index_width, index_heigth, "which is within zone. ", zone_counter
             if len(current_zone) != 0:
-                print "About to make polygon where len is: ", len(current_zone)
-                numpy_zone = np.array((current_zone),dtype=int)
-                print numpy_zone
+                if self.debug:
+                    print "About to make polygon where len is: ", len(current_zone)
+                numpy_zone = np.array((current_zone),dtype=np.int32)
+                if self.debug:
+                    print numpy_zone
                 #numpy_zone = numpy_zone.reshape((-1, 1, 2))
-                dummy = np.array(([20, 20], [20, 100], [100, 100]), dtype=int)
-                cv2.fillConvexPoly(snfz_map, numpy_zone, [255, 255, 255])
+                dummy = np.array(([20, 20], [20, 100], [100, 100]), dtype='int32')
+                cv2.fillPoly(snfz_map, [numpy_zone], [3])
             zone_counter += 1
 
             #3 eastern 4 = northing
 
         if self.debug:
             print "Exited SNFZ into empty map, with map_res: ", self.map_res
-        return snfz_map
+            print "Map_res: ", self.map_res
         #self.show_map(snfz_map)
+        dilate_width = int(20/self.map_res)
+        if self.debug:
+            print "Dilate_width: ", dilate_width
+        kernel = np.ones((dilate_width, dilate_width), np.uint8)
+        snfz_map = cv2.dilate(snfz_map, kernel, iterations=1)
+        #self.show_map(snfz_map)
+        return snfz_map
         #self.save_map(snfz_map)
 
     def save_map(self, map):
@@ -424,8 +551,24 @@ class utm_parser(object):
         print "ll coord: ", self.coord_conv.utm_to_geodetic(self.ll_dummy[0], self.ll_dummy[1], self.ll_dummy[3], self.ll_dummy[4])
         print "UR coord: ", self.coord_conv.utm_to_geodetic(self.ur_dummy[0], self.ur_dummy[1], self.ur_dummy[3], self.ur_dummy[4])
 
-    def dnfz_timer_callback(self):
+    #def dnfz_timer_callback(self):
+    #   current_dnfz = self.get_dynamic_nfz()
+    #https://stackoverflow.com/questions/34600003/converting-json-to-string-in-python
+    def check_dynamic_data(self):
         current_dnfz = self.get_dynamic_nfz()
+        if not self.published_first_dnfz:
+            message = json.dumps(current_dnfz)
+            self.dnfz_pub.publish(message)
+            self.published_first_dnfz = 1
+        if current_dnfz != self.latest_dynamic_data:
+            if self.debug:
+                print colored('Difference in latest and current dnfz found' , 'blue')
+                print colored("Current dnfz: ", 'blue'), current_dnfz
+                print "Latest dnfz: ", self.latest_dynamic_data
+            message = json.dumps(current_dnfz)
+
+            self.dnfz_pub.publish(message)
+            self.latest_dynamic_data = current_dnfz
 
 
 
@@ -436,16 +579,19 @@ def main():
 
         par = utm_parser()
         rospy.on_shutdown(par.shutdownHandler)
-        rospy.timer(rospy.Duration(5), par.dnfz_time_callback)
-        #par.get_dynamic_nfz()
+        #rospy.timer(rospy.Duration(5), par.dnfz_time_callback)
+        #
         #par.print_nested_list(par.geoditic_coords)
         #par.print_test_coords()
 
-        #par.get_static_nfz()
+        par.get_dynamic_nfz()
 
         #par.print_zones()
 
-        rospy.spin()
+        while not rospy.is_shutdown():
+            rospy.Rate(10).sleep()
+            par.check_dynamic_data()
+
 
 if __name__ == "__main__":
     main()

@@ -2,26 +2,27 @@
 
 import sys
 import rospy
-from utm_parser.srv import *
+
 from gcs.msg import *
 from utm_parser_node import *
 import numpy as np
+from utm_parser.srv import *
 from utm_parser.msg import *
 import cv2
 
 def snfz_client():
     ll = GPS()
-    ll.latitude = 55.355160
-    ll.longitude = 10.301317
+    ll.latitude = 55.417960
+    ll.longitude = 10.400059
     ll.altitude = 0
 
 
 
     ur = GPS()
-    ur.latitude = 55.425388
-    ur.longitude = 10.434103
+    ur.latitude =  55.434906
+    ur.longitude = 10.436443
     ur.altitude = 0.0
-
+    #55.434839, 10.470696
 
     rospy.wait_for_service('/utm_parser/get_snfz')
     get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     for line in map.snfz_map:
         c1 = 0
         for i in line.row:
-            if i != 0:
+            if i == 255:
                 map_image[map.map_width-c2][c1][0] = 255
                 map_image[map.map_width-c2][c1][1] = 255
                 map_image[map.map_width-c2][c1][2] = 255
