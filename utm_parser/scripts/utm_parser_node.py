@@ -25,7 +25,7 @@ import json
 import cv2
 import numpy as np
 from gcs.msg import *
-
+from std_msgs.msg import String
 
 from utm_parser.srv import *
 from utm_parser.msg import *
@@ -48,11 +48,11 @@ class utm_parser(object):
         }
         self.kml = kml_no_fly_zones_parser(0)
         self.static_filename = ''
-        self.utm_trafic_debug = 0
+        self.utm_trafic_debug = 1
         self.geoditic_coords = []
         self.utm_coords = []
         self.coord_conv = utmconv()
-        self.debug = 0
+        self.debug = 1
         self.utm_coords = []
         self.empty_map = []
         self.map_ll_reference = []
@@ -81,11 +81,15 @@ class utm_parser(object):
         'wp_next_eta_epoch': 0,
         'uav_bat_soc': 100
     }
+        self.latest_dynamic_data = self.get_dynamic_nfz()
+        self.published_first_dnfz = 0
     #ROS STUFF
         self.get_snfz_service = rospy.Service("/utm_parser/get_snfz", get_snfz, self.get_snfz_handler, buff_size=10)
         #self.post_drone_service = rospy.Service("/utm_parser/post_drone_info", post_drone_info, self.post_drone_info_handler, buff_size=10) ##SUBSCRIBE
         self.drone_info_sub = rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.post_drone_info_handler)
         self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
+
+        self.dnfz_pub = rospy.Publisher('/utm/dynamic_no_fly_zones', String, queue_size=10)
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
@@ -302,8 +306,8 @@ class utm_parser(object):
                     rospy.logerr("Failed to retrieve DNFZ, maybe there is none")
                     rospy.logerr(e)
                 else:
-                    if self.utm_trafic_debug:
-                        print "DNFZ data from the server: " , data_dict
+                    #if self.utm_trafic_debug:
+                        #print "DNFZ data from the server: " , data_dict
                     return data_dict
 
     def get_static_nfz(self, coord_ll, coord_ur):
@@ -549,6 +553,22 @@ class utm_parser(object):
 
     #def dnfz_timer_callback(self):
     #   current_dnfz = self.get_dynamic_nfz()
+    #https://stackoverflow.com/questions/34600003/converting-json-to-string-in-python
+    def check_dynamic_data(self):
+        current_dnfz = self.get_dynamic_nfz()
+        if not self.published_first_dnfz:
+            message = json.dumps(current_dnfz)
+            self.dnfz_pub.publish(message)
+            self.published_first_dnfz = 1
+        if current_dnfz != self.latest_dynamic_data:
+            if self.debug:
+                print colored('Difference in latest and current dnfz found' , 'blue')
+                print colored("Current dnfz: ", 'blue'), current_dnfz
+                print "Latest dnfz: ", self.latest_dynamic_data
+            message = json.dumps(current_dnfz)
+
+            self.dnfz_pub.publish(message)
+            self.latest_dynamic_data = current_dnfz
 
 
 
@@ -564,10 +584,14 @@ def main():
         #par.print_nested_list(par.geoditic_coords)
         #par.print_test_coords()
 
-        #par.get_static_nfz()
+        par.get_dynamic_nfz()
 
         #par.print_zones()
-        rospy.spin()
+
+        while not rospy.is_shutdown():
+            rospy.Rate(10).sleep()
+            par.check_dynamic_data()
+
 
 if __name__ == "__main__":
     main()
