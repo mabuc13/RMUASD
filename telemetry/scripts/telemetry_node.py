@@ -8,7 +8,7 @@ import struct
 
 from mavlink_lora.msg import * # pylint: disable=W0614
 from gcs.msg import * # pylint: disable=W0614
-from std_msgs.msg import Int8, String
+from std_msgs.msg import Int8, Int16, String
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.srv import SetMode, ChangeSpeed, UploadFromFile, TakeoffDrone, LandDrone, GotoWaypoint, SetHome, UploadMission
 from telemetry.msg import * # pylint: disable=W0614
@@ -117,7 +117,6 @@ class Telemetry(object):
         self.start_tracking_service     = rospy.Service("/telemetry/start_tracking", Trigger, self.start_tracking, buff_size=10)
         self.stop_tracking_service      = rospy.Service("/telemetry/stop_tracking", Trigger, self.stop_tracking, buff_size=10)
 
-
         # Topic handlers
         self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
         self.statustext_pub         = rospy.Publisher("/telemetry/statustext", telemetry_statustext, queue_size=0)
@@ -129,6 +128,7 @@ class Telemetry(object):
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
         rospy.Subscriber("/telemetry/new_mission", mavlink_lora_mission_list, self.mission_handler.on_mission_list)
+        rospy.Subscriber("/telemetry/mission_set_current", Int16, self.mission_handler.mission_set_current)
         rospy.Subscriber("/mavlink_interface/mission/ack", mavlink_lora_mission_ack, self.mission_handler.on_mission_ack)
         rospy.Subscriber("/mavlink_interface/command/ack", mavlink_lora_command_ack, self.command_handler.on_command_ack)
         
@@ -234,34 +234,6 @@ class Telemetry(object):
             )
 
             self.home_position_pub.publish(home_pos)
-        # elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
-        #     (time_boot_ms, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IfffffffffffHB', msg.payload)
-
-        #     print("x: {}".format(x))
-        #     print("y: {}".format(y))
-        #     print("z: {}".format(z))
-        #     print("frame: {}".format(coordinate_frame))
-        #     print("mask: {}".format(type_mask))
-        #     pass
-
-        # elif msg.msg_id == MAVLINK_MSG_ID_RC_CHANNELS_SCALED:
-        #     print(len(msg.payload))
-        #     (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port, rssi) = struct.unpack('<IhhhhhhhhBB', msg.payload)
-
-        #     print("Port: {}".format(port))
-        #     print("Channel 1: {}".format(ch1))
-        #     print("Channel 2: {}".format(ch2))
-        #     print("Channel 3: {}".format(ch3))
-        #     print("Channel 4: {}".format(ch4))
-        #     print("Channel 5: {}".format(ch5))
-        #     print("Channel 6: {}".format(ch6))
-        #     print("Channel 7: {}".format(ch7))
-        #     print("Channel 8: {}".format(ch8))
-        #     print("RSSI: {}".format(rssi))
-
-        # elif msg.msg_id == 36:
-        #     # (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port) = struct.unpack('<IHHHHHHHHB', msg.payload)
-        #     pass
 
     def on_mavlink_lora_pos(self,msg):
         self.lat = msg.lat
@@ -322,48 +294,6 @@ class Telemetry(object):
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
-
-
-    # def enable_rc_channels(self):
-    #     msg = mavlink_lora_msg()
-
-    #     # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
-    #     msg.header.stamp = rospy.Time.now()
-    #     msg.msg_id = 66 # request data stream
-    #     msg.sys_id = 0
-    #     msg.comp_id = 0
-
-    #     # command = 511
-    #     # params = (34,500000,0,0,0,0,0)
-
-    #     # self.send_mavlink_msg_id_cmd_long(params,command,1)
-
-    #     # Appears to need to be 1,1
-    #     target_sys = 1
-    #     target_comp = 1
-    #     req_stream_id = 3 # rc channel stream
-    #     req_message_rate = 1
-    #     start_stop = 0
-
-    #     msg.payload_len = 6
-    #     msg.payload = struct.pack('<HBBBB', req_message_rate, target_sys, target_comp, req_stream_id, start_stop)
-    #     self.mavlink_msg_pub.publish(msg)
-
-    # def set_gps_global_origin(self,srv):
-    #     msg = mavlink_lora_msg()
-        
-    #     target_sys = 1
-    #     latitude = int(srv.lat * 1e7)
-    #     longitude = int(srv.lon * 1e7)
-    #     altitude = int(self.alt * 1e3)
-
-    #     msg.msg_id = MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN
-    #     msg.payload = struct.pack('<iiiB', latitude, longitude, altitude, target_sys)
-    #     msg.payload_len = 13
-
-    #     self.mavlink_msg_pub.publish(msg)
-
-    #     return OriginResponse()
 
 def main():
     rospy.init_node('telemetry')#, anonymous=True)

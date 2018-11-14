@@ -74,7 +74,6 @@ class DroneHandler(object):
             drone.update_mission(msg.Path)
             drone.start_mission()
         
-
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
@@ -84,6 +83,8 @@ class DroneHandler(object):
             drone.autopilot     = msg.autopilot
             drone.type          = msg.mav_type
             drone.state         = msg.mav_state
+
+            drone.manual_mission.update_flight_mode(msg.main_mode, msg.sub_mode)
 
     def on_mav_mode(self, msg):
         if msg.system_id in self.drones:
@@ -160,6 +161,8 @@ class DroneHandler(object):
             drone.absolute_alt = msg.alt
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
+
+            drone.manual_mission.update_position(msg)
             # drone.last_heard = msg.header.stamp
 
     def on_mission_ack(self, msg):

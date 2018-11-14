@@ -195,6 +195,7 @@ class CommandHandler(object):
 
         return self.send_mavlink_msg()
 
+
     def send_mavlink_msg(self):
         if self.busy:
             success = False
