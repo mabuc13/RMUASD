@@ -125,7 +125,7 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.active_sub_waypoint_idx   = msg.active_waypoint_idx
+            drone.active_mission_idx        = msg.active_waypoint_idx
             drone.active_sub_mission_len    = msg.active_mission_len
             drone.active_sub_waypoint       = msg.current_item
 

@@ -29,7 +29,7 @@ class State(Enum):
     REQUESTING_UPLOAD = 2
     UPLOADING = 3
     TAKEOFF = 4
-    REPOSITION = 5
+    SYNC_WP_IDX = 5
     ARMING = 6
     SET_MISSION = 7
     FLYING_MISSION = 8
@@ -251,17 +251,7 @@ class Drone(object):
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.UPLOADING:
             # only a positive ack counts as a succesful upload (see callback)
-            if self.manual_mission.done:
-                final_wp = self.active_mission_gps[-1]
-                request = LandDroneRequest(
-                    precision_land=2, yaw=-1, 
-                    lat=final_wp.latitude, lon=final_wp.longitude, alt=0)
-                response = self.land(request)
-                if response.success:
-                    self.fsm_state = State.LANDING
-
-            elif self.upload_done:
-
+            if self.upload_done:
                 if self.state == "Standby":
                     request = TakeoffDroneRequest(on_the_spot=True, alt=20)
                     response = self.takeoff(request)
@@ -269,14 +259,9 @@ class Drone(object):
                         self.fsm_state = State.TAKEOFF
 
                 elif self.state == "Active":
-                    pass
-                    # response = self.set_mode(flight_modes.MISSION)
-                    # if response.success:
-                    #     self.manual_mission.stop_running()
-                    #     self.fsm_state = State.SET_MISSION
+                    self.manual_mission.stop_running()
+                    self.fsm_state = State.SYNC_WP_IDX
 
-                else:
-                    self.fsm_state = State.PAUSED
 
             elif self.upload_failed:
                 self.fsm_state = State.REQUESTING_UPLOAD
@@ -313,6 +298,18 @@ class Drone(object):
                         self.cmd_try_again = False
 
         # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.SYNC_WP_IDX:
+            print("Manual index: {}, Drone index: {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
+            if self.manual_mission.mission_idx + 1 == self.active_mission_idx:
+                response = self.set_mode(flight_modes.MISSION)
+                if response.success:
+                    self.fsm_state = State.SET_MISSION
+            else:
+                # add 1 to the mission index to account for the speed cmd in the beginning
+                # that isn't included in the manual mission idx
+                self.set_current_mission_pub.publish(Int16(self.manual_mission.mission_idx))
+
+        # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.SET_MISSION:
             if self.sub_mode == "Mission":
                 self.fsm_state = State.FLYING_MISSION
@@ -327,8 +324,9 @@ class Drone(object):
             
             if self.new_mission:
                 self.manual_mission.start_running()
-                self.fsm_state = State.REQUESTING_UPLOAD
                 self.new_mission = False
+            elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
+                self.fsm_state = State.REQUESTING_UPLOAD
 
             if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 20:
                 self.fsm_state = State.LANDING
@@ -342,14 +340,14 @@ class Drone(object):
                 self.reset()
                 self.manual_mission.reset()
 
-            elif self.cmd_try_again:
-                final_wp = self.active_mission_gps[-1]
-                request = LandDroneRequest(
-                    precision_land=2, yaw=-1, 
-                    lat=final_wp.latitude, lon=final_wp.longitude, alt=0)
-                response = self.land(request)
-                if response.success:
-                    self.cmd_try_again = False
+            # elif self.cmd_try_again:
+            #     final_wp = self.active_mission_gps[-1]
+            #     request = LandDroneRequest(
+            #         precision_land=2, yaw=-1, 
+            #         lat=final_wp.latitude, lon=final_wp.longitude, alt=0)
+            #     response = self.land(request)
+            #     if response.success:
+            #         self.cmd_try_again = False
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REPOSITION:

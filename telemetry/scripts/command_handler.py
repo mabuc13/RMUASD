@@ -107,6 +107,8 @@ class CommandHandler(object):
         else:
             params = (srv.abort_alt,srv.precision_land,0,yaw,srv.lat,srv.lon,0)
 
+        print(params)
+
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 
         return self.send_mavlink_msg()
@@ -180,7 +182,7 @@ class CommandHandler(object):
             alt = self.home_alt + srv.altitude
         else:
             alt = srv.altitude
-        params = (srv.ground_speed,0,0,float('nan'),lat,lon,alt)
+        params = (srv.ground_speed,1,0,float('nan'),lat,lon,alt)
 
         print(params)
 
