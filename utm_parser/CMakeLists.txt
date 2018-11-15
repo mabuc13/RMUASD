@@ -60,8 +60,7 @@ add_message_files(
 add_service_files(
    FILES
    get_snfz.srv
-=======
->>>>>>> Added dynamic no flight zones publisher, which publishes whenever new dynamic information is available
+   post_drone_info.srv
 )
 
 ## Generate actions in the 'action' folder

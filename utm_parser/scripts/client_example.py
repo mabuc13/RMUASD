@@ -58,4 +58,8 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
 
     #utm_par.show_map(map_image) #If you iterate through the map array and makes it to a numpy array this can be used to show the map
+<<<<<<< HEAD
     rospy.spin()
+=======
+    rospy.spin()
+>>>>>>> 6ef401e22730aaffe73a761c795bfce7d1061ed7
