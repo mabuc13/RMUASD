@@ -20,7 +20,7 @@ class CollisionDetector:
         # status variables
         rospy.sleep(1)  # wait until everything is running
 
-        self.collision_detected_pub = rospy.Publisher("/collision_detector/collision_ahead", DroneInfo, queue_size=0)
+        self.collision_detected_pub = rospy.Publisher("/collision_detector/collision_warning", DroneInfo, queue_size=0)
 
         # Subscribe to new drone path's, and dynamic obstacles:
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
@@ -33,7 +33,10 @@ class CollisionDetector:
         # Adding the next waypoint index in the plan to the dict
         if msg.status == msg.Run:
             self.active_drone_position_index[msg.DroneID] = msg.mission_index
-        if msg.
+        if msg.status == msg.Land:
+            # Drone has landed, so delete the path and ID from the dict's
+            del self.active_drone_position_index[msg.DroneID]
+            del self.active_drone_paths[msg.DroneID]
 
     def check_for_collisions(self):
         for drone_id, path in self.active_drone_paths:
@@ -43,10 +46,12 @@ class CollisionDetector:
                 # Collision
 
     def check_path_for_collision(self, path, drone_id):
-        # Create to index's to iterate through the path plan. "i" is the first waypoint, "j" is the second one.
-        # If "i" is larger than "0", then set it to the index of the previously passed waypoint in the plan. There is
-        # no need to check for collisions on the path, in places where the drone has already passed and is not coming
-        # back to.
+        '''
+        Create to index's to iterate through the path plan. "i" is the first waypoint, "j" is the second one.
+        If "i" is larger than "0", then set it to the index of the previously passed waypoint in the plan. There is
+        no need to check for collisions on the path, in places where the drone has already passed and is not coming
+        back to.
+        '''
         i = 0
         if self.active_drone_position_index[drone_id] > 0:
             i = self.active_drone_position_index[drone_id] - 1
