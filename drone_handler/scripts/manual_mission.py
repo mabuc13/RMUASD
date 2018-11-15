@@ -55,8 +55,6 @@ class ManualMission(object):
         self.main_mode = ""
         self.sub_mode = ""
 
-        self.set_current_mission_pub = rospy.Publisher("/telemetry/mission_set_current", Int16, queue_size=10)
-
     def on_cmd_fail(self):
         self.cmd_try_again = False
 

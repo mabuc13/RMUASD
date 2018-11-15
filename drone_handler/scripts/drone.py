@@ -2,7 +2,7 @@ from collections import deque
 from mavlink_lora.msg import mavlink_lora_mission_item_int, mavlink_lora_mission_list
 from telemetry.srv import * # pylint: disable=W0614
 from std_srvs.srv import Trigger
-
+from std_msgs.msg import Int16
 from gcs.msg import GPS, DroneInfo
 import flight_modes
 import rospy
@@ -119,6 +119,7 @@ class Drone(object):
         self.heading = 0
 
         self.upload_mission_pub = rospy.Publisher("/telemetry/new_mission", mavlink_lora_mission_list, queue_size=0)
+        self.set_current_mission_pub = rospy.Publisher("/telemetry/mission_set_current", Int16, queue_size=10)
 
         # TODO add drone id to services
         self.arm                = rospy.ServiceProxy("/telemetry/arm_drone", Trigger)
