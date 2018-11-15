@@ -196,7 +196,7 @@ class DroneHandler(object):
             nice2know = NiceInfo(
                 drone_id=drone.id,
                 drone_handler_state=str(drone.fsm_state),
-                last_heard=drone.last_heard,
+                last_heard=drone.last_heard, 
                 up_time=int(drone.up_time),
                 RPY=[drone.roll, drone.pitch, drone.yaw],
                 main_flightmode=drone.main_mode,

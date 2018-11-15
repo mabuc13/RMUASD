@@ -1,12 +1,12 @@
 import rospy
 from enum import Enum
 from math import pi, cos, acos, sin, asin, sqrt
-from gcs.msg import DronePath
+from gcs.msg import DronePath, GPS
 from telemetry.srv import GotoWaypointRequest
 from std_msgs.msg import Int16
 
 ACCEPTANCE_RADIUS = 10
-RUN_FREQ = 4
+RUN_FREQ = 2
 
 def distGreatCircle(lat1,lon1,lat2,lon2):
     lat1 *= pi/180
@@ -37,8 +37,8 @@ class State(Enum):
 class ManualMission(object):
 
     def __init__(self, target_sys, target_comp, reposition_handle):
-        self.target_sys = target_sys
-        self.target_comp = target_comp
+        self.target_sys = 1#target_sys
+        self.target_comp = 1#target_comp
 
         self.mission = []
         self.mission_idx = 0
@@ -75,7 +75,7 @@ class ManualMission(object):
 
     def start_running(self):
         self.start = True
-        self.run_timer = rospy.Timer(1/RUN_FREQ, self.run)
+        self.run_timer = rospy.Timer(rospy.Duration(1/RUN_FREQ), self.run)
 
     def stop_running(self):
         try:
@@ -84,9 +84,11 @@ class ManualMission(object):
             rospy.logwarn("Can't shut timer down. It isn't running")
             rospy.logwarn(e)
 
-    def run(self):
+    def run(self, event):
         # this possibly needs to be run after a mission has been uploaded
-        self.set_current_mission_pub.publish(Int16(self.mission_idx))
+        # self.set_current_mission_pub.publish(Int16(self.mission_idx))
+
+        rospy.loginfo(self.fsm_state)
 
         if self.fsm_state == State.IDLE:
             if self.start:

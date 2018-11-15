@@ -149,7 +149,6 @@ class Drone(object):
         self.pending_mission_gps = path
 
     def start_mission(self):
-        self.new_mission = True
 
         # if the drone is already flying, it has to start running sub missions
         if self.state == "Active":
@@ -159,6 +158,10 @@ class Drone(object):
         self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
         self.active_mission_len = len(self.active_mission_ml.waypoints)
         self.active_sub_mission_offset = 0
+
+        self.manual_mission.update_mission(self.active_mission_gps)
+        self.new_mission = True
+        
         print("New mission")
 
     def gps_to_mavlink(self, gps_list):
@@ -261,6 +264,7 @@ class Drone(object):
                 elif self.state == "Active":
                     response = self.set_mode(flight_modes.MISSION)
                     if response.success:
+                        self.manual_mission.stop_running()
                         self.fsm_state = State.SET_MISSION
 
                 else:
@@ -307,6 +311,11 @@ class Drone(object):
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.FLYING_MISSION:
+            
+            if self.new_mission:
+                self.manual_mission.start_running()
+                self.fsm_state = State.REQUESTING_UPLOAD
+                self.new_mission = False
 
             if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 20:
                 self.fsm_state = State.LANDING
