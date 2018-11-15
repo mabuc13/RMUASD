@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
   message_generation
   std_msgs
   gcs
+  node_monitor
 
 )
 

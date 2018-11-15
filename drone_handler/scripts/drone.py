@@ -146,8 +146,6 @@ class Drone(object):
 
     def update_mission(self, path):
         self.pending_mission_gps = path
-        # self.active_mission_len = len(self.pending_mission_gps)
-        # self.new_mission = True
 
     def start_mission(self):
         self.new_mission = True
@@ -158,7 +156,7 @@ class Drone(object):
         
         self.active_mission_gps = self.pending_mission_gps
         self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
-        self.active_mission_len = len(self.pending_mission_gps) + 1
+        self.active_mission_len = len(self.active_mission_ml.waypoints)
         self.active_sub_mission_offset = 0
         print("New mission")
 
@@ -211,20 +209,19 @@ class Drone(object):
             sequence_number += 1
             ml_list.waypoints.append(mission_item)
 
-
-
         # set last waypoint to a landing command
         ml_list.waypoints[-1].command = MAV_CMD_NAV_LAND
         ml_list.waypoints[-1].param1 = 0        # abort alt
         ml_list.waypoints[-1].param2 = 2        # precision land
         ml_list.waypoints[-1].z = 0
-        ml_list.waypoints[-1].autocontinue = 1
+        ml_list.waypoints[-1].autocontinue = 0
         ml_list.header.stamp = rospy.Time.now()
 
         return ml_list
 
     def next_sub_mission(self, new_mission=False):
         offset = 0
+        
         if not new_mission:
             offset = self.active_sub_mission_offset + 2
         
@@ -236,6 +233,8 @@ class Drone(object):
         # make sure the first waypoint is active!
         self.active_sub_mission.waypoints[0].current = 1
         self.active_sub_mission_offset = offset
+
+        print(self.active_sub_mission.waypoints)
         # self.active_sub_waypoint_idx = 0
 
     def run(self):
