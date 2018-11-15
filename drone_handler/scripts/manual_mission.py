@@ -6,6 +6,7 @@ from telemetry.srv import GotoWaypointRequest
 from std_msgs.msg import Int16
 
 ACCEPTANCE_RADIUS = 10
+MANUAL_SPEED = 5
 RUN_FREQ = 2
 
 def distGreatCircle(lat1,lon1,lat2,lon2):
@@ -37,8 +38,8 @@ class State(Enum):
 class ManualMission(object):
 
     def __init__(self, target_sys, target_comp, reposition_handle):
-        self.target_sys = 1#target_sys
-        self.target_comp = 1#target_comp
+        self.target_sys = target_sys
+        self.target_comp = target_comp
 
         self.mission = []
         self.mission_idx = 0
@@ -47,6 +48,7 @@ class ManualMission(object):
         
         self.fsm_state = State.IDLE
         self.cmd_try_again = False
+        self.done = False
 
         self.latitude = 0
         self.longitude = 0
@@ -73,6 +75,11 @@ class ManualMission(object):
 
     def start_running(self):
         self.start = True
+
+        if self.run_timer != None:
+            self.run_timer.shutdown()
+            self.reset()
+
         self.run_timer = rospy.Timer(rospy.Duration(1/RUN_FREQ), self.run)
 
     def stop_running(self):
@@ -81,6 +88,11 @@ class ManualMission(object):
         except Exception as e:
             rospy.logwarn("Can't shut timer down. It isn't running")
             rospy.logwarn(e)
+
+    def reset(self):
+        self.fsm_state = State.IDLE
+        self.cmd_try_again = False
+        self.done = False
 
     def run(self, event):
         # this possibly needs to be run after a mission has been uploaded
@@ -93,7 +105,8 @@ class ManualMission(object):
                 wp = self.mission[self.mission_idx]
                 request = GotoWaypointRequest(
                     relative_alt=True, latitude=wp.latitude,
-                    longitude=wp.longitude, altitude=wp.altitude
+                    longitude=wp.longitude, altitude=wp.altitude,
+                    ground_speed=MANUAL_SPEED
                     )
                 response = self.reposition_proxy(request)
 
@@ -113,7 +126,8 @@ class ManualMission(object):
                 wp = self.mission[self.mission_idx]
                 request = GotoWaypointRequest(
                     relative_alt=True, latitude=wp.latitude,
-                    longitude=wp.longitude, altitude=wp.altitude
+                    longitude=wp.longitude, altitude=wp.altitude,
+                    ground_speed=MANUAL_SPEED
                     )
                 response = self.reposition_proxy(request)
                 if response.success:
@@ -129,7 +143,8 @@ class ManualMission(object):
                 wp = self.mission[self.mission_idx + 1]
                 request = GotoWaypointRequest(
                     relative_alt=True, latitude=wp.latitude,
-                    longitude=wp.longitude, altitude=wp.altitude
+                    longitude=wp.longitude, altitude=wp.altitude,
+                    ground_speed=MANUAL_SPEED
                     )
                 response = self.reposition_proxy(request)
 
@@ -139,7 +154,10 @@ class ManualMission(object):
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.LAST_WAYPOINT:
-            pass
+            next_wp = self.mission[self.mission_idx]
+            dist_to_wp = distGreatCircle(self.latitude, self.longitude, next_wp.latitude, next_wp.longitude)
+            if dist_to_wp < ACCEPTANCE_RADIUS:
+                self.done = True
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.MISSION_DONE:

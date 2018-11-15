@@ -180,7 +180,9 @@ class CommandHandler(object):
             alt = self.home_alt + srv.altitude
         else:
             alt = srv.altitude
-        params = (0,1,0,float('nan'),lat,lon,alt)
+        params = (srv.ground_speed,0,0,float('nan'),lat,lon,alt)
+
+        print(params)
 
         self.cmd_lib.pack_command_long(params, command, self.confirmation)
 

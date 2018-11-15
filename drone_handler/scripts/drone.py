@@ -50,16 +50,15 @@ class Drone(object):
         self.fsm_state = State.GROUNDED
         self.new_mission = False
         self.upload_done = False
+        self.upload_failed = False
         self.cmd_try_again = False
 
         self.pending_mission_gps = []
         self.active_waypoint_gps = GPS()
         self.active_mission_gps = []
         self.active_mission_ml  = mavlink_lora_mission_list()
-        self.active_sub_mission = mavlink_lora_mission_list()
         self.active_mission_len = 0
         self.active_mission_idx = 0             # index for the complete plan
-
 
         # the drone starts on the ground ( land means ground for now. Change later ) TODO
         self.gcs_status = DroneInfo.Land
@@ -140,7 +139,7 @@ class Drone(object):
             self.upload_done = True
         else:
             # restart upload
-            self.fsm_state = State.REQUESTING_UPLOAD
+            self.upload_failed = True
 
     def on_cmd_fail(self, msg):
         self.cmd_try_again = True
@@ -149,16 +148,10 @@ class Drone(object):
     def update_mission(self, path):
         self.pending_mission_gps = path
 
-    def start_mission(self):
-
-        # if the drone is already flying, it has to start running sub missions
-        if self.state == "Active":
-            self.running_sub_missions = True
-        
+    def start_mission(self):        
         self.active_mission_gps = self.pending_mission_gps
         self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
         self.active_mission_len = len(self.active_mission_ml.waypoints)
-        self.active_sub_mission_offset = 0
 
         self.manual_mission.update_mission(self.active_mission_gps)
         self.new_mission = True
@@ -224,6 +217,13 @@ class Drone(object):
 
         return ml_list
 
+    def reset(self):
+        self.fsm_state = State.PAUSED
+        self.upload_done = False
+        self.upload_failed = False
+        self.cmd_try_again = False
+        self.new_mission = False
+
     def run(self):
 
         if self.main_mode in PAUSE_LIST_MAIN or self.sub_mode in PAUSE_LIST_SUB:
@@ -235,16 +235,13 @@ class Drone(object):
                 # prepare for upload and change state
                 self.active_mission_gps = self.pending_mission_gps
                 self.active_mission_ml = self.gps_to_mavlink(self.active_mission_gps)
-                # from the grounded state, the sub mission is the same as the whole mission
-                self.active_sub_mission = self.active_mission_ml
 
-                self.running_sub_missions = False
                 self.new_mission = False
                 self.fsm_state = State.REQUESTING_UPLOAD
             
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REQUESTING_UPLOAD:
-            request = UploadMissionRequest(drone_id=self.id, waypoints=self.active_sub_mission.waypoints)
+            request = UploadMissionRequest(drone_id=self.id, waypoints=self.active_mission_ml.waypoints)
             response = self.upload_mission(request)
             
             if response.success:
@@ -254,7 +251,16 @@ class Drone(object):
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.UPLOADING:
             # only a positive ack counts as a succesful upload (see callback)
-            if self.upload_done:
+            if self.manual_mission.done:
+                final_wp = self.active_mission_gps[-1]
+                request = LandDroneRequest(
+                    precision_land=2, yaw=-1, 
+                    lat=final_wp.latitude, lon=final_wp.longitude, alt=0)
+                response = self.land(request)
+                if response.success:
+                    self.fsm_state = State.LANDING
+
+            elif self.upload_done:
 
                 if self.state == "Standby":
                     request = TakeoffDroneRequest(on_the_spot=True, alt=20)
@@ -263,13 +269,19 @@ class Drone(object):
                         self.fsm_state = State.TAKEOFF
 
                 elif self.state == "Active":
-                    response = self.set_mode(flight_modes.MISSION)
-                    if response.success:
-                        self.manual_mission.stop_running()
-                        self.fsm_state = State.SET_MISSION
+                    pass
+                    # response = self.set_mode(flight_modes.MISSION)
+                    # if response.success:
+                    #     self.manual_mission.stop_running()
+                    #     self.fsm_state = State.SET_MISSION
 
                 else:
                     self.fsm_state = State.PAUSED
+
+            elif self.upload_failed:
+                self.fsm_state = State.REQUESTING_UPLOAD
+                self.upload_failed = False
+
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.TAKEOFF:
@@ -326,6 +338,18 @@ class Drone(object):
             if self.state == "Standby":
                 self.fsm_state = State.GROUNDED
                 self.gcs_status = DroneInfo.Land
+                # reset states
+                self.reset()
+                self.manual_mission.reset()
+
+            elif self.cmd_try_again:
+                final_wp = self.active_mission_gps[-1]
+                request = LandDroneRequest(
+                    precision_land=2, yaw=-1, 
+                    lat=final_wp.latitude, lon=final_wp.longitude, alt=0)
+                response = self.land(request)
+                if response.success:
+                    self.cmd_try_again = False
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REPOSITION:
