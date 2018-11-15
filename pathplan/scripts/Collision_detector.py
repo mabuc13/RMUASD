@@ -81,7 +81,6 @@ class CollisionDetector:
     def pythagoras(self, p1, p2):
         return sqrt((p1.easting - p2.easting)**2 + (p1.northing - p2.northing)**2)
 
-
 if __name__ == "__main__":
     rospy.init_node('collision_detector')  # , anonymous=True)
     rospy.sleep(1)
