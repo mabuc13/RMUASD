@@ -7,12 +7,13 @@ project(utm_parser)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED 
-  rospy 
+find_package(catkin REQUIRED
+  rospy
   message_generation
   std_msgs
   gcs
-  
+  node_monitor
+
 )
 
 ## System dependencies are found with CMake's conventions

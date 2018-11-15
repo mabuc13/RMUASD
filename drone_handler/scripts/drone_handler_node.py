@@ -72,8 +72,6 @@ class DroneHandler(object):
             drone = self.drones[msg.DroneID]
 
             drone.update_mission(msg.Path)
-
-            # from service
             drone.start_mission()
         
 
@@ -191,8 +189,6 @@ class DroneHandler(object):
                 mission_index=drone.active_mission_idx,
                 mission_length=drone.active_mission_len
             )
-
-
 
             nice2know = NiceInfo(
                 drone_id=drone.id,

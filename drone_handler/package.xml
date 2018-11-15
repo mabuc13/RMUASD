@@ -17,6 +17,8 @@
   <build_depend>telemetry</build_depend>
   <run_depend>mavlink_lora</run_depend>
   <run_depend>telemetry</run_depend>
+  <build_depend>node_monitor</build_depend>
+  <run_depend>node_monitor</run_depend>
 
   <export>
 

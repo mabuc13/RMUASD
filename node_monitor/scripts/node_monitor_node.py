@@ -4,14 +4,13 @@ import signal
 import sys
 import rospy
 import time
-
 import rosnode
+from node_monitor.msg import *
 
 
-# defines
-
-# parameters
-update_interval = 10
+class NodeTime(dict):
+    def __missing__(self, key):
+        return 0
 
 class NodeMonitor(object):
 
@@ -19,53 +18,83 @@ class NodeMonitor(object):
 
 		# status variables
         rospy.sleep (1) # wait until everything is running
+        self.nodeTimes = NodeTime()
+        self.nodeRates = NodeTime()
+        self.nodeState = NodeTime()
+        #subscriber
+        rospy.Subscriber("/gcs/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/utm_parser/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/pathplan/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/telemtry/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/drone_handler/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/internet/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/remot3/Heartbeat", heartbeat, self.handler_heartbeat)
 
-        self.boot_time = rospy.Time.now().to_sec() * 1000
+        self.Heartbeat_pub = rospy.Publisher('/node_monitor/Heartbeat', heartbeat, queue_size = 10)
 
-        # Service handlers
-        # self.mission_request_service = rospy.Service("/drone_handler/mission_request", Trigger, self.mission_request, buff_size=10)
+        self.rate = rospy.Rate(10)
+        self.heartbeat = heartbeat()
+        self.heartbeat.header.frame_id = "node_monitor"
+        self.heartbeat.rate = 10
 
-        # Topic handlers
-        # self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
-        self.drone_info_pub     = rospy.Publisher("/drone_handler/DroneInfo", DroneInfo, queue_size=0)
-        self.nice_info_pub      = rospy.Publisher("/drone_handler/NiceInfo", NiceInfo, queue_size=0)
+    def handler_heartbeat(self,msg):
+        if msg.rate == 0:
+            msg.rate = 1
+        self.nodeTimes[msg.header.frame_id] = msg.header.stamp.to_sec();
+        self.nodeRates[msg.header.frame_id] = msg.rate
+        self.nodeState[msg.header.frame_id] = msg.severity
 
-        rospy.Subscriber("/gcs/PathRequest", DronePath, self.on_drone_path)
-        rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
-        rospy.Subscriber("/telemetry/mav_mode", telemetry_mav_mode, self.on_mav_mode)
-        rospy.Subscriber("/telemetry/statustext", telemetry_statustext, self.on_statustext)
-        rospy.Subscriber("/telemetry/mission_info", telemetry_mission_info, self.on_mission_info)
-        rospy.Subscriber("/telemetry/vfr_hud", telemetry_vfr_hud, self.on_vfr_hud)
-        rospy.Subscriber("/telemetry/home_position", telemetry_home_position, self.on_home_position)
-        rospy.Subscriber("/telemetry/cmd_retry_fail", telemetry_cmd_retry_fail, self.on_cmd_fail)
-        rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
-        rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
-        rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
+        if not len(msg.text) == 0:
+            text = "["+msg.header.frame_id+"]["
+            if msg.severity == msg.info:
+                text = text+"info]"
+            elif msg.severity == msg.warning:
+                text = text+"warning]"
+            elif msg.severity == msg.error:
+                text = text+"error]"
+            elif msg.severity == msg.critical_error:
+                text = text+"critical]"
+            elif msg.severity == msg.fatal_error:
+                text = text+"fatal]"
 
-        # rospy.Timer(rospy.Duration(0.1), self.mission_info_cb)
+            text = text+"["+ str(msg.header.stamp.sec) + "]: " + msg.text
 
-        self.rate = rospy.Rate(update_interval)
+            msgO = self.heartbeat
+            msgO.text = text
+            msgO.severity = msg.severity
+            Heartbeat.publish(msgO)
 
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
 
+    def run(sef):
+        runs = 0
+        while not rospy.is_shutdown():
+            rate.sleep()
+            self.nodeTimes['node_monitor'] = rospy.Time.now().to_sec()
+            for i in range(len(self.nodeTimes))
+                itTimes = iter(self.nodeTimes)
+                itRates = iter(self.nodeRates)
+                itState = iter(self.nodeState)
+
+                
+
+            if runs == 10:
+                self.Heartbeat_pub.publish(self.heartbeat)
+                runs = 0
+
+            runs = runs +1
+
+
 
 
 if __name__ == "__main__":
 
-    rospy.init_node("A", anonymous=True)
-    rospy.sleep (1)
+    rospy.init_node('node_monitor')#, anonymous=True)
 
-    rosnode.rosnode_ping("telemetry",max_count=3, verbose=True)
+    nm = NodeMonitor()
 
-    rospy.spin()
+    rospy.on_shutdown(nm.shutdownHandler)
 
-    # rospy.init_node('node_monitor')#, anonymous=True)
-    # rospy.sleep(1)
-
-    # nm = NodeMonitor()
-
-    # rospy.on_shutdown(nm.shutdownHandler)
-
-    # rospy.spin()
+    nm.run()
