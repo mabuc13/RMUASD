@@ -131,7 +131,7 @@ if __name__ == '__main__':
     heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
     heart_msg = heartbeat()
     heart_msg.header.frame_id = 'remot3'
-    heart_msg.rate = 0.5
+    heart_msg.rate = 1
 
     while not rospy.is_shutdown():
         rospy.Rate(heart_msg.rate).sleep()

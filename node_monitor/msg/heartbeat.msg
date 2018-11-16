@@ -1,7 +1,7 @@
 Header header
 string text
 uint8 severity
-int16 rate
+float32 rate
 
 uint8 nothing = 0
 uint8 info = 1
