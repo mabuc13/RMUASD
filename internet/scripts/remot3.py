@@ -7,6 +7,7 @@ from urllib.request import urlopen
 from json import dumps
 from internet.srv import *
 import socket
+from node_monitor.msg import *
 
 #"RUI2QzlDRjQtMTg0NC00RjU0LUE0NDItMDIwNDJGRDBGOERE"
 def getToken(developerKey,username,password):
@@ -126,4 +127,13 @@ if __name__ == '__main__':
     s = rospy.Service('/Internet/getIp',getIp, handle_getIp)
     print(" ")
     print("[remot3]: IP fetcher running")
-    rospy.spin()
+
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'remot3'
+    heart_msg.rate = 0.5
+
+    while not rospy.is_shutdown():
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)

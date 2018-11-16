@@ -25,7 +25,7 @@ import json
 import cv2
 import numpy as np
 from gcs.msg import *
-
+from node_monitor.msg import heartbeat
 
 from utm_parser.srv import *
 from utm_parser.msg import *
@@ -553,21 +553,30 @@ class utm_parser(object):
 
 
 def main():
-        rospy.init_node('utm_parser')#, anonymous=True)
-        rospy.sleep(1)
+    rospy.init_node('utm_parser')#, anonymous=True)
+    rospy.sleep(1)
 
 
-        par = utm_parser()
-        rospy.on_shutdown(par.shutdownHandler)
-        #rospy.timer(rospy.Duration(5), par.dnfz_time_callback)
-        #
-        #par.print_nested_list(par.geoditic_coords)
-        #par.print_test_coords()
+    par = utm_parser()
+    rospy.on_shutdown(par.shutdownHandler)
+    #rospy.timer(rospy.Duration(5), par.dnfz_time_callback)
+    #
+    #par.print_nested_list(par.geoditic_coords)
+    #par.print_test_coords()
 
-        #par.get_static_nfz()
+    #par.get_static_nfz()
 
-        #par.print_zones()
-        rospy.spin()
+    #par.print_zones()
+
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'utm_parser'
+    heart_msg.rate = 3
+
+    while not rospy.is_shutdown():
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
 
 if __name__ == "__main__":
     main()

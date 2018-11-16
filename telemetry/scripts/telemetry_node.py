@@ -16,7 +16,7 @@ from mavlink_defines import * # pylint: disable=W0614
 from datetime import datetime
 import mission_handler
 import command_handler
-
+from node_monitor.msg import heartbeat
 # parameters
 mavlink_lora_sub_topic = '/mavlink_rx'
 mavlink_lora_pub_topic = '/mavlink_tx'
@@ -287,8 +287,15 @@ def main():
     # tel.enable_rc_channels()
     # Send global setpoint every 0.4 seconds
     # rospy.Timer(rospy.Duration(0.2),tel.send_local_setpoint)
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'telemetry'
+    heart_msg.rate = 10
 
-    rospy.spin()
+    while not rospy.is_shutdown():
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
 
 if __name__ == "__main__":
     main()
