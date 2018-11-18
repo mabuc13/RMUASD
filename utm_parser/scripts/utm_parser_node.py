@@ -13,7 +13,7 @@ Descriptors: MB = Mark Buch (mabuc13@student.sdu.dk)
 
 """
 Description:
-This class will handle post and get to the UTM from the GCS.
+This class will handle post and get to the UTM from the GCS. 
 The idea is to have each request as a seperate method.
 
 License: BSD 3-Clause
@@ -48,11 +48,12 @@ class utm_parser(object):
         }
         self.kml = kml_no_fly_zones_parser(0)
         self.static_filename = ''
-        self.utm_trafic_debug = 1
+        self.utm_trafic_debug = 0
         self.geoditic_coords = []
         self.utm_coords = []
         self.coord_conv = utmconv()
-        self.debug = 1
+        self.debug = 0
+        self.path_debug = 0
         self.utm_coords = []
         self.empty_map = []
         self.map_ll_reference = []
@@ -102,9 +103,10 @@ class utm_parser(object):
     fisk.altitude  = 9
     """
     def save_path(self, msg):
-        self.path = msg
-        if self.debug:
+        self.path = msg.Path
+        if self.path_debug:
             print "Got path and stored it: ", self.path
+            print self.path
 
     def get_snfz_handler(self, req):
         if self.debug:
@@ -125,7 +127,7 @@ class utm_parser(object):
             count_in = 0
             for j in i:
                 count_in += 1
-                temp = j[0]
+                temp = j
                 map_row.row.append(temp)
 
             ros_map.append(map_row)
@@ -146,18 +148,34 @@ class utm_parser(object):
         wp_geo = msg.next_waypoint
         """
         utm_pos = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
-        utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
+       
         head_vec = [utm_wp[3]-utm_pos[3], utm_wp[4]-utm_pos[4]]
         if self.debug:
             print "Vector for heading: ", head_vec
         vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
         """
+
         self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
         self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
         #self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp
         self.post_payload['wp_next_lat_dd'] = wp_geo.latitude
         self.post_payload['wp_next_lng_dd'] = wp_geo.longitude
         self.post_payload['wp_next_alt_m'] = wp_geo.altitude
+
+        
+        #next_wp_geo = self.path[1]
+        #next_wp_utm = self.coord_conv.geodetic_to_utm(next_wp_geo[0], next_wp_geo[1])
+        #utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
+        #head_vec = [utm_wp[3]-next_wp_utm[3], utm_wp[4]-next_wp_utm[4]]
+        #vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+        #vec_degree += 90
+        #vec_degree = 360 - vec_degree
+        if self.path_debug:
+            print "Msg.mission_wp: ", msg.mission_index
+
+            #print "Vector for heading: ", head_vec
+            #print "Heading on this vector: ", vec_degree
+
 
         self.post_payload['wp_next_hdg_deg'] = 10
         self.post_payload['wp_next_vel_mps'] = 10
@@ -422,62 +440,6 @@ class utm_parser(object):
             return self.utm_coords
 
 
-                if self.debug:
-                    print "Utm ll, utm UR: ", utm_ll, utm_ur
-                self.create_empty_map(utm_ll, utm_ur)
-                return_map = self.snfz_into_empty_map(self.utm_coords, utm_ur, utm_ll)
-                return return_map
-
-    def print_nested_list(self, nested_list):
-        if self.debug:
-            print "Entering print_nested_list"
-        outer_cnt = 0
-        for i in nested_list:
-            print "Outer list element ", outer_cnt, " With coordinates: \n"
-
-            for j in nested_list[outer_cnt]:
-                print j, '\n'
-            outer_cnt += 1
-
-    def extract_coords(self, g_coords):
-        """
-        This method gets rid of the names of the zones, and stores each coordinate set within a nested list
-        each entry in this list corresponds to the coords defining one zone.
-        The format of the retunred coordinates will be UTM
-
-        :param g_coords: the data from the kml parser.
-        :return: nested list with all coordinates in utm format
-
-        """
-        if self.debug:
-            print "Entering extract coords"
-        counter = 0
-        try:
-
-            if self.debug:
-                print
-                "Extracting and converting coordinates"
-
-            for zone in g_coords:
-                zone_transformed = []
-                for element in zone['coordinates']:
-                    utm_coord = self.coord_conv.geodetic_to_utm(element[0], element[1])
-                    zone_transformed.append(utm_coord)
-                self.utm_coords.append(zone_transformed)
-
-
-        except Exception as e:
-            print e
-            rospy.logerr("Failed to extract coords from kml_parser")
-            rospy.logerr(e)
-        else:
-            if self.debug:
-                print "Sucessfully extracted coords"
-            #print self.geoditic_coords
-
-            return self.utm_coords
-
-
 
     def print_nested_list(self, nested_list):
         if self.debug:
@@ -510,7 +472,7 @@ class utm_parser(object):
         self.map_height = height
         if self.debug:
             print "About to create empty map with width, height: ", width, height
-        self.empty_map = np.zeros((width, height, 3), np.uint8)
+        self.empty_map = np.zeros((width, height, 1), np.uint8)
         if self.debug:
             print "Created empty map with height, width: ", height, width
 
@@ -535,8 +497,8 @@ class utm_parser(object):
                     current_zone.append([index_width, index_heigth])
                     if self.debug:
                         print "Zone counter: ", zone_counter
-                    if snfz_map[index_width][index_heigth][0] == 0:
-                        snfz_map[index_width][index_heigth][0] = zone_counter#snfz_map[index_width, index_heigth] = 1
+                    #if snfz_map[index_width][index_heigth][0] == 255:
+                    #    snfz_map[index_width][index_heigth][0] = 255#snfz_map[index_width, index_heigth] = 1
                     if self.debug:
                         print "Found coordinate within map which is NFZ: ", j, "\n Which has index: ", index_width, index_heigth, "which is within zone. ", zone_counter
             if len(current_zone) != 0:
@@ -547,11 +509,11 @@ class utm_parser(object):
                     print numpy_zone
                 #numpy_zone = numpy_zone.reshape((-1, 1, 2))
                 dummy = np.array(([20, 20], [20, 100], [100, 100]), dtype='int32')
-                cv2.fillPoly(snfz_map, [numpy_zone], [3])
+                cv2.fillPoly(snfz_map, [numpy_zone], 1)
             zone_counter += 1
 
             #3 eastern 4 = northing
-
+        #self.show_map(snfz_map)
         if self.debug:
             print "Exited SNFZ into empty map, with map_res: ", self.map_res
             print "Map_res: ", self.map_res
@@ -650,8 +612,4 @@ def main():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     main()
-=======
-    main()
->>>>>>> 6ef401e22730aaffe73a761c795bfce7d1061ed7
