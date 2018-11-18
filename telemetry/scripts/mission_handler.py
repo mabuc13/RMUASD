@@ -245,9 +245,9 @@ class MissionHandler(object):
 
     def mission_set_current(self, msg):
         message = mavlink_lora_msg()
-        message.msg_id = MAVLINK_MSG_ID_MISSION_REQUEST
-        message.payload_len = MAVLINK_MSG_ID_MISSION_REQUEST_LEN
-        # message.payload = struct.pack('<HBB', msg.data, self.mi.target_sys, self.mi.target_comp)
-        message.payload = struct.pack('<HBB', msg.data, 1, 1)
+        message.msg_id = MAVLINK_MSG_ID_MISSION_SET_CURRENT
+        message.payload_len = MAVLINK_MSG_ID_MISSION_SET_CURRENT_LEN
+        message.payload = struct.pack('<HBB', msg.data, self.mi.target_sys, self.mi.target_comp)
+        # message.payload = struct.pack('<HBB', msg.data, 0, 0)
 
         self.mavlink_msg_pub.publish(message)

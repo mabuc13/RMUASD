@@ -85,6 +85,7 @@ class ManualMission(object):
     def stop_running(self):
         try:
             self.run_timer.shutdown()
+            self.fsm_state = State.IDLE
         except Exception as e:
             rospy.logwarn("Can't shut timer down. It isn't running")
             rospy.logwarn(e)
@@ -93,6 +94,7 @@ class ManualMission(object):
         self.fsm_state = State.IDLE
         self.cmd_try_again = False
         self.done = False
+        self.mission_idx = 0
 
     def run(self, event):
         # this possibly needs to be run after a mission has been uploaded

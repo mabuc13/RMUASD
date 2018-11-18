@@ -311,6 +311,7 @@ void ml_parse_msg(unsigned char *msg)
 
         //respond back with result
         mavlink_lora::mavlink_lora_command_ack ack_msg;
+        ack_msg.drone_id = recorded_sysid;
         ack_msg.command = ack.command;
         ack_msg.result = ack.result;
         ack_msg.result_text = command_result_parser(ack.result);

@@ -35,6 +35,7 @@ class State(Enum):
     FLYING_MISSION = 8
     PAUSED = 9
     LANDING = 10
+    SET_SPEED = 11
 
 PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
 PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
@@ -52,6 +53,7 @@ class Drone(object):
         self.upload_done = False
         self.upload_failed = False
         self.cmd_try_again = False
+        self.speed_ack = False
 
         self.pending_mission_gps = []
         self.active_waypoint_gps = GPS()
@@ -127,6 +129,7 @@ class Drone(object):
         self.land               = rospy.ServiceProxy("/telemetry/land_drone", LandDrone)
         self.set_mode           = rospy.ServiceProxy("/telemetry/set_mode", SetMode)
         self.set_home           = rospy.ServiceProxy("/telemetry/set_home", SetHome)
+        self.change_speed       = rospy.ServiceProxy("/telemetry/change_speed", ChangeSpeed)
         self.return_to_home     = rospy.ServiceProxy("/telemetry/return_home", Trigger)
         self.reposition         = rospy.ServiceProxy("/telemetry/goto_waypoint", GotoWaypoint)
         self.upload_mission     = rospy.ServiceProxy("/telemetry/upload_mission", UploadMission)
@@ -140,6 +143,10 @@ class Drone(object):
         else:
             # restart upload
             self.upload_failed = True
+
+    def on_command_ack(self, msg):
+        if msg.command == MAV_CMD_DO_CHANGE_SPEED and msg.result == 0:
+            self.speed_ack = True
 
     def on_cmd_fail(self, msg):
         self.cmd_try_again = True
@@ -163,30 +170,30 @@ class Drone(object):
 
         ml_list = mavlink_lora_mission_list()
 
-        # insert speed command as first item
-        speed_cmd = mavlink_lora_mission_item_int(
-                param1=1,                       # speed type - ground speed
-                param2=MISSION_SPEED,           # speed - m/s
-                param3=-1,                      # throttle
-                param4=1,                       # absolute speed
-                x=0,
-                y=0,
-                z=0,
-                seq=0,
-                command=MAV_CMD_DO_CHANGE_SPEED,
-                current=1,
-                autocontinue=1,
-                target_system=self.id,
-                target_component=0,
-                frame=MAV_FRAME_MISSION
-        )
+        # # insert speed command as first item
+        # speed_cmd = mavlink_lora_mission_item_int(
+        #         param1=1,                       # speed type - ground speed
+        #         param2=MISSION_SPEED,           # speed - m/s
+        #         param3=-1,                      # throttle
+        #         param4=1,                       # absolute speed
+        #         x=0,
+        #         y=0,
+        #         z=0,
+        #         seq=0,
+        #         command=MAV_CMD_DO_CHANGE_SPEED,
+        #         current=1,
+        #         autocontinue=1,
+        #         target_system=self.id,
+        #         target_component=0,
+        #         frame=MAV_FRAME_MISSION
+        # )
 
-        ml_list.waypoints.append(speed_cmd)
+        # ml_list.waypoints.append(speed_cmd)
 
         for itr, waypoint in enumerate(gps_list):
             current = 0
-            # if itr == 0:
-            #     current = 1
+            if itr == 0:
+                current = 1
 
             mission_item = mavlink_lora_mission_item_int(
                 param1=0,                       # hold time in seconds
@@ -223,10 +230,12 @@ class Drone(object):
         self.upload_failed = False
         self.cmd_try_again = False
         self.new_mission = False
+        self.speed_ack = False
 
     def run(self):
 
         if self.main_mode in PAUSE_LIST_MAIN or self.sub_mode in PAUSE_LIST_SUB:
+            # print("Setting paused!")
             self.fsm_state = State.PAUSED
 
         # ------------------------------------------------------------------------------ #
@@ -260,8 +269,8 @@ class Drone(object):
 
                 elif self.state == "Active":
                     self.manual_mission.stop_running()
+                    # self.manual_mission.reset()
                     self.fsm_state = State.SYNC_WP_IDX
-
 
             elif self.upload_failed:
                 self.fsm_state = State.REQUESTING_UPLOAD
@@ -284,12 +293,11 @@ class Drone(object):
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.ARMING:
-            if self.armed:
-                if self.sub_mode == "Loiter" or self.relative_alt > 19:
-                    self.gcs_status = DroneInfo.Run
-                    response = self.set_mode(flight_modes.MISSION)
-                    if response.success:
-                        self.fsm_state = State.SET_MISSION
+            if self.armed and self.relative_alt > 19:
+                self.gcs_status = DroneInfo.Run
+                response = self.set_mode(flight_modes.MISSION)
+                if response.success:
+                    self.fsm_state = State.SET_MISSION
 
             else:
                 if self.cmd_try_again:
@@ -300,22 +308,36 @@ class Drone(object):
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.SYNC_WP_IDX:
             print("Manual index: {}, Drone index: {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
-            if self.manual_mission.mission_idx + 1 == self.active_mission_idx:
+
+            if self.manual_mission.mission_idx == self.active_mission_idx:
                 response = self.set_mode(flight_modes.MISSION)
                 if response.success:
                     self.fsm_state = State.SET_MISSION
             else:
-                # add 1 to the mission index to account for the speed cmd in the beginning
-                # that isn't included in the manual mission idx
                 self.set_current_mission_pub.publish(Int16(self.manual_mission.mission_idx))
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.SET_MISSION:
             if self.sub_mode == "Mission":
-                self.fsm_state = State.FLYING_MISSION
+                request = ChangeSpeedRequest(MISSION_SPEED)
+                response = self.change_speed(request)
+                if response.success:
+                    self.fsm_state = State.SET_SPEED
             else:
                 if self.cmd_try_again:
                     response = self.set_mode(flight_modes.MISSION)
+                    if response.success:
+                        self.cmd_try_again = False
+
+        # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.SET_SPEED:
+            if self.speed_ack:
+                self.fsm_state = State.FLYING_MISSION
+                self.speed_ack = False
+            else:
+                if self.cmd_try_again:
+                    request = ChangeSpeedRequest(MISSION_SPEED)
+                    response = self.change_speed(request)
                     if response.success:
                         self.cmd_try_again = False
 
@@ -325,7 +347,7 @@ class Drone(object):
             if self.new_mission:
                 self.manual_mission.start_running()
                 self.new_mission = False
-            elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
+            # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
                 self.fsm_state = State.REQUESTING_UPLOAD
 
             if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 20:
@@ -350,19 +372,19 @@ class Drone(object):
             #         self.cmd_try_again = False
 
         # ------------------------------------------------------------------------------ #
-        elif self.fsm_state == State.REPOSITION:
-            if self.sub_mode == "Loiter":
-                self.fsm_state = State.REQUESTING_UPLOAD
-            else:
-                if self.cmd_try_again:
-                    first_wp = self.active_mission_gps[0]
-                    request = GotoWaypointRequest(
-                        relative_alt=True, latitude=first_wp.latitude,
-                        longitude=first_wp.longitude, altitude=first_wp.altitude
-                        )
-                    response = self.reposition(request)
-                    if response.success:
-                        self.cmd_try_again = False
+        # elif self.fsm_state == State.REPOSITION:
+        #     if self.sub_mode == "Loiter":
+        #         self.fsm_state = State.REQUESTING_UPLOAD
+        #     else:
+        #         if self.cmd_try_again:
+        #             first_wp = self.active_mission_gps[0]
+        #             request = GotoWaypointRequest(
+        #                 relative_alt=True, latitude=first_wp.latitude,
+        #                 longitude=first_wp.longitude, altitude=first_wp.altitude
+        #                 )
+        #             response = self.reposition(request)
+        #             if response.success:
+        #                 self.cmd_try_again = False
             
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.PAUSED:

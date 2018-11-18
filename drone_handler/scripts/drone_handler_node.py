@@ -12,7 +12,7 @@ from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String, Time
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.msg import * # pylint: disable=W0614
-from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack
+from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack, mavlink_lora_command_ack
 from gcs.msg import DroneInfo, GPS, NiceInfo
 
 # defines
@@ -54,6 +54,7 @@ class DroneHandler(object):
         rospy.Subscriber("/telemetry/home_position", telemetry_home_position, self.on_home_position)
         rospy.Subscriber("/telemetry/cmd_retry_fail", telemetry_cmd_retry_fail, self.on_cmd_fail)
         rospy.Subscriber("/mavlink_interface/mission/ack", mavlink_lora_mission_ack, self.on_mission_ack)
+        rospy.Subscriber("/mavlink_interface/command/ack", mavlink_lora_command_ack, self.on_command_ack)
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
         rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
@@ -170,6 +171,11 @@ class DroneHandler(object):
             drone = self.drones[msg.drone_id]
             drone.on_mission_ack(msg)
 
+    def on_command_ack(self, msg):
+        if msg.drone_id in self.drones:
+            drone = self.drones[msg.drone_id]
+            drone.on_command_ack(msg)
+
     def send_info_cb(self, event):
         # TODO iterate over all drones
         drone = self.drones[1]
@@ -205,8 +211,8 @@ class DroneHandler(object):
                 msg_received_gcs=drone.msg_received_gcs,
                 msg_dropped_gcs=drone.msg_dropped_gcs,
                 msg_dropped_uas=drone.msg_dropped_uas,
-                active_waypoint_idx=drone.active_sub_waypoint_idx,
-                active_mission_len=drone.active_sub_mission_len,
+                active_waypoint_idx=drone.active_mission_idx,
+                active_mission_len=drone.active_mission_len,
                 armed=drone.armed,
                 manual_input=drone.manual_input,
                 hil_simulation=drone.hil_simulation,
