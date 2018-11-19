@@ -11,6 +11,7 @@ from Path_simplifier import PathSimplifier
 from eta_estimator import *
 import time
 import simplifier_rmuast
+from node_monitor.msg import *
 
 
 class PathPlanner(object):
@@ -97,6 +98,7 @@ if __name__ == '__main__':
     s = rospy.Service('pathplan/getPlan',pathPlan, handle_getPathPlan)
     s2= rospy.Service('pathplan/getEta',getEta,handle_ETA)
     s3= rospy.Service('pathplan/GPS2GPSdist',gps2distance,handle_distanceCalculations)
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
     """
     ll = GPS()
     ll.latitude = 55.425762
@@ -121,4 +123,11 @@ if __name__ == '__main__':
     planner.export_kml_path("Test_plan")
     """
     print("[Path planner]: "+"Path planner running")
-    rospy.spin()
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'pathplan'
+    heart_msg.rate = 10
+
+    while not rospy.is_shutdown():
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)

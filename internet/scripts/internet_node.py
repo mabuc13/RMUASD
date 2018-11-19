@@ -8,6 +8,7 @@ from _thread import *
 import threading
 
 from std_msgs.msg import String
+from node_monitor.msg import *
 
 def signal_handler(signal,somthing):
     print('[Internet node]: You pressed Ctrl+C!')
@@ -125,5 +126,13 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     start_new_thread(sender,(1,))
     start_new_thread(reciver,(1,))
+
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'internet'
+    heart_msg.rate = 1
+
     while not rospy.is_shutdown():
-        rospy.spin()
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
