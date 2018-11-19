@@ -87,6 +87,7 @@ struct aDrone{
 struct aNode{
 	int res_OK;
 	int state_OK;
+	bool isInit;
 };
 
 

@@ -100,15 +100,19 @@ void QNode::handle_NodeMonitorHeart(node_monitor::heartbeat msg){
 
 }
 void QNode::handle_NodeStat(node_monitor::nodeOkList msg){
+    cout << "Message: "<< endl<<flush;
     for(size_t i = 0; i < msg.Nodes.size(); i++){
         aNode* theNode = &_Nodes[msg.Nodes[i].name];
+        //cout << "Name: " << msg.Nodes[i].name
         if(theNode->res_OK != msg.Nodes[i].ok ||
-           theNode->state_OK != msg.Nodes[i].nodeState)
+           theNode->state_OK != msg.Nodes[i].nodeState ||
+           !theNode->isInit)
         {
-            cout << "First: " << msg.Nodes[i].name, << " - " << msg.Nodes[i].nodeState << " - " << msg.Nodes[i].ok << endl;
+            theNode->isInit = true;
+            //cout << "DataParsed: " << msg.Nodes[i].name << " - " << int(msg.Nodes[i].nodeState) << " - " << int(msg.Nodes[i].ok) << endl;
             theNode->res_OK = msg.Nodes[i].ok;
             theNode->state_OK = msg.Nodes[i].nodeState;
-            Q_EMIT sig_nodeState(msg.Nodes[i].name.c_str(),theNode->state_OK,theNode->state_OK);
+            Q_EMIT sig_nodeState(msg.Nodes[i].name.c_str(),theNode->state_OK,theNode->res_OK);
         }
     }
 }

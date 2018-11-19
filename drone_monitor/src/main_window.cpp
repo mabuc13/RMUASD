@@ -15,6 +15,11 @@
 #include "../include/drone_monitor/main_window.hpp"
 #include <string>
 
+#ifndef Q_MOC_RUN
+	#include <node_monitor/heartbeat.h>
+	#include <node_monitor/nodeOk.h>
+#endif
+
 /*****************************************************************************
 ** Namespaces
 *****************************************************************************/
@@ -77,7 +82,9 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode,SIGNAL(sig_nodeState(QString,int,int)),this,SLOT(set_nodeState(QString,int,int)));
     qnode.init();
 
-
+    ui.gridLayout_NodeStates->addWidget(new QLabel("<b>NodeName<\b>"),0,0);
+    ui.gridLayout_NodeStates->addWidget(new QLabel("<b>Response<\b>"),0,1);
+    ui.gridLayout_NodeStates->addWidget(new QLabel("<b>Status<\b>"),0,2);
 }
 
 MainWindow::~MainWindow() {}
@@ -91,13 +98,26 @@ MainWindow::~MainWindow() {}
 ** Implemenation [Slots][manually connected]
 *****************************************************************************/
 void MainWindow::set_nodeState(QString name, int ownStatus, int response){
+    
     bool newNode = true;
-    std::cout << name.toUtf8().constData() << endl;
+    //std::cout << name.toUtf8().constData() << endl;
     for(size_t i = 0; i < this->monitoredNodes.size(); i++){
         if(this->monitoredNodes[i].name->text() == name){
             newNode = false;
             this->monitoredNodes[i].state->setText(patch::to_string(ownStatus).c_str());
-            this->monitoredNodes[i].response->setText(patch::to_string(response).c_str());
+            if(response == node_monitor::nodeOk::fine){
+                this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#00ff00;'>Fine</span></p>");
+            }else if(response == node_monitor::nodeOk::late){
+                this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#ffff00;'>Late</span></p>");
+            }else if(response == node_monitor::nodeOk::none_responsive){
+                this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#ff0000;'>Dead</span></p>");
+            }else{
+               this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#000000;'>ERROR</span></p>"); 
+            }
         }
     }
     if(newNode){
@@ -105,9 +125,9 @@ void MainWindow::set_nodeState(QString name, int ownStatus, int response){
         tmp.name = new QLabel(name);
         tmp.response = new QLabel(patch::to_string(response).c_str());
         tmp.state = new QLabel(patch::to_string(ownStatus).c_str());
-        ui.gridLayout_NodeStates->addWidget(tmp.name,monitoredNodes.size(),0);
-        ui.gridLayout_NodeStates->addWidget(tmp.response,monitoredNodes.size(),1);
-        ui.gridLayout_NodeStates->addWidget(tmp.state,monitoredNodes.size(),2);
+        ui.gridLayout_NodeStates->addWidget(tmp.name,monitoredNodes.size()+1,0);
+        ui.gridLayout_NodeStates->addWidget(tmp.response,monitoredNodes.size()+1,1);
+        ui.gridLayout_NodeStates->addWidget(tmp.state,monitoredNodes.size()+1,2);
         monitoredNodes.push_back(tmp);
     }
 
