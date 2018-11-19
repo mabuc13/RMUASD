@@ -17,8 +17,8 @@ def signal_handler(signal,somthing):
 class ROSserver(object):
     def __init__(self):
         rospy.init_node('InternetNode')
-        self.pub = rospy.Publisher('FromInternet',String, queue_size=10)
-        self.sub = rospy.Subscriber('ToInternet', String, self.toInternet)
+        self.pub = rospy.Publisher('/internet/FromInternet',String, queue_size=10)
+        self.sub = rospy.Subscriber('/internet/ToInternet', String, self.toInternet)
         self.senderLock = threading.Lock()
         self.printLock = threading.Lock()
         self.server = "localhost"

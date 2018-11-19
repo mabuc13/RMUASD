@@ -8,6 +8,11 @@ import rosnode
 from node_monitor.msg import *
 
 
+def signal_handler(signal,somthing):
+    print('[Internet node]: You pressed Ctrl+C!')
+    rospy.signal_shutdown('ctrl+c')
+    sys.exit(0)
+
 class NodeTime(dict):
     def __missing__(self, key):
         return 0
@@ -20,19 +25,23 @@ class NodeMonitor(object):
         rospy.sleep (1) # wait until everything is running
         self.nodeTimes = NodeTime()
         self.nodeRates = NodeTime()
+        self.nodeRates['node_monitor'] = 10
         self.nodeState = NodeTime()
+        self.nodeState['node_monitor'] = heartbeat.nothing
         #subscriber
-        rospy.Subscriber("/gcs/Heartbeat", heartbeat, self.handler_heartbeat)
-        rospy.Subscriber("/utm_parser/Heartbeat", heartbeat, self.handler_heartbeat)
-        rospy.Subscriber("/pathplan/Heartbeat", heartbeat, self.handler_heartbeat)
-        rospy.Subscriber("/telemtry/Heartbeat", heartbeat, self.handler_heartbeat)
-        rospy.Subscriber("/drone_handler/Heartbeat", heartbeat, self.handler_heartbeat)
-        rospy.Subscriber("/internet/Heartbeat", heartbeat, self.handler_heartbeat)
-        rospy.Subscriber("/remot3/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/node_monitor/input/Heartbeat", heartbeat, self.handler_heartbeat)
+        #rospy.Subscriber("/gcs/Heartbeat", heartbeat, self.handler_heartbeat)
+        #rospy.Subscriber("/utm_parser/Heartbeat", heartbeat, self.handler_heartbeat)
+        #rospy.Subscriber("/pathplan/Heartbeat", heartbeat, self.handler_heartbeat)
+        #rospy.Subscriber("/telemtry/Heartbeat", heartbeat, self.handler_heartbeat)
+        #rospy.Subscriber("/drone_handler/Heartbeat", heartbeat, self.handler_heartbeat)
+        #rospy.Subscriber("/internet/Heartbeat", heartbeat, self.handler_heartbeat)
+        #rospy.Subscriber("/remot3/Heartbeat", heartbeat, self.handler_heartbeat)
 
         self.Heartbeat_pub = rospy.Publisher('/node_monitor/Heartbeat', heartbeat, queue_size = 10)
+        self.NodeSates_pub = rospy.Publisher('/node_monitor/node_list',nodeOkList,queue_size= 10)
 
-        self.rate = rospy.Rate(10)
+        self.rate = rospy.Rate(self.nodeRates['node_monitor'])
         self.heartbeat = heartbeat()
         self.heartbeat.header.frame_id = "node_monitor"
         self.heartbeat.rate = 10
@@ -62,21 +71,38 @@ class NodeMonitor(object):
             msgO = self.heartbeat
             msgO.text = text
             msgO.severity = msg.severity
-            Heartbeat.publish(msgO)
+            self.Heartbeat_pub.publish(msgO)
 
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
 
-    def run(sef):
+    def run(self):
         runs = 0
         while not rospy.is_shutdown():
-            rate.sleep()
+            self.rate.sleep()
             self.nodeTimes['node_monitor'] = rospy.Time.now().to_sec()
-            for i in range(len(self.nodeTimes))
-                itTimes = iter(self.nodeTimes)
-                itRates = iter(self.nodeRates)
-                itState = iter(self.nodeState)
+            nodeStatusList = nodeOkList()
+            for key, value in self.nodeTimes.items():
+                nodeStatus = nodeOk()
+                nodeStatus.name = str(key)
+                nodeStatus.nodeState = self.nodeState[key]
+
+                print(str(key)+": " + str(rospy.Time.now().to_sec() - ((1/self.nodeRates[key])*2 + value)) )
+                if rospy.Time.now().to_sec() > ((1/self.nodeRates[key])*4 + value):
+                    #print("none responsive")
+                    nodeStatus.ok = nodeOk.none_responsive
+                elif rospy.Time.now().to_sec() > ((1/self.nodeRates[key])*2 + value):
+                    #print("late")
+                    nodeStatus.ok = nodeOk.late
+                else:
+                    #print("fine")
+                    nodeStatus.ok = nodeOk.fine
+
+                nodeStatusList.Nodes.append(nodeStatus)
+                    
+            self.NodeSates_pub.publish(nodeStatusList)
+                
 
                 
 
@@ -90,9 +116,9 @@ class NodeMonitor(object):
 
 
 if __name__ == "__main__":
-
+    
     rospy.init_node('node_monitor')#, anonymous=True)
-
+    signal.signal(signal.SIGINT, signal_handler)
     nm = NodeMonitor()
 
     rospy.on_shutdown(nm.shutdownHandler)

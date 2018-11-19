@@ -50,6 +50,8 @@ catkin_python_setup()
 add_message_files(
   FILES
   heartbeat.msg
+  nodeOk.msg
+  nodeOkList.msg
 )
 
 ## Generate services in the 'srv' folder

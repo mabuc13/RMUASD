@@ -25,37 +25,6 @@
 #include <TextCsvReader.hpp>
 
 using namespace std;
-#ifndef GCS_MESSAGE_GPS_H
-    namespace gcs{
-        struct GPS{
-            double longitude;
-            double latitude;
-            double altitude;
-        };
-
-        struct DroneInfo{
-            GPS position;
-            GPS next_goal;
-            float velocity[3];
-            float heading;
-            float battery_SOC;
-
-            size_t drone_id;
-            size_t GPS_timestamp;
-            uint8 status;
-
-            uint8 Run = 1;
-            uint8 Stop = 2;
-            uint8 Land = 3;
-            uint8 Wait = 4;
-        };
-
-        struct DronePath{
-            std::vector<GPS> Path;
-            size_t DroneID;
-        };
-    }
-#endif
 
 
 ros::Subscriber DroneStatus_sub;//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
@@ -305,10 +274,10 @@ void initialize(void){
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
     ETA_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/ETA",100);
-    WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
-    WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
+    WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
+    WebInfo_pub = nh->advertise<std_msgs::String>("/internet/ToInternet",100);
     JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
-    Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("gcs/Heartbeat",100);
+    Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("/node_monitor/input/Heartbeat",100);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
