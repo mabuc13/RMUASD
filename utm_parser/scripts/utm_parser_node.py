@@ -168,11 +168,18 @@ class utm_parser(object):
         self.post_payload['uav_bat_soc'] = msg.battery_SOC
 
         if self.path_flag:
-            next_wp_geo = self.path[msg.mission_index+1]
+            next_wp_geo = self.path[len(self.path)-1]
+            if msg.mission_index+1 < msg.mission_length:
+                if self.debug:
+                    print("Misssion ["+str(msg.mission_index+1)+"/"+str(msg.mission_length)+"] len: " +str(len(self.path)))
+                next_wp_geo = self.path[msg.mission_index+1]
+
             next_wp_utm = self.coord_conv.geodetic_to_utm(next_wp_geo.latitude, next_wp_geo.longitude)
             utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
             head_vec = [utm_wp[3]-next_wp_utm[3], utm_wp[4]-next_wp_utm[4]]
-            vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+            vec_degree = 90
+            if not head_vec[0] == 0:
+                vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
             vec_degree += 90
             vec_degree = 360 - vec_degree
             if self.path_debug:
