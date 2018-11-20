@@ -225,7 +225,6 @@ class Drone(object):
         return ml_list
 
     def reset(self):
-        self.fsm_state = State.PAUSED
         self.upload_done = False
         self.upload_failed = False
         self.cmd_try_again = False
@@ -307,7 +306,6 @@ class Drone(object):
 
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.SYNC_WP_IDX:
-            print("Manual index: {}, Drone index: {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
 
             if self.manual_mission.mission_idx == self.active_mission_idx:
                 response = self.set_mode(flight_modes.MISSION)
@@ -361,34 +359,10 @@ class Drone(object):
                 # reset states
                 self.reset()
                 self.manual_mission.reset()
-
-            # elif self.cmd_try_again:
-            #     final_wp = self.active_mission_gps[-1]
-            #     request = LandDroneRequest(
-            #         precision_land=2, yaw=-1, 
-            #         lat=final_wp.latitude, lon=final_wp.longitude, alt=0)
-            #     response = self.land(request)
-            #     if response.success:
-            #         self.cmd_try_again = False
-
-        # ------------------------------------------------------------------------------ #
-        # elif self.fsm_state == State.REPOSITION:
-        #     if self.sub_mode == "Loiter":
-        #         self.fsm_state = State.REQUESTING_UPLOAD
-        #     else:
-        #         if self.cmd_try_again:
-        #             first_wp = self.active_mission_gps[0]
-        #             request = GotoWaypointRequest(
-        #                 relative_alt=True, latitude=first_wp.latitude,
-        #                 longitude=first_wp.longitude, altitude=first_wp.altitude
-        #                 )
-        #             response = self.reposition(request)
-        #             if response.success:
-        #                 self.cmd_try_again = False
             
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.PAUSED:
-            if self.sub_mode == "Mission":
+            if self.state == "Active" and self.sub_mode == "Mission":
                 self.fsm_state = State.FLYING_MISSION
             elif self.state == "Standby" or not self.armed:
                 self.fsm_state = State.GROUNDED

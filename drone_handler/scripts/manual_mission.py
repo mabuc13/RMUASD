@@ -97,9 +97,6 @@ class ManualMission(object):
         self.mission_idx = 0
 
     def run(self, event):
-        # this possibly needs to be run after a mission has been uploaded
-        # self.set_current_mission_pub.publish(Int16(self.mission_idx))
-
         rospy.loginfo(self.fsm_state)
 
         if self.fsm_state == State.IDLE:
@@ -160,7 +157,3 @@ class ManualMission(object):
             dist_to_wp = distGreatCircle(self.latitude, self.longitude, next_wp.latitude, next_wp.longitude)
             if dist_to_wp < ACCEPTANCE_RADIUS:
                 self.done = True
-
-        # ------------------------------------------------------------------------------ #
-        elif self.fsm_state == State.MISSION_DONE:
-            pass

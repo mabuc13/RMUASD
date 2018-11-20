@@ -17,7 +17,7 @@ from gcs.msg import DroneInfo, GPS, NiceInfo
 from node_monitor.msg import heartbeat
 
 # defines
-INFO_FREQ = 5
+INFO_FREQ = 10
 
 # parameters
 update_interval = 10
