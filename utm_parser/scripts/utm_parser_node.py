@@ -169,7 +169,7 @@ class utm_parser(object):
 
         if self.path_flag:
             next_wp_geo = self.path[len(self.path)-1]
-            if msg.mission_index+1 < msg.mission_length:
+            if msg.mission_index+1 < len(self.path):
                 if self.debug:
                     print("Misssion ["+str(msg.mission_index+1)+"/"+str(msg.mission_length)+"] len: " +str(len(self.path)))
                 next_wp_geo = self.path[msg.mission_index+1]
