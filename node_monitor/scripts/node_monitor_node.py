@@ -111,10 +111,10 @@ class NodeMonitor(object):
 
                     #print(str(key)+": " + str(rospy.Time.now().to_sec() - ((1/self.nodeRates[key])*2 + value)) )
                     if rospy.Time.now().to_sec() > ((1/self.nodeRates[key])*4 + value):
-                        print(str(key)+": none responsive")
+                        #print(str(key)+": none responsive")
                         nodeStatus.ok = nodeOk.none_responsive
                     elif rospy.Time.now().to_sec() > ((1/self.nodeRates[key])*2 + value):
-                        print(str(key)+": late")
+                        #print(str(key)+": late")
                         nodeStatus.ok = nodeOk.late
                     else:
                         #print("fine")

@@ -85,6 +85,7 @@ void QNode::run() {
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
+    Q_EMIT rosShutdown();
 }
 
 
@@ -100,7 +101,7 @@ void QNode::handle_NodeMonitorHeart(node_monitor::heartbeat msg){
 
 }
 void QNode::handle_NodeStat(node_monitor::nodeOkList msg){
-    cout << "Message: "<< endl<<flush;
+    //cout << "Message: "<< endl<<flush;
     for(size_t i = 0; i < msg.Nodes.size(); i++){
         aNode* theNode = &_Nodes[msg.Nodes[i].name];
         //cout << "Name: " << msg.Nodes[i].name

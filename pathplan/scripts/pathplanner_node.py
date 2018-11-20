@@ -13,6 +13,9 @@ import time
 import simplifier_rmuast
 from node_monitor.msg import *
 
+from utm_parser.srv import *
+from utm_parser.msg import *
+
 
 class PathPlanner(object):
     def __init__(self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)):
@@ -20,6 +23,7 @@ class PathPlanner(object):
         self.start = Coordinate(GPS_data=start.GPS_data)
         self.goal = Coordinate(GPS_data=goal.GPS_data)
         self.path = []
+        self.map = None
 
         self.rmuast_simplifier = simplifier_rmuast.FlightPlanner()
 
@@ -27,14 +31,26 @@ class PathPlanner(object):
         self.start = Coordinate(lat=start.latitude, lon=start.longitude)
         self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
 
-    def compute_path(self):
-        print("Distance: ",
+    def compute_path(self, map_padding=2500):
+
+        lower_left = Coordinate(easting=self.start.easting - map_padding, northing=self.start.northing - map_padding)
+        upper_right = Coordinate(easting=self.start.easting + map_padding, northing=self.start.northing + map_padding)
+
+        print("[Path planner]: "+ "Waiting for UTM")
+        rospy.wait_for_service('/utm_parser/get_snfz')
+        get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
+
+        self.map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
+
+        print("[Path planner]: "+"Distance: ",
               sqrt((self.start.easting - self.goal.easting) ** 2 + (self.start.northing - self.goal.northing) ** 2))
-        print("Computing path...")
+        print("[Path planner]: "+"Computing path...")
+
         t0 = time.time()
-        path_reversed = astar(self.start, self.goal, step_multiplier=8)
+        path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
         t1 = time.time()
-        print("Found a path in %s seconds." % (t1 - t0))
+
+        print("[Path planner]: "+"Found a path in %s seconds." % (t1 - t0))
 
         self.path = []
         self.path.append(self.start)
@@ -43,15 +59,15 @@ class PathPlanner(object):
         self.path.pop(-1)
         self.path.append(self.goal)
 
-        print("Number of waypoints: " + str(len(self.path)))
+        print("[Path planner]: "+"Number of waypoints: " + str(len(self.path)))
         # Simplify path:
         ps = PathSimplifier(self.path, step_size=4)
         ps.delete_with_step_size_safe(threshold=8)
         self.path = ps.get_simple_path()
-        print("Number of waypoints after simplifier: " + str(len(self.path)))
+        print("[Path planner]: "+"Number of waypoints after simplifier: " + str(len(self.path)))
 
     def export_kml_path(self, name):
-        print("Exporting")
+        print("[Path planner]: "+"Exporting")
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
         kml.begin(name+'.kml', 'Example', 'Example on the use of kmlclass', 0.1)
@@ -66,7 +82,7 @@ class PathPlanner(object):
 
 def handle_getPathPlan(req):
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
-          ") to lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude)+")")
+          ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
     planner = PathPlanner(start=start,goal=theend)

@@ -101,7 +101,7 @@ public:
 	void setCurrentDrone(int drone_id);
 
 Q_SIGNALS:
-	void rosShutdown();
+	bool rosShutdown();
 	void sig_armed(bool isArmed);
 	void sig_status(int status);
 
