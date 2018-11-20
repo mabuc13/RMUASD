@@ -11,6 +11,8 @@ from Path_simplifier import PathSimplifier
 from eta_estimator import *
 import time
 import simplifier_rmuast
+#from utm_parser.srv import *
+#from utm_parser.msg import *
 
 
 class PathPlanner(object):
@@ -19,6 +21,7 @@ class PathPlanner(object):
         self.start = Coordinate(GPS_data=start.GPS_data)
         self.goal = Coordinate(GPS_data=goal.GPS_data)
         self.path = []
+        self.map = None
 
         self.rmuast_simplifier = simplifier_rmuast.FlightPlanner()
 
@@ -26,13 +29,23 @@ class PathPlanner(object):
         self.start = Coordinate(lat=start.latitude, lon=start.longitude)
         self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
 
-    def compute_path(self):
+    def compute_path(self, map_padding=2500):
+
+        lower_left = Coordinate(easting=self.start.easting - map_padding, northing=self.start.northing - map_padding)
+        upper_right = Coordinate(easting=self.start.easting + map_padding, northing=self.start.northing + map_padding)
+
+        rospy.wait_for_service('/utm_parser/get_snfz')
+        get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
+        self.map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
+
         print("Distance: ",
               sqrt((self.start.easting - self.goal.easting) ** 2 + (self.start.northing - self.goal.northing) ** 2))
         print("Computing path...")
+
         t0 = time.time()
-        path_reversed = astar(self.start, self.goal, step_multiplier=8)
+        path_reversed = astar(self.start, self.goal, step_multiplier=8, self.map, map_padding)
         t1 = time.time()
+
         print("Found a path in %s seconds." % (t1 - t0))
 
         self.path = []

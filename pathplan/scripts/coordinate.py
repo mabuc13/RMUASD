@@ -1,5 +1,5 @@
 from utm import utmconv
-from gcs.msg import GPS
+#from gcs.msg import GPS
 
 
 class Coordinate(object):
@@ -27,10 +27,11 @@ class Coordinate(object):
 		if self.northing == 0 and self.easting == 0:
 			self.update_UTM_coordinates()
 		if self.GPS_data == 0:
-			self.GPS_data = GPS()
-			self.GPS_data.latitude = self.lat
-			self.GPS_data.longitude = self.lon
-			self.GPS_data.altitude = self.altitude
+			pass
+			#self.GPS_data = GPS()
+			#self.GPS_data.latitude = self.lat
+			#self.GPS_data.longitude = self.lon
+			#self.GPS_data.altitude = self.altitude
 
 
 	def update_UTM_coordinates(self):
