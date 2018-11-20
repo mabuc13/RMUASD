@@ -83,6 +83,17 @@ std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
 
+ostream& operator<<(ostream& os, const gcs::GPS& pos)  
+{  
+    os << "Lon(" << pos.longitude << "), Lat(" << pos.latitude << "), Alt(" << pos.altitude << ")";  
+    return os;  
+} 
+
+void NodeState(uint8 severity,string msg){
+    heartbeat_msg.severity = severity;
+    heartbeat_msg.text = msg;
+}
+
 // ######### Service calls ###########
 double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     gcs::gps2distance srv;
@@ -96,21 +107,26 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     }
     return srv.response.distance;
 }
+
 std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
 
     gcs::pathPlan srv;
     srv.request.start = start;
     srv.request.end = end;
-    bool worked = pathPlanClient.call(srv);
-    if (worked){
+    bool worked;
+    cout << "######################################" << endl << "Calculate Path Plan" << endl << "From: " << start <<endl <<"To: " << end << endl << "#####################################" <<endl;
+    do{
+        worked = pathPlanClient.call(srv);
+        if (worked){
         // cout << "[Ground Control]: " << "PathPlanDone" << endl;
-    }else{
-        // cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
-    }
+        }else{
+            cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
+        }
+    }while(!worked);
+    
+    
 
     return srv.response.path;
-    std::vector<gcs::GPS>v = {start,end};
-    return v;
 }
 int ETA(job* aJob){
     gcs::getEta srv;

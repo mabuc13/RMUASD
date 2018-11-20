@@ -5,5 +5,5 @@
  <include file="$(find drone_handler)/launch/prog.launch"/>
  <include file="$(find drone_monitor)/launch/prog.launch" />
  <include file="$(find gcs)/launch/prog.launch"/>
- <include file="$(find utm_parser)/launch/prog.launch"/>
+ <!--include file="$(find utm_parser)/launch/prog.launch" /-->
 </launch>

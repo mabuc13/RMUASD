@@ -11,9 +11,9 @@ from Path_simplifier import PathSimplifier
 from eta_estimator import *
 import time
 import simplifier_rmuast
+
 from utm_parser.srv import *
-#from utm_parser.srv import *
-#from utm_parser.msg import *
+from utm_parser.msg import *
 
 
 class PathPlanner(object):
@@ -37,6 +37,7 @@ class PathPlanner(object):
 
         rospy.wait_for_service('/utm_parser/get_snfz')
         get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
+
         self.map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
 
         print("Distance: ",
