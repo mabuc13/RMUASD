@@ -8,7 +8,7 @@ import struct
 
 from mavlink_lora.msg import * # pylint: disable=W0614
 from gcs.msg import * # pylint: disable=W0614
-from std_msgs.msg import Int8, String
+from std_msgs.msg import Int8, Int16, String
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.srv import SetMode, ChangeSpeed, UploadFromFile, TakeoffDrone, LandDrone, GotoWaypoint, SetHome, UploadMission
 from telemetry.msg import * # pylint: disable=W0614
@@ -16,6 +16,11 @@ from mavlink_defines import * # pylint: disable=W0614
 from datetime import datetime
 import mission_handler
 import command_handler
+
+import utm
+import numpy as np
+from math import cos, sin, tan, pi
+
 from node_monitor.msg import heartbeat
 # parameters
 mavlink_lora_sub_topic = '/mavlink_rx'
@@ -26,7 +31,36 @@ mavlink_lora_atti_sub_topic = '/mavlink_attitude'
 mavlink_lora_keypress_sub_topic = '/keypress' 
 update_interval = 10
 
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
 
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+def py_ang(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'    """
+    cosang = np.dot(v1, v2)
+    sinang = np.linalg.norm(np.cross(v1, v2))
+    return np.arctan2(sinang, cosang)
+
+def rotate(vector, angle):
+    rotation_mtx = np.array([
+        [cos(angle),-sin(angle)],
+        [sin(angle), cos(angle)]
+    ])
+    return rotation_mtx @ vector
 
 class Telemetry(object):
 
@@ -46,6 +80,14 @@ class Telemetry(object):
         self.local_alt = -5.0
         self.recorded_sys_id = 0
         self.recorded_comp_id = 0
+
+        self.utmconv = utm.utmconv()
+
+        self.target_lat = 55.471979
+        self.target_lon = 10.414697
+        (_, _, _, easting, northing) = self.utmconv.geodetic_to_utm(self.target_lat, self.target_lon)
+        self.target_easting = easting
+        self.target_northing = northing
 
         self.mission_handler = mission_handler.MissionHandler()
         self.current_mission_no = 0
@@ -73,6 +115,8 @@ class Telemetry(object):
         self.dowload_mission_service    = rospy.Service("/telemetry/download_mission", Trigger, self.mission_handler.download, buff_size=10)
         self.mission_upload_service     = rospy.Service("/telemetry/upload_mission", UploadMission, self.mission_handler.upload, buff_size=10)
         self.mission_upload_from_file_service = rospy.Service("/telemetry/upload_mission_from_file", UploadFromFile, self.mission_handler.upload_from_file, buff_size=10)
+        self.start_tracking_service     = rospy.Service("/telemetry/start_tracking", Trigger, self.start_tracking, buff_size=10)
+        self.stop_tracking_service      = rospy.Service("/telemetry/stop_tracking", Trigger, self.stop_tracking, buff_size=10)
 
         # Topic handlers
         self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
@@ -85,6 +129,7 @@ class Telemetry(object):
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
         rospy.Subscriber("/telemetry/new_mission", mavlink_lora_mission_list, self.mission_handler.on_mission_list)
+        rospy.Subscriber("/telemetry/mission_set_current", Int16, self.mission_handler.mission_set_current)
         rospy.Subscriber("/mavlink_interface/mission/ack", mavlink_lora_mission_ack, self.mission_handler.on_mission_ack)
         rospy.Subscriber("/mavlink_interface/command/ack", mavlink_lora_command_ack, self.command_handler.on_command_ack)
         
@@ -190,92 +235,66 @@ class Telemetry(object):
             )
 
             self.home_position_pub.publish(home_pos)
-        # elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED:
-        #     (time_boot_ms, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IfffffffffffHB', msg.payload)
-
-        #     print("x: {}".format(x))
-        #     print("y: {}".format(y))
-        #     print("z: {}".format(z))
-        #     print("frame: {}".format(coordinate_frame))
-        #     print("mask: {}".format(type_mask))
-        #     pass
-
-        # elif msg.msg_id == MAVLINK_MSG_ID_RC_CHANNELS_SCALED:
-        #     print(len(msg.payload))
-        #     (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port, rssi) = struct.unpack('<IhhhhhhhhBB', msg.payload)
-
-        #     print("Port: {}".format(port))
-        #     print("Channel 1: {}".format(ch1))
-        #     print("Channel 2: {}".format(ch2))
-        #     print("Channel 3: {}".format(ch3))
-        #     print("Channel 4: {}".format(ch4))
-        #     print("Channel 5: {}".format(ch5))
-        #     print("Channel 6: {}".format(ch6))
-        #     print("Channel 7: {}".format(ch7))
-        #     print("Channel 8: {}".format(ch8))
-        #     print("RSSI: {}".format(rssi))
-
-        # elif msg.msg_id == 36:
-        #     # (time_boot_ms, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, port) = struct.unpack('<IHHHHHHHHB', msg.payload)
-        #     pass
-
 
     def on_mavlink_lora_pos(self,msg):
         self.lat = msg.lat
         self.lon = msg.lon
         self.alt = msg.alt
+        self.rel_alt = msg.relative_alt
+        self.heading = msg.heading
 
     def on_mavlink_lora_status (self, msg):
         self.last_heard = msg.last_heard.secs + msg.last_heard.nsecs/1.0e9
         self.last_heard_sys_status = msg.last_heard_sys_status.secs + msg.last_heard_sys_status.nsecs/1.0e9
         self.batt_volt = msg.batt_volt / 1000.0
 
+    def send_landing_target(self, event):
+        (_, _, _, easting, northing) = self.utmconv.geodetic_to_utm(self.lat, self.lon)
+
+        drone_pos = np.array([easting, northing, self.rel_alt], dtype=float)
+        target_pos = np.array([self.target_easting, self.target_northing, 0], dtype=float)
+
+        target_vector = target_pos - drone_pos
+        angle = (self.heading + 180) * pi / 180
+        rotated = rotate(target_vector[0:2], angle)
+        # print(target_vector)
+        # target_vector_x = np.array([rotated[0], target_vector[2]])
+        # target_vector_y = np.array([rotated[1], target_vector[2]])
+        target_vector_x = np.array([target_vector[0], target_vector[2]])
+        target_vector_y = np.array([target_vector[1], target_vector[2]])
+
+        sign_x = np.sign(rotated)[0]
+        sign_y = np.sign(rotated)[1]
+
+        vertical_vector = np.array([0,-1])
+
+        msg = mavlink_lora_msg()
+        target_id = 1
+        distance = np.linalg.norm(target_vector)
+        size_x = 0
+        size_y = 0
+        angle_x = sign_x * py_ang(target_vector_x, vertical_vector)
+        angle_y = sign_y * py_ang(target_vector_y, vertical_vector)
+        frame = MAV_FRAME_LOCAL_NED
+        msg.msg_id = MAVLINK_MSG_ID_LANDING_TARGET
+        msg.payload_len = MAVLINK_MSG_ID_LANDING_TARGET_LEN
+        msg.payload = struct.pack('<QfffffBB', 0, target_vector[0], target_vector[1], target_vector[2], size_x, size_y, target_id, frame)
+        # msg.payload = struct.pack('<QfffffBB', 0, tan(angle_x), tan(angle_y), distance, size_x, size_y, target_id, frame)
+        self.mavlink_msg_pub.publish(msg)
+
+        print(tan(angle_x), tan(angle_y))
+
+    def start_tracking(self, srv):        
+        self.tracking_timer = rospy.Timer(rospy.Duration(0.1), self.send_landing_target)
+        return TriggerResponse(True, "Service called")
+
+    def stop_tracking(self, srv):
+        self.tracking_timer.shutdown()
+        return TriggerResponse(True, "Service called")
 
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
-
-
-    # def enable_rc_channels(self):
-    #     msg = mavlink_lora_msg()
-
-    #     # no need to set sys_id, comp_id or checksum, this is handled by the mavlink_lora node.
-    #     msg.header.stamp = rospy.Time.now()
-    #     msg.msg_id = 66 # request data stream
-    #     msg.sys_id = 0
-    #     msg.comp_id = 0
-
-    #     # command = 511
-    #     # params = (34,500000,0,0,0,0,0)
-
-    #     # self.send_mavlink_msg_id_cmd_long(params,command,1)
-
-    #     # Appears to need to be 1,1
-    #     target_sys = 1
-    #     target_comp = 1
-    #     req_stream_id = 3 # rc channel stream
-    #     req_message_rate = 1
-    #     start_stop = 0
-
-    #     msg.payload_len = 6
-    #     msg.payload = struct.pack('<HBBBB', req_message_rate, target_sys, target_comp, req_stream_id, start_stop)
-    #     self.mavlink_msg_pub.publish(msg)
-
-    # def set_gps_global_origin(self,srv):
-    #     msg = mavlink_lora_msg()
-        
-    #     target_sys = 1
-    #     latitude = int(srv.lat * 1e7)
-    #     longitude = int(srv.lon * 1e7)
-    #     altitude = int(self.alt * 1e3)
-
-    #     msg.msg_id = MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN
-    #     msg.payload = struct.pack('<iiiB', latitude, longitude, altitude, target_sys)
-    #     msg.payload_len = 13
-
-    #     self.mavlink_msg_pub.publish(msg)
-
-    #     return OriginResponse()
 
 def main():
     rospy.init_node('telemetry')#, anonymous=True)
@@ -286,7 +305,7 @@ def main():
     rospy.on_shutdown(tel.shutdownHandler)
     # tel.enable_rc_channels()
     # Send global setpoint every 0.4 seconds
-    # rospy.Timer(rospy.Duration(0.2),tel.send_local_setpoint)
+    # rospy.Timer(rospy.Duration(0.05),tel.send_landing_target)
     heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
     heart_msg = heartbeat()
     heart_msg.header.frame_id = 'telemetry'

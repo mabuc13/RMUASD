@@ -243,5 +243,11 @@ class MissionHandler(object):
             self.mission_upload_pub.publish(mission_list)
             return UploadFromFileResponse(True, "Uploading mission.")
 
-    def mission_set_current(self, srv):
-        pass
+    def mission_set_current(self, msg):
+        message = mavlink_lora_msg()
+        message.msg_id = MAVLINK_MSG_ID_MISSION_SET_CURRENT
+        message.payload_len = MAVLINK_MSG_ID_MISSION_SET_CURRENT_LEN
+        message.payload = struct.pack('<HBB', msg.data, self.mi.target_sys, self.mi.target_comp)
+        # message.payload = struct.pack('<HBB', msg.data, 0, 0)
+
+        self.mavlink_msg_pub.publish(message)

@@ -33,6 +33,7 @@ bool custom_mode
 float32[3] RPY
 float32 climb_rate
 uint16 throttle
+uint16 cpu_load
 
 GPS home
 # GPS origin_local_NED      # ignore offboard stuff for now
