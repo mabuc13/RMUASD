@@ -6,6 +6,7 @@ float32 ground_speed
 float32 ground_speed_setpoint
 float32 heading
 float32 battery_SOC
+float32 battery_voltage
 float32 relative_alt
 float32 absolute_alt
 

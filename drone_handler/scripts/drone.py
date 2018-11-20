@@ -105,7 +105,9 @@ class Drone(object):
         self.yaw = 0
 
         # from drone status
-        self.battery_volt = 0
+        self.battery_voltage = 0
+        self.battery_SOC = 0
+        self.cpu_load = 0
         self.msg_sent_gcs = 0
         self.msg_received_gcs = 0
         self.msg_dropped_gcs = 0

@@ -152,6 +152,7 @@ mavlink_sys_status_t ml_unpack_msg_sys_status (unsigned char *payload)
 	sys_status.voltage_battery = payload[14] | (payload[15] << 8);
 	sys_status.current_battery = payload[16] | (payload[17] << 8);
 	sys_status.errors_comm = payload[20] | (payload[21] << 8);
+	sys_status.battery_remaining = payload[30];
 
 	return sys_status;
 }

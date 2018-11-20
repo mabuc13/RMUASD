@@ -146,7 +146,9 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.battery_volt = msg.batt_volt / 1000.0
+            drone.battery_voltage = msg.batt_volt / 1000.0
+            drone.battery_SOC = msg.batt_remaining
+            drone.cpu_load = msg.cpu_load
             drone.msg_sent_gcs = msg.msg_sent_gcs
             drone.msg_received_gcs = msg.msg_received_gcs
             drone.msg_dropped_gcs = msg.msg_dropped_gcs
@@ -191,7 +193,8 @@ class DroneHandler(object):
                 armed=drone.armed,
                 ground_speed=drone.ground_speed,
                 heading=drone.heading,
-                battery_SOC=drone.battery_volt,
+                battery_voltage=drone.battery_voltage,
+                battery_SOC=drone.battery_SOC,
                 relative_alt=drone.relative_alt,
                 absolute_alt=drone.absolute_alt,
                 # GPS_timestamp=,
@@ -227,6 +230,7 @@ class DroneHandler(object):
                 mav_type=drone.type,
                 climb_rate=drone.climb_rate,
                 throttle=drone.throttle,
+                cpu_load=drone.cpu_load,
                 home=drone.home_position
             )
 
