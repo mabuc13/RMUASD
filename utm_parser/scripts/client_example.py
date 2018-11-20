@@ -39,16 +39,16 @@ if __name__ == "__main__":
 
 
     map = snfz_client()
-    map_image = np.zeros((map.map_width, map.map_height, 3), np.uint8)
+    map_image = np.zeros((map.map_width, map.map_height, 1), np.uint8)
 
     c2 = 0
     for line in map.snfz_map:
         c1 = 0
         for i in line.row:
-            if i == 255:
+            if i == 1:
                 map_image[map.map_width-c2][c1][0] = 255
-                map_image[map.map_width-c2][c1][1] = 255
-                map_image[map.map_width-c2][c1][2] = 255
+                #map_image[map.map_width-c2][c1][1] = 255
+                #map_image[map.map_width-c2][c1][2] = 255
             c1 += 1
         c2 += 1
 
@@ -58,8 +58,4 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
 
     #utm_par.show_map(map_image) #If you iterate through the map array and makes it to a numpy array this can be used to show the map
-<<<<<<< HEAD
     rospy.spin()
-=======
-    rospy.spin()
->>>>>>> 6ef401e22730aaffe73a761c795bfce7d1061ed7
