@@ -283,6 +283,10 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
         theDrone->missionIndex = msg.mission_index;
         Q_EMIT sig_missionIndex(theDrone->missionIndex);
     }
+    if(theDrone->mission_length != msg.mission_length){
+        theDrone->mission_length = msg.mission_length;
+        Q_EMIT sig_missionLength(theDrone->mission_length);
+    }
     if(theDrone->status != msg.status){
         theDrone->status = msg.status;
         Q_EMIT sig_status(theDrone->status);

@@ -79,6 +79,7 @@ struct aDrone{
 	size_t throttle;
 	gcs::GPS home;
 	int missionIndex;
+	int mission_length;
 	int drone_wayPoints;
 	int drone_missionLength;
 	size_t ETA;
