@@ -11,6 +11,7 @@ from Path_simplifier import PathSimplifier
 from eta_estimator import *
 import time
 import simplifier_rmuast
+from utm_parser.srv import *
 #from utm_parser.srv import *
 #from utm_parser.msg import *
 
@@ -43,7 +44,7 @@ class PathPlanner(object):
         print("Computing path...")
 
         t0 = time.time()
-        path_reversed = astar(self.start, self.goal, step_multiplier=8, self.map, map_padding)
+        path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
         t1 = time.time()
 
         print("Found a path in %s seconds." % (t1 - t0))

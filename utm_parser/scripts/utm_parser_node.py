@@ -51,8 +51,8 @@ class utm_parser(object):
         self.geoditic_coords = []
         self.utm_coords = []
         self.coord_conv = utmconv()
-        self.utm_trafic_debug = 1
-        self.debug = 1
+        self.utm_trafic_debug = 0
+        self.debug = 0
         self.path_debug = 0
         self.utm_coords = []
         self.empty_map = []

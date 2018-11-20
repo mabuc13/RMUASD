@@ -305,9 +305,9 @@ void initialize(void){
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
     ETA_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/ETA",100);
-    WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
+    WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
     WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
-    JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
+    JobState_pub = nh->advertise<gcs::DroneSingleValue>("/internet/gcs/JobState",100);
     Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("gcs/Heartbeat",100);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
