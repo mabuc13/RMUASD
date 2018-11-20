@@ -14,6 +14,7 @@ from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack, mavlink_lora_command_ack
 from gcs.msg import DroneInfo, GPS, NiceInfo
+from node_monitor.msg import heartbeat
 
 # defines
 INFO_FREQ = 5
@@ -264,6 +265,11 @@ if __name__ == "__main__":
     rospy.on_shutdown(dh.shutdownHandler)
     # rospy.spin()
 
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'drone_handler'
+    heart_msg.rate = update_interval
+        
     while not rospy.is_shutdown():
 
         # # this makes sure that both function calls is run in the same thread, so it is easier to detect exceptions
@@ -274,5 +280,6 @@ if __name__ == "__main__":
         # if dh.run_ready:
         #     dh.run()
         #     dh.run_ready = False
-
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
         dh.rate.sleep()

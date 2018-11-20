@@ -22,6 +22,12 @@
 
 namespace drone_monitor {
 
+struct QNodeStateLabel{
+	QLabel* name;
+	QLabel* state;
+	QLabel* response;
+};
+
 /*****************************************************************************
 ** Interface [MainWindow]
 *****************************************************************************/
@@ -75,9 +81,14 @@ public Q_SLOTS:
 	void set_telemetryStatus(int severity, QString text);
 	void set_gcsJobState(int state,QString text);
 
+	void set_nodeState(QString name,int ownStatus,int response);
+
 private:
 	Ui::MainWindowDesign ui;
 	QNode qnode;
+
+	std::vector<QNodeStateLabel> monitoredNodes;
+
 };
 
 }  // namespace drone_monitor

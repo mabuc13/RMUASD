@@ -21,6 +21,7 @@ import utm
 import numpy as np
 from math import cos, sin, tan, pi
 
+from node_monitor.msg import heartbeat
 # parameters
 mavlink_lora_sub_topic = '/mavlink_rx'
 mavlink_lora_pub_topic = '/mavlink_tx'
@@ -305,8 +306,15 @@ def main():
     # tel.enable_rc_channels()
     # Send global setpoint every 0.4 seconds
     # rospy.Timer(rospy.Duration(0.05),tel.send_landing_target)
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'telemetry'
+    heart_msg.rate = 10
 
-    rospy.spin()
+    while not rospy.is_shutdown():
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
 
 if __name__ == "__main__":
     main()

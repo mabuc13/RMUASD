@@ -44,8 +44,7 @@ bool operator!=(const gcs::GPS& op1, const gcs::GPS& op2){
 
 QNode::QNode(int argc, char** argv ) :
 	init_argc(argc),
-    init_argv(argv),
-    closeDown(false)
+    init_argv(argv)
 	{}
 
 QNode::~QNode() {
@@ -69,6 +68,10 @@ bool QNode::init() {
     this->_ETA_sub = n.subscribe<gcs::DroneSingleValue>("/gcs/ETA",1,&QNode::handle_ETA,this);
     this->_TelemetryStatus_sub = n.subscribe<telemetry::telemetry_statustext>("/telemetry/statustext",10,&QNode::handle_telemetryStatus,this);
     this->_JobState_sub = n.subscribe<gcs::DroneSingleValue>("/gcs/JobState",10, &QNode::handle_JobState,this);
+    this->_NodeStat_sub = n.subscribe<node_monitor::nodeOkList>("/node_monitor/node_list", 10,&QNode::handle_NodeStat, this);
+    this->_Node_monitor_heartbeat_sub = n.subscribe<node_monitor::heartbeat>("/node_monitor/Heartbeat",10,&QNode::handle_NodeMonitorHeart,this);
+
+
     std::cout << "Ros Monitor started" << std::endl << std::flush;
 
 	start();
@@ -78,21 +81,43 @@ bool QNode::init() {
 void QNode::run() {
 	ros::Rate loop_rate(1);
 	int count = 0;
-    while ( ros::ok() && !closeDown ) {
+    while ( ros::ok()) {
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
-    if(!closeDown){
-        std::cout << "Ros shutdown, proceeding to close the gui." << std::endl;
-        Q_EMIT rosShutdown(); // used to signal the gui for a shutdown (useful to roslaunch)
-    }else{
-        std::cout << "Gui shutdown proceeding to close thread" << endl;
+    Q_EMIT rosShutdown();
+}
+
+
+void QNode::setCurrentDrone(int drone_id){
+    try{
+        this->_Drones.at(drone_id);
+        this->_currentDrone = drone_id;
+    }catch (const std::out_of_range& oor) {
+        std::cerr << "Out of Range error: " << oor.what() << '\n';
+    }
+}
+void QNode::handle_NodeMonitorHeart(node_monitor::heartbeat msg){
+
+}
+void QNode::handle_NodeStat(node_monitor::nodeOkList msg){
+    //cout << "Message: "<< endl<<flush;
+    for(size_t i = 0; i < msg.Nodes.size(); i++){
+        aNode* theNode = &_Nodes[msg.Nodes[i].name];
+        //cout << "Name: " << msg.Nodes[i].name
+        if(theNode->res_OK != msg.Nodes[i].ok ||
+           theNode->state_OK != msg.Nodes[i].nodeState ||
+           !theNode->isInit)
+        {
+            theNode->isInit = true;
+            //cout << "DataParsed: " << msg.Nodes[i].name << " - " << int(msg.Nodes[i].nodeState) << " - " << int(msg.Nodes[i].ok) << endl;
+            theNode->res_OK = msg.Nodes[i].ok;
+            theNode->state_OK = msg.Nodes[i].nodeState;
+            Q_EMIT sig_nodeState(msg.Nodes[i].name.c_str(),theNode->state_OK,theNode->res_OK);
+        }
     }
 }
 
-void QNode::close(){
-    closeDown = true;
-}
 void QNode::handle_JobState(gcs::DroneSingleValue msg){
     aDrone* theDrone= &this->_Drones[int(msg.drone_id)];
     theDrone->drone_ID = msg.drone_id;
@@ -101,7 +126,6 @@ void QNode::handle_JobState(gcs::DroneSingleValue msg){
         Q_EMIT sig_gcsJobState(theDrone->gcsJobState,msg.text.c_str());
     }
 }
-
 void QNode::handle_telemetryStatus(telemetry::telemetry_statustext msg){
     string text ="["+msg.severity+"][" +patch::to_string(ros::Time::now().sec) +"]: " + msg.text+"\n";
     Q_EMIT sig_telemetryStatus(msg.severity_level,text.c_str());
@@ -258,6 +282,10 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
     if(theDrone->missionIndex != msg.mission_index){
         theDrone->missionIndex = msg.mission_index;
         Q_EMIT sig_missionIndex(theDrone->missionIndex);
+    }
+    if(theDrone->mission_length != msg.mission_length){
+        theDrone->mission_length = msg.mission_length;
+        Q_EMIT sig_missionLength(theDrone->mission_length);
     }
     if(theDrone->status != msg.status){
         theDrone->status = msg.status;

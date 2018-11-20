@@ -25,38 +25,8 @@
 #include <TextCsvReader.hpp>
 
 using namespace std;
-#ifndef GCS_MESSAGE_GPS_H
-    namespace gcs{
-        struct GPS{
-            double longitude;
-            double latitude;
-            double altitude;
-        };
 
-        struct DroneInfo{
-            GPS position;
-            GPS next_goal;
-            float velocity[3];
-            float heading;
-            float battery_SOC;
-
-            size_t drone_id;
-            size_t GPS_timestamp;
-            uint8 status;
-
-            uint8 Run = 1;
-            uint8 Stop = 2;
-            uint8 Land = 3;
-            uint8 Wait = 4;
-        };
-
-        struct DronePath{
-            std::vector<GPS> Path;
-            size_t DroneID;
-        };
-    }
-#endif
-
+#define DEBUG true
 
 ros::Subscriber DroneStatus_sub;//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
 ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=10)
@@ -83,6 +53,24 @@ std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
 
+ostream& operator<<(ostream& os, const gcs::GPS& pos)  
+{  
+    os << "Lon(" << pos.longitude << "), Lat(" << pos.latitude << "), Alt(" << pos.altitude << ")";  
+    return os;  
+} 
+
+void NodeState(uint8 severity,string msg,double rate = 0){
+    double curRate = heartbeat_msg.rate;
+    if(rate != 0){
+        heartbeat_msg.rate = rate;
+    }
+    heartbeat_msg.severity = severity;
+    heartbeat_msg.text = msg;
+    heartbeat_msg.header.stamp = ros::Time::now();
+    Heartbeat_pub.publish(heartbeat_msg);
+    heartbeat_msg.rate = curRate;
+}
+
 // ######### Service calls ###########
 double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     gcs::gps2distance srv;
@@ -90,27 +78,34 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     srv.request.point2 = point2;
     bool worked = GPSdistanceClient.call(srv);
     if (worked){
-        cout << "[Ground Control]: " << "Distance calculated " << srv.response.distance << endl;
+        if(DEBUG) cout << "[Ground Control]: " << "Distance calculated " << srv.response.distance << endl;
     }else{
         cout << "[Ground Control]: " << "Distance Calc failed"<< endl;
     }
     return srv.response.distance;
 }
+
 std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
 
     gcs::pathPlan srv;
     srv.request.start = start;
     srv.request.end = end;
-    bool worked = pathPlanClient.call(srv);
-    if (worked){
+    bool worked;
+    NodeState(node_monitor::heartbeat::nothing,"",0.2);
+    if(DEBUG) cout << "######################################" << endl << "Calculate Path Plan" << endl << "From: " << start <<endl <<"To: " << end << endl << "#####################################" <<endl;
+    do{
+        worked = pathPlanClient.call(srv);
+        if (worked){
         // cout << "[Ground Control]: " << "PathPlanDone" << endl;
-    }else{
-        // cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
-    }
+        }else{
+            cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
+            NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding",0.1);
+        }
+    }while(!worked && ros::ok());
+    NodeState(node_monitor::heartbeat::nothing,"");
+    
 
     return srv.response.path;
-    std::vector<gcs::GPS>v = {start,end};
-    return v;
 }
 int ETA(job* aJob){
     gcs::getEta srv;
@@ -193,7 +188,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
 
     if(isANewDrone){ // ############## Register if new drone #####################
         Drones.push_back(new drone(msg.drone_id,msg.position));
-        cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << endl;
+        cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << "at : " << msg.position << endl;
     }else{ // ################### Update Drone state #############################
         Drones[index]->setPosition(msg.position);
         Drones[index]->setMissionIndex(msg.mission_index);
@@ -243,23 +238,23 @@ void WebInfo_Handler(std_msgs::String msg_in){
                 feedback += ",register=failed";
             }
         }else if(msg.hasValue("request")){  // ##########  REQUEST ##############
-            cout << "[Ground Control]: " << "request recived" << endl;
+            if(DEBUG) cout << "[Ground Control]: " << "request recived" << endl;
             dock* goalDock = NULL;
             string dockName = msg.getValue("name");
             for(size_t i = 0; i < Docks.size(); i++){
                 if(Docks[i]->getName() == dockName){
-                    cout << "[Ground Control]: " << "Dock found" << endl;
+                    if(DEBUG) cout << "[Ground Control]: " << "Dock found" << endl;
                     goalDock = Docks[i];
                 }
             }
             if(goalDock != NULL){
-                cout << "[Ground Control]: " << "making job" << endl;
+                if(DEBUG) cout << "[Ground Control]: " << "making job" << endl;
                 jobQ.push_back(new job(goalDock));
                 feedback+= ",request=queued";
             }else{
                 feedback+= ",request=failed,error=No Dockingstation named " + msg.getValue("name");
             }
-            cout << "[Ground Control]: " << "request end" << endl;
+            if(DEBUG) cout << "[Ground Control]: " << "request end" << endl;
         }else if(msg.hasValue("return")){  // ##########  RETURN ###############
             job* theJob;
             for(size_t i = 0; i < activeJobs.size();i++){
@@ -306,10 +301,10 @@ void initialize(void){
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
     ETA_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/ETA",100);
-    WebInfo_sub = nh->subscribe("/FromInternet",100,WebInfo_Handler);
-    WebInfo_pub = nh->advertise<std_msgs::String>("/ToInternet",100);
+    WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
+    WebInfo_pub = nh->advertise<std_msgs::String>("/internet/ToInternet",100);
     JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
-    Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("gcs/Heartbeat",100);
+    Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("/node_monitor/input/Heartbeat",100);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){

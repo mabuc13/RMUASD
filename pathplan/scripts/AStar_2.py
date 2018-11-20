@@ -9,9 +9,9 @@ from math import sqrt
 from coordinate import Coordinate
 import cv2
 import numpy as np
-import rospy
-from utm_parser.srv import *
-from utm_parser.msg import *
+#import rospy
+#from utm_parser.srv import *
+#from utm_parser.msg import *
 
 def heuristic(a, b):
     return sqrt(((b[0] - a[0]) ** 2) + ((b[1] - a[1]) ** 2))
@@ -21,23 +21,15 @@ def static_collision_detector(a):
     return False
 
 
-def astar(coord_start, coord_goal, step_multiplier=1, dynamic=False):
+def astar(coord_start, coord_goal,  map, map_padding, step_multiplier=1,dynamic=False):
     start = (int(coord_start.easting), int(coord_start.northing))
     goal = (int(coord_goal.easting), int(coord_goal.northing))
-    
-    resolution = 2500
 
-    lower_left = Coordinate(easting=coord_start.easting-resolution, northing=coord_start.northing-resolution)
-    upper_right = Coordinate(easting=coord_start.easting+resolution, northing=coord_start.northing+resolution)
-
-
-    rospy.wait_for_service('/utm_parser/get_snfz')
-    get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
-    map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
-
+    lower_left = Coordinate(easting=coord_start.easting-map_padding, northing=coord_start.northing-map_padding)
+    upper_right = Coordinate(easting=coord_start.easting+map_padding, northing=coord_start.northing+map_padding)
 
     map_res = map.resolution
-    print "Map resoluton: ", map_res
+    print("Map resoluton: ", map_res)
     map_image = np.zeros((map.map_width, map.map_height, 1), np.uint8)
 
     c2 = len(map.snfz_map) -1
@@ -51,7 +43,6 @@ def astar(coord_start, coord_goal, step_multiplier=1, dynamic=False):
                 #map_image[map.map_width - c2][c1][2] = 255
             c1 -= 1
         c2 -= 1
-
 
     goal_dist_thresh = step_multiplier
     neighbors = [(0, 1*step_multiplier), (0, -1*step_multiplier), (1*step_multiplier, 0), (-1*step_multiplier, 0),
@@ -75,16 +66,16 @@ def astar(coord_start, coord_goal, step_multiplier=1, dynamic=False):
             while current in came_from:
                 coord = Coordinate(easting=current[0], northing=current[1])
                 data.append(coord)
-                neighbor_transform = (int((coord.easting - lower_left.easting) / map_res), int((coord.northing - lower_left.northing) / map_res))
-                map_image[neighbor_transform[1]][neighbor_transform[0]] = 150
+                #neighbor_transform = (int((coord.easting - lower_left.easting) / map_res), int((coord.northing - lower_left.northing) / map_res))
+                #map_image[neighbor_transform[1]][neighbor_transform[0]] = 150
                 current = came_from[current]
+            '''
             map_image = cv2.flip(map_image, 0)
-            """
             cv2.namedWindow('Map', cv2.WINDOW_NORMAL)
             cv2.imshow('Map', map_image)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-            """
+            '''
             return data
 
         close_set.add(current)
@@ -96,7 +87,7 @@ def astar(coord_start, coord_goal, step_multiplier=1, dynamic=False):
             #print neighbor_transform
             if map_image[neighbor_transform[1]][neighbor_transform[0]] != 0:
                 # No-fly-zone
-                #print map_image[neighbor_transform[0]][neighbor_transform[1]]
+                print(map_image[neighbor_transform[0]][neighbor_transform[1]])
                 continue
 
             if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
