@@ -19,7 +19,7 @@ class CollisionDetector:
         self.active_drone_paths = {}
         self.active_drone_info = {}
         self.dist_between_mission_points = {}
-        self.dynamic_no_flight_zones = []
+        self.dynamic_no_flight_zones = {}
 
         # status variables
         rospy.sleep(1)  # wait until everything is running
@@ -30,19 +30,6 @@ class CollisionDetector:
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
         rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.on_drone_info)
         rospy.Substriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
-
-    def run_collision_check(self):
-        '''
-        This function will go through all active drones, and look into the future positions to check for possible
-        collisions with dynamic obstacle.
-        '''
-        # For all active drones:
-        for i in self.active_drone_info:
-            # for 5, 10, 15 and 20 seconds into the future:
-            for j in range(5,20,5):
-                position = self.calc_future_position(i.drone_id,j)
-                future_time = time.time() + j
-                # Look at dynamic obstacles and see if there's a collision:
 
     def on_drone_path(self, msg):
         '''
@@ -70,12 +57,26 @@ class CollisionDetector:
     def on_dynamic_no_fly_zones(self, msg):
         '''
         Callback function
+        Use "int_id" in the string as key in the dict of dnfz
         '''
         try:
             s = json.loads(msg)
-            self.dynamic_no_flight_zones.append(s)
+            self.dynamic_no_flight_zones[s["int_id"]] = s
         except ValueError:
             print("Collision Detector: Couldn't convert string from UTM server to json..")
+
+    def run_collision_check(self):
+        '''
+        This function will go through all active drones, and look into the future positions to check for possible
+        collisions with dynamic obstacle.
+        '''
+        # For all active drones:
+        for i, val in self.active_drone_info.items():
+            # for 5, 10, 15, 20, 25 and 30 seconds into the future:
+            for j in range(5,30,5):
+                position = self.calc_future_position(val.drone_id,j)
+                future_time = time.time() + j
+                # Look at dynamic obstacles and see if there's a collision:
 
     def calc_dist_between_mission_points(self, path, drone_id):
         '''
@@ -121,7 +122,7 @@ class CollisionDetector:
                     return Coordinate(northing=new_northing, easting=new_easting)
 
 
-    def check_path_for_collision_with_static_dynamic_nfz(self, path, drone_id):
+    def check_path_for_collision_with_dnfz(self, path, drone_id):
         '''
         Create to index's to iterate through the path plan. "i" is the first waypoint, "j" is the second one.
         If "i" is larger than "0", then set it to the index of the previously passed waypoint in the plan. There is
@@ -152,7 +153,7 @@ class CollisionDetector:
                 # Check for collision:
                 # Set the return coordinates to be the coord before the first collision, and the first coordinate after
                 # the collision. That way the coordinates will span over the whole collision in bound.
-                if self.dist_to_static_dynamic_nfz(p3):
+                if self.dist_to_dnfz(p3):
                     # This is the first collision detected?:
                     if not collision_detected:
                         collision_detected = True
@@ -169,8 +170,17 @@ class CollisionDetector:
     def pythagoras(self, p1, p2):
         return sqrt((p1.easting - p2.easting)**2 + (p1.northing - p2.northing)**2)
 
-    def dist_to_static_dynamic_nfz(self, p):
-        pass
+    def dist_to_dnfz(self, p):
+        for int_id, value in self.dynamic_no_flight_zones.items():
+            if self.dynamic_no_flight_zones[int_id]["geometry"] == "circle":
+                coord = self.dynamic_no_flight_zones[int_id]["coordinates"]
+                coord = coord.split(',')
+                dist = self.pythagoras(p, Coordinate(lon=coord[0], lat=coord[1]))
+                if dist <= coord[2]:
+                    return False
+            elif self.dynamic_no_flight_zones[int_id]["geometry"] == "polygon":
+                pass
+        return True
 
 if __name__ == "__main__":
     rospy.init_node('collision_detector')  # , anonymous=True)
