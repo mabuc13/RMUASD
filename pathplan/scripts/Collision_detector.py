@@ -2,10 +2,12 @@
 
 
 from coordinate import Coordinate
-import numpy as np
 import rospy
 from gcs.msg import DroneInfo, GPS, DronePath
 from math import sqrt
+import time
+import json
+import string
 
 
 class CollisionDetector:
@@ -17,6 +19,7 @@ class CollisionDetector:
         self.active_drone_paths = {}
         self.active_drone_info = {}
         self.dist_between_mission_points = {}
+        self.dynamic_no_flight_zones = []
 
         # status variables
         rospy.sleep(1)  # wait until everything is running
@@ -26,8 +29,25 @@ class CollisionDetector:
         # Subscribe to new drone path's, and dynamic obstacles:
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
         rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.on_drone_info)
+        rospy.Substriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
+
+    def run_collision_check(self):
+        '''
+        This function will go through all active drones, and look into the future positions to check for possible
+        collisions with dynamic obstacle.
+        '''
+        # For all active drones:
+        for i in self.active_drone_info:
+            # for 5, 10, 15 and 20 seconds into the future:
+            for j in range(5,20,5):
+                position = self.calc_future_position(i.drone_id,j)
+                future_time = time.time() + j
+                # Look at dynamic obstacles and see if there's a collision:
 
     def on_drone_path(self, msg):
+        '''
+        Callback function
+        '''
         self.active_drone_paths[msg.DroneID] = msg.Path
         self.calc_dist_between_mission_points(msg.Path, msg.DroneID)
         collision, p1, p2 = self.check_path_for_collision_with_static_dynamic_nfz(msg.Path, msg.DroneID)
@@ -36,6 +56,9 @@ class CollisionDetector:
             pass
 
     def on_drone_info(self, msg):
+        '''
+        Callback function
+        '''
         # Adding the next waypoint index in the plan to the dict
         if msg.status == msg.Run:
             self.active_drone_info[msg.DroneID] = msg
@@ -43,6 +66,16 @@ class CollisionDetector:
             # Drone has landed, so delete the path and ID from the dict's
             del self.active_drone_info[msg.DroneID]
             del self.active_drone_paths[msg.DroneID]
+
+    def on_dynamic_no_fly_zones(self, msg):
+        '''
+        Callback function
+        '''
+        try:
+            s = json.loads(msg)
+            self.dynamic_no_flight_zones.append(s)
+        except ValueError:
+            print("Collision Detector: Couldn't convert string from UTM server to json..")
 
     def calc_dist_between_mission_points(self, path, drone_id):
         '''
@@ -58,6 +91,11 @@ class CollisionDetector:
         self.dist_between_mission_points[drone_id] = dists
 
     def calc_future_position(self, drone_id, sec):
+        '''
+        This function calculates the future position of the drone, given the current position, the speed, the mission
+        and the amount of seconds within the future we are looking. The future position will be estimated based on a
+        straight line between mission points.
+        '''
         current_position = Coordinate(GPS_data=self.active_drone_info[drone_id].position)
         next_position = Coordinate(GPS_data=self.active_drone_info[drone_id].next_waypoint)
 
