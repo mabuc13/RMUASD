@@ -52,9 +52,9 @@ class utm_parser(object):
         self.geoditic_coords = []
         self.utm_coords = []
         self.coord_conv = utmconv()
-        self.utm_trafic_debug = 0
-        self.debug = 0
-        self.path_debug = 0
+        self.utm_trafic_debug = 1
+        self.debug = 1
+        self.path_debug = 1
         self.utm_coords = []
         self.empty_map = []
         self.map_ll_reference = []
@@ -83,6 +83,7 @@ class utm_parser(object):
             'wp_next_eta_epoch': -1,
             'uav_bat_soc': -1
         }
+        self.last_info_pub = time.time()
         self.path_flag = False
         self.latest_dynamic_data = self.get_dynamic_nfz()
         self.published_first_dnfz = 0
@@ -143,63 +144,72 @@ class utm_parser(object):
         return ros_map, self.map_res, self.map_width, self.map_height
 
     def post_drone_info_handler(self, msg):
+        dummy_payload = self.post_payload
+        now = time.time()
+        if now-self.last_info_pub >= 1:
+            GPS_pos = msg.position
+            self.post_payload['pos_cur_lat_dd'] = GPS_pos.latitude
+            self.post_payload['pos_cur_lng_dd'] = GPS_pos.longitude
+            self.post_payload['pos_cur_alt_m'] = msg.absolute_alt
 
-        GPS_pos = msg.position
-        self.post_payload['pos_cur_lat_dd'] = GPS_pos.latitude
-        self.post_payload['pos_cur_lng_dd'] = GPS_pos.longitude
-        self.post_payload['pos_cur_alt_m'] = GPS_pos.altitude
+            wp_geo = msg.next_waypoint
+            """
+            utm_pos = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
+           
+            head_vec = [utm_wp[3]-utm_pos[3], utm_wp[4]-utm_pos[4]]
+            if self.debug:
+                print "Vector for heading: ", head_vec
+            vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+            """
 
-        wp_geo = msg.next_waypoint
-        """
-        utm_pos = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
-       
-        head_vec = [utm_wp[3]-utm_pos[3], utm_wp[4]-utm_pos[4]]
-        if self.debug:
-            print "Vector for heading: ", head_vec
-        vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
-        """
+            self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
+            self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
+            self.post_payload['pos_cur_gps_timestamp'] = -1
+            #print "msgGPS: ", msg.GPS_timestamp, " msg.wp lon lat: ", msg.next_waypoint
+            self.post_payload['wp_next_lat_dd'] = wp_geo.latitude
+            self.post_payload['wp_next_lng_dd'] = wp_geo.longitude
+            self.post_payload['wp_next_alt_m'] = wp_geo.altitude
 
-        self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
-        self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
-        self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp
-        self.post_payload['wp_next_lat_dd'] = wp_geo.latitude
-        self.post_payload['wp_next_lng_dd'] = wp_geo.longitude
-        self.post_payload['wp_next_alt_m'] = wp_geo.altitude
+            self.post_payload['uav_bat_soc'] = msg.battery_SOC
 
-        self.post_payload['uav_bat_soc'] = msg.battery_SOC
+            if self.path_flag:
 
-        if self.path_flag:
-            next_wp_geo = self.path[len(self.path)-1]
-            if msg.mission_index+1 < len(self.path):
-                if self.debug:
-                    print("Misssion ["+str(msg.mission_index+1)+"/"+str(msg.mission_length)+"] len: " +str(len(self.path)))
-                next_wp_geo = self.path[msg.mission_index+1]
+                if msg.mission_index+1 < len(self.path):
+                    if self.debug:
+                        print("Misssion ["+str(msg.mission_index+1)+"/"+str(msg.mission_length)+"] len: " +str(len(self.path)))
+                    next_wp_geo = self.path[msg.mission_index+1]
 
-            next_wp_utm = self.coord_conv.geodetic_to_utm(next_wp_geo.latitude, next_wp_geo.longitude)
-            utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
-            head_vec = [utm_wp[3]-next_wp_utm[3], utm_wp[4]-next_wp_utm[4]]
-            vec_degree = 90
-            if not head_vec[0] == 0:
-                vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
-            vec_degree += 90
-            vec_degree = 360 - vec_degree
-            if self.path_debug:
-                print "Msg.mission_wp: ", msg.mission_index
+                    next_wp_utm = self.coord_conv.geodetic_to_utm(next_wp_geo.latitude, next_wp_geo.longitude)
+                    utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
+                    head_vec = [utm_wp[3]-next_wp_utm[3], utm_wp[4]-next_wp_utm[4]]
+                    vec_degree = 90
+                    if not head_vec[0] == 0:
+                        vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+                    vec_degree += 90
+                    vec_degree = 360 - vec_degree
+                    if self.path_debug:
+                        print "Msg.mission_wp: ", msg.mission_index
 
-                #print "Vector for heading: ", head_vec
-                #print "Heading on this vector: ", vec_degree
+                        #print "Vector for heading: ", head_vec
+                        #print "Heading on this vector: ", vec_degree
 
 
-            self.post_payload['wp_next_hdg_deg'] = vec_degree
-            self.post_payload['wp_next_vel_mps'] = msg.ground_speed
-            self.post_payload['wp_next_eta_epoch'] = time.time() # <<-------------- CALC
+                    self.post_payload['wp_next_hdg_deg'] = vec_degree
+                    self.post_payload['wp_next_vel_mps'] = 5
+                    pos_utm = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
+                    length = math.sqrt((pos_utm[3]-utm_wp[3])**2+(pos_utm[4]-utm_wp[4])**2)
+                    time_to_wp = length/msg.ground_speed
+                    self.post_payload['wp_next_eta_epoch'] = time.time() + time_to_wp
 
-        self.push_drone_data(self.post_payload)
-        print self.post_payload
+            self.push_drone_data(self.post_payload)
+            self.last_info_pub = time.time()
+
+            #print self.post_payload
 
     def push_drone_data(self, payload):
         if self.utm_trafic_debug:
             print colored('Trying to POST the data...', 'yellow')
+            print payload
         r = ''
         try:
             r = requests.post(url='https://droneid.dk/rmuasd/utm/tracking_data.php', data=payload, timeout=2)
@@ -313,14 +323,7 @@ class utm_parser(object):
                 right_now = time.time()
                 try:
 
-                    #print data_dict
-                    if self.utm_trafic_debug:
-                        print "Current time: ", time.time()
-                        print "Trial and error: ", data_dict[0]['valid_from_epoch']
-                        time_to_active = float(data_dict[0]['valid_from_epoch']) - right_now
-                        print "Time to active: ", time_to_active
-                        ending = float(data_dict[0]['valid_to_epoch'])
-                        print "Time left: ", ending - right_now
+                    dummy = 1
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve DNFZ, maybe there is none")
@@ -407,7 +410,7 @@ class utm_parser(object):
             print "Entering get drone data \n"
 
         self.payload = {
-            'time_delta_s' : 1
+
         }
         r = ''
         try:
