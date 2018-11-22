@@ -107,15 +107,6 @@ def handle_distanceCalculations(req):
     distance = obj.distance_between_positions(req.point1,req.point2)
     return gps2distanceResponse(distance)
 
-
-def alertIncommingCollision(height_of_incomming_drone,heading_of_incomming_drone,id_of_drone_in_collision=1):
-        msg = inCollision()
-        msg.heading = heading_of_incomming_drone
-        msg.height = heading_of_incomming_drone
-        collision_pub.publish(msg)
-
-collision_pub = rospy.Publisher("/pathplan/incomming_collision",inCollision)
-
 if __name__ == '__main__':
     rospy.init_node('pathplan')
     rospy.sleep(1)
@@ -150,7 +141,7 @@ if __name__ == '__main__':
     print("[Path planner]: "+"Path planner running")
     heart_msg = heartbeat()
     heart_msg.header.frame_id = 'pathplan'
-    heart_msg.rate = 10
+    heart_msg.rate = 1
 
     while not rospy.is_shutdown():
         rospy.Rate(heart_msg.rate).sleep()

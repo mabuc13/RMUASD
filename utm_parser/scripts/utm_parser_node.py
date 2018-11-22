@@ -93,6 +93,8 @@ class utm_parser(object):
         self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
 
         self.dnfz_pub = rospy.Publisher('/utm/dynamic_no_fly_zones', String, queue_size=10)
+        self.heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+        self.heart_msg = heartbeat()
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
@@ -445,8 +447,14 @@ class utm_parser(object):
 
 
             except:
-                print colored('Failed to get drone data', 'red')
+                #print colored('Failed to get drone data', 'red')
+                self.heart_msg.severity = heartbeat.error
+                self.heart_msg.text = 'Failed to get drone data'
             else:
+                if self.heart_msg.text == 'Failed to get drone data':
+                    self.heart_msg.severity = heartbeat.nothing
+                    self.heart_msg.text = ''
+
                 if self.debug:
                     print "Succesfully got drone data"
                 try:
@@ -619,8 +627,6 @@ class utm_parser(object):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-
-
     def print_test_coords(self):
         print "ll coord: ", self.coord_conv.utm_to_geodetic(self.ll_dummy[0], self.ll_dummy[1], self.ll_dummy[3], self.ll_dummy[4])
         print "UR coord: ", self.coord_conv.utm_to_geodetic(self.ur_dummy[0], self.ur_dummy[1], self.ur_dummy[3], self.ur_dummy[4])
@@ -661,16 +667,13 @@ def main():
     #par.get_static_nfz()
 
     #par.print_zones()
-
-    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
-    heart_msg = heartbeat()
-    heart_msg.header.frame_id = 'utm_parser'
-    heart_msg.rate = 1
+    par.heart_msg.header.frame_id = 'utm_parser'
+    par.heart_msg.rate = 1
 
     while not rospy.is_shutdown():
-        rospy.Rate(heart_msg.rate).sleep()
-        heart_msg.header.stamp = rospy.Time.now()
-        heartbeat_pub.publish(heart_msg)
+        rospy.Rate(par.heart_msg.rate).sleep()
+        par.heart_msg.header.stamp = rospy.Time.now()
+        par.heartbeat_pub.publish(par.heart_msg)
         
         par.check_dynamic_data()
         par.get_drone_data()
