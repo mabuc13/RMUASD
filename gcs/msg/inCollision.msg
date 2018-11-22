@@ -1,6 +1,9 @@
 uint32 drone_id
 
-float64 heading
-float32 height
-float32 ground_speed
-float32 climb_rate
+uint32 plan_index1
+uint32 plan_index2
+
+GPS start
+GPS slut
+
+string DNFZ
