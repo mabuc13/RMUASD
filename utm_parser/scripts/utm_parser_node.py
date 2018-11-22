@@ -195,7 +195,7 @@ class utm_parser(object):
             self.post_payload['wp_next_eta_epoch'] = time.time() # <<-------------- CALC
 
         self.push_drone_data(self.post_payload)
-        print self.post_payload
+        #print self.post_payload
 
     def push_drone_data(self, payload):
         if self.utm_trafic_debug:
@@ -407,7 +407,7 @@ class utm_parser(object):
             print "Entering get drone data \n"
 
         self.payload = {
-            'time_delta_s' : 1
+        #    'time_delta_s' : 30
         }
         r = ''
         try:
@@ -422,14 +422,15 @@ class utm_parser(object):
             if self.utm_trafic_debug:
                 print colored('Request has too many redirects', 'red')
         except requests.exceptions.HTTPError as err:
-
-            print colored('HTTP error', 'red')
-            print colored(err, 'yellow')
+            if self.utm_trafic_debug:
+                print colored('HTTP error', 'red')
+                print colored(err, 'yellow')
             # sys.exit(1) # Consider the exit since it might be unintentional in some cases
         except requests.exceptions.RequestException as err:
             # Catastrophic error; bail.
-            print colored('Request error', 'red')
-            print colored(err, 'yellow')
+            if self.utm_trafic_debug:
+                print colored('Request error', 'red')
+                print colored(err, 'yellow')
             sys.exit(1)
         else:
             if self.utm_trafic_debug:
@@ -496,8 +497,6 @@ class utm_parser(object):
 
             return self.utm_coords
 
-
-
     def print_nested_list(self, nested_list):
         if self.debug:
             print "Entering print_nested_list"
@@ -508,7 +507,6 @@ class utm_parser(object):
             for j in nested_list[outer_cnt]:
                 print j, '\n'
             outer_cnt += 1
-
 
     def create_empty_map(self, ll_utm, ur_utm):
         delta_x = ur_utm[3] - ll_utm[3]
@@ -532,7 +530,6 @@ class utm_parser(object):
         self.empty_map = np.zeros((width, height, 1), np.uint8)
         if self.debug:
             print "Created empty map with height, width: ", height, width
-
 
     def snfz_into_empty_map(self, utm_coords, upper_right, down_left):
         if self.debug:

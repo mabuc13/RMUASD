@@ -78,7 +78,8 @@ class PathPlanner(object):
             kml.trkpt(i.lat, i.lon, 0.0)
         kml.trksegend()
         kml.end()
-
+    
+    
 
 def handle_getPathPlan(req):
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
@@ -106,6 +107,14 @@ def handle_distanceCalculations(req):
     distance = obj.distance_between_positions(req.point1,req.point2)
     return gps2distanceResponse(distance)
 
+
+def alertIncommingCollision(height_of_incomming_drone,heading_of_incomming_drone,id_of_drone_in_collision=1):
+        msg = inCollision()
+        msg.heading = heading_of_incomming_drone
+        msg.height = heading_of_incomming_drone
+        collision_pub.publish(msg)
+
+collision_pub = rospy.Publisher("/pathplan/incomming_collision",inCollision)
 
 if __name__ == '__main__':
     rospy.init_node('pathplan')
@@ -147,3 +156,4 @@ if __name__ == '__main__':
         rospy.Rate(heart_msg.rate).sleep()
         heart_msg.header.stamp = rospy.Time.now()
         heartbeat_pub.publish(heart_msg)
+

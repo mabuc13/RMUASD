@@ -19,6 +19,7 @@
 #include <gcs/pathPlan.h>
 #include <gcs/getEta.h>
 #include <gcs/gps2distance.h>
+#include <gcs/inCollision.h>
 #include <node_monitor/heartbeat.h>
 
 #include <DronesAndDocks.hpp>
@@ -37,6 +38,8 @@ ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_siz
 ros::Publisher ETA_pub;
 ros::Publisher JobState_pub;
 ros::Publisher Heartbeat_pub;
+
+ros::Subscriber Collision_sub;
 
 ros::ServiceClient pathPlanClient;
 ros::ServiceClient EtaClient;
@@ -293,18 +296,25 @@ void WebInfo_Handler(std_msgs::String msg_in){
         WebInfo_pub.publish(msg_out);
     }
 }
+void Collision_Handler(gcs::inCollision msg){
 
+}
 
 
 void initialize(void){
     nh = new ros::NodeHandle();
+
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
+
     ETA_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/ETA",100);
     WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
+
     WebInfo_pub = nh->advertise<std_msgs::String>("/internet/ToInternet",100);
     JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
     Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("/node_monitor/input/Heartbeat",100);
+
+    Collision_sub = nh->subscribe("/pathplan/incomming_collision",100,Collision_Handler);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
