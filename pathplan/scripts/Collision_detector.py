@@ -28,7 +28,7 @@ class CollisionDetector:
         # status variables
         rospy.sleep(1)  # wait until everything is running
 
-        self.collision_detected_pub = rospy.Publisher("/collision_detector/collision_warning", DroneInfo, queue_size=0)
+        self.collision_detected_pub = rospy.Publisher("/collision_detector/collision_warning", bool, queue_size=10)
 
         # Subscribe to new drone path's, and dynamic obstacles:
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
@@ -66,7 +66,12 @@ class CollisionDetector:
         try:
             all_json_objs = json.loads(msg)
             for json_obj in all_json_objs:
-                self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
+                if json_obj["int_id"] in self.dynamic_no_flight_zones:
+                    self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
+                else:
+                    self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
+                    if json_obj["geometry"] == "polygon":
+                        self.make_polygon(json_obj)
         except ValueError:
             print("Collision Detector: Couldn't convert string from UTM server to json..")
 
@@ -84,7 +89,23 @@ class CollisionDetector:
                 collision, int_id = self.is_collision_at_future_position(position, future_time)
                 if collision:
                     print("Collision detected in future....")
-                # Look at dynamic obstacles and see if there's a collision:
+                    self.make_decision_if_collision(int_id, future_time, position, val.drone_id)
+
+    def make_polygon(self, json_obj):
+        coords = json_obj["coordinates"]
+        coords = coords.split(" ")
+        i = 0
+        for a in coords:
+            coords[i] = a.split(',')
+            i += 1
+        list_of_points = []
+        for point in coords:
+            temp_coord = Coordinate(lat=point[1], lon=point[0])
+            list_of_points.append(geometry.Point(temp_coord.easting, temp_coord.northing))
+        # Taken from:
+        # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
+        dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
+        self.dynamic_no_flight_zones[json_obj["int_id"]]["polygon"] = dnfz_polygon
 
     def calc_dist_between_mission_points(self, path, drone_id):
         '''
@@ -187,24 +208,14 @@ class CollisionDetector:
                     if dist <= (coord[2] + self.safety_dist_to_dnfz):
                         return False, int_id
             elif dnfz["geometry"] == "polygon":
-                coords = dnfz["coordinates"]
-                coords = coords.split(" ")
-                i = 0
-                for a in coords:
-                    coords[i] = a.split(',')
-                    i += 1
-                list_of_points = []
-                for point in coords:
-                    temp_coord = Coordinate(lat=point[1], lon=point[0])
-                    list_of_points.append(geometry.Point(temp_coord.easting, temp_coord.northing))
-                # Taken from:
-                # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
-                dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
-                dist = dnfz_polygon.distance(geometry.Point(p.easting, p.northing))
+                dist = dnfz["polygon"].distance(geometry.Point(p.easting, p.northing))
                 if (dnfz["valid_from_epoch"] - self.safety_extra_time) < t < (dnfz["valid_to_epoch"] + self.safety_extra_time):
                     if dist <= self.safety_dist_to_dnfz:
                         return False, int_id
-        return True
+        return True, None
+
+    def make_decision_if_collision(self, dnfz_id, at_time, at_pos, drone_id):
+        pass
 
 if __name__ == "__main__":
     rospy.init_node('collision_detector')  # , anonymous=True)
