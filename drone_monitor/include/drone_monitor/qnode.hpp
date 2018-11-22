@@ -155,6 +155,11 @@ private:
 
 	map<int,aDrone> _Drones;
 	map<string,aNode> _Nodes;
+
+	ros::Time _node_monitor_time;
+	double _node_monitor_rate;
+	int _node_monitor_severity;
+
 	int _currentDrone;
 };
 

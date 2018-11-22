@@ -6,6 +6,7 @@ import rospy
 import time
 import rosnode
 from node_monitor.msg import *
+from mavlink_lora.msg import mavlink_lora_status
 import threading
 
 
@@ -31,6 +32,7 @@ class NodeMonitor(object):
         self.nodeState['node_monitor'] = heartbeat.nothing
         #subscriber
         rospy.Subscriber("/node_monitor/input/Heartbeat", heartbeat, self.handler_heartbeat)
+        rospy.Subscriber("/mavlink_status",mavlink_lora_status,self.handler_mavlink_lora_heartbeat)
         #rospy.Subscriber("/gcs/Heartbeat", heartbeat, self.handler_heartbeat)
         #rospy.Subscriber("/utm_parser/Heartbeat", heartbeat, self.handler_heartbeat)
         #rospy.Subscriber("/pathplan/Heartbeat", heartbeat, self.handler_heartbeat)
@@ -64,6 +66,13 @@ class NodeMonitor(object):
         for i in range(10): #first sending sometime is ignored
             self.NodeSates_pub.publish(msg)
             self.rate.sleep()
+
+    def handler_mavlink_lora_heartbeat(self,msg):
+        newMsg = heartbeat()
+        newMsg.header = msg.header
+        newMsg.rate = 5
+        newMsg.header.frame_id = "mavlink"
+        self.handler_heartbeat(newMsg)
 
     def handler_heartbeat(self,msg):
         if msg.rate == 0:
@@ -128,6 +137,8 @@ class NodeMonitor(object):
                 
 
             if runs == 10:
+                self.heartbeat.rate = self.nodeRates["node_monitor"]/10
+                self.heartbeat.header.stamp = rospy.Time.now()
                 self.Heartbeat_pub.publish(self.heartbeat)
                 runs = 0
 

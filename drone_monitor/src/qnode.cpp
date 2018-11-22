@@ -81,9 +81,23 @@ bool QNode::init() {
 void QNode::run() {
 	ros::Rate loop_rate(1);
 	int count = 0;
+
+    int state = -1,last_state = -1;
     while ( ros::ok()) {
 		ros::spinOnce();
 		loop_rate.sleep();
+        if(ros::Time::now().toSec()> ((1/_node_monitor_rate)*4+_node_monitor_time.toSec())){
+            state = node_monitor::nodeOk::none_responsive;
+        }else if(ros::Time::now().toSec()> ((1/_node_monitor_rate)*2+_node_monitor_time.toSec())){
+            state = node_monitor::nodeOk::late;
+        }else{
+            state = node_monitor::nodeOk::fine;
+        }
+        if(last_state!= state){
+            Q_EMIT sig_nodeState("node_monitor",_node_monitor_severity,state);
+            last_state = state;
+        }
+
 	}
     Q_EMIT rosShutdown();
 }
@@ -98,7 +112,32 @@ void QNode::setCurrentDrone(int drone_id){
     }
 }
 void QNode::handle_NodeMonitorHeart(node_monitor::heartbeat msg){
-
+    _node_monitor_time = msg.header.stamp;
+    _node_monitor_rate = msg.rate;
+    
+    if(msg.text.length()> 0){
+        string severity = "";
+        if(msg.severity == node_monitor::heartbeat::info){
+            severity = "info";
+        }else if(msg.severity == node_monitor::heartbeat::warning){
+            severity = "warning";
+        }else if(msg.severity == node_monitor::heartbeat::error){
+            severity = "error";
+            msg.severity++;
+        }else if(msg.severity == node_monitor::heartbeat::critical_error){
+            severity = "critical";
+            msg.severity++;
+        }else if(msg.severity == node_monitor::heartbeat::fatal_error){
+            severity = "fatal";
+            msg.severity++;
+        }
+        string text ="["+severity+"][" +patch::to_string(ros::Time::now().sec) +"]: " + msg.text+"\n";
+        Q_EMIT sig_telemetryStatus(msg.severity,text.c_str());
+    }
+    if(msg.severity != _node_monitor_severity){
+        _node_monitor_severity = msg.severity;
+        Q_EMIT sig_nodeState("node_monitor",_node_monitor_severity,node_monitor::nodeOk::fine);
+    }
 }
 void QNode::handle_NodeStat(node_monitor::nodeOkList msg){
     //cout << "Message: "<< endl<<flush;
