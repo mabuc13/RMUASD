@@ -12,18 +12,18 @@
 
 #include <Wire.h>
 
-#define SLAVE_ADDRESS 13
+#define MY_ADDRESS 13
 
 #define COORDINATE_LEN 12
 
-float coordinate_0[3] = {0.32, -1.5743, 3.127};
-float coordinate_1[3] = {5.12, -142.9453, -3.44114411};
+volatile float coordinate_0[3] = {0.32, -1.5743, 3.127};
+volatile float coordinate_1[3] = {5.12, -142.9453, -3.44114411};
 
 unsigned char coordinate_bytes_0[COORDINATE_LEN];
 unsigned char coordinate_bytes_1[COORDINATE_LEN];
 
 void setup() {
-  Wire.begin(SLAVE_ADDRESS);                // join i2c bus with address #8
+  Wire.begin(MY_ADDRESS);                // join i2c bus with address #8
   Wire.onReceive(receiveEvent); // register event
   Wire.onRequest(requestEvent);
   Serial.begin(9600);           // start serial for output
@@ -50,14 +50,18 @@ void receiveEvent(int howMany) {
 void requestEvent(int howMany) {    
   int idx = Wire.read();        // receive byte as an integer
 //  Serial.println(idx);          // print the integer
-
+  
+  void* coordinate_bytes;
+  
   switch(idx) {
     case 0:
-      Wire.write(coordinate_bytes_0, COORDINATE_LEN);
+      coordinate_bytes = &coordinate_bytes_0;
+      Wire.write((const char*)coordinate_bytes, COORDINATE_LEN);
       break;
-
+    
     case 1:
-      Wire.write(coordinate_bytes_1, COORDINATE_LEN);
+      coordinate_bytes = &coordinate_bytes_1;
+      Wire.write((const char*)coordinate_bytes, COORDINATE_LEN);
       break;
 
     default:
@@ -68,6 +72,8 @@ void requestEvent(int howMany) {
 // converts the data stored in a variable to raw binary goodness
 void convert_to_bytes(void* input_var, void* output_array, unsigned int array_size)
 {
+  // disable interrupts so the data won't be corrupted by an I2C interrupt changing the variable
+  noInterrupts();
   for(int i=0; i<array_size; i++)
   {
     // get the address of the variable 
@@ -79,4 +85,5 @@ void convert_to_bytes(void* input_var, void* output_array, unsigned int array_si
     *(output_array_char + i) = single_byte;
 //    Serial.println(single_byte);
   }  
+  interrupts();
 }
