@@ -79,6 +79,8 @@ ros::Time sys_status_last_heard;
 ros::Time status_msg_sent;
 ros::Time heartbeat_msg_sent;
 uint16_t sys_status_voltage_battery;
+uint8_t sys_status_battery_remaining;
+uint16_t sys_status_load;
 unsigned long secs_init;
 ros::Publisher msg_pub, pos_pub, atti_pub, status_pub, mission_ack_pub, command_ack_pub;
 uint8_t rx_buffer[RX_BUFFER_SIZE];
@@ -148,6 +150,8 @@ void ml_send_status_msg(void)
 	status.last_heard = last_heard;
 	status.last_heard_sys_status = sys_status_last_heard;
 	status.batt_volt = sys_status_voltage_battery;
+    status.batt_remaining = sys_status_battery_remaining;
+    status.cpu_load = sys_status_load;
     status.system_id = ml_recorded_sys_id();
 	status.msg_sent_gcs = ml_messages_sent();
 	status.msg_received_gcs = ml_messages_received();
@@ -234,6 +238,8 @@ void ml_parse_msg(unsigned char *msg)
 	    sys_status_last_heard = last_heard; 
 		mavlink_sys_status_t sys_status = ml_unpack_msg_sys_status (&m.payload.front());
         sys_status_voltage_battery = sys_status.voltage_battery;
+        sys_status_battery_remaining = sys_status.battery_remaining;
+        sys_status_load = sys_status.load;
         ml_send_status_msg();
 	}
 
@@ -311,6 +317,7 @@ void ml_parse_msg(unsigned char *msg)
 
         //respond back with result
         mavlink_lora::mavlink_lora_command_ack ack_msg;
+        ack_msg.drone_id = recorded_sysid;
         ack_msg.command = ack.command;
         ack_msg.result = ack.result;
         ack_msg.result_text = command_result_parser(ack.result);

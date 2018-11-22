@@ -25,6 +25,7 @@ import json
 import cv2
 import numpy as np
 from gcs.msg import *
+from node_monitor.msg import heartbeat
 from std_msgs.msg import String
 
 from utm_parser.srv import *
@@ -168,11 +169,18 @@ class utm_parser(object):
         self.post_payload['uav_bat_soc'] = msg.battery_SOC
 
         if self.path_flag:
-            next_wp_geo = self.path[msg.current_index+1]
+            next_wp_geo = self.path[len(self.path)-1]
+            if msg.mission_index+1 < len(self.path):
+                if self.debug:
+                    print("Misssion ["+str(msg.mission_index+1)+"/"+str(msg.mission_length)+"] len: " +str(len(self.path)))
+                next_wp_geo = self.path[msg.mission_index+1]
+
             next_wp_utm = self.coord_conv.geodetic_to_utm(next_wp_geo.latitude, next_wp_geo.longitude)
             utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
             head_vec = [utm_wp[3]-next_wp_utm[3], utm_wp[4]-next_wp_utm[4]]
-            vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+            vec_degree = 90
+            if not head_vec[0] == 0:
+                vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
             vec_degree += 90
             vec_degree = 360 - vec_degree
             if self.path_debug:
@@ -187,7 +195,7 @@ class utm_parser(object):
             self.post_payload['wp_next_eta_epoch'] = time.time() # <<-------------- CALC
 
         self.push_drone_data(self.post_payload)
-        print self.post_payload
+        #print self.post_payload
 
     def push_drone_data(self, payload):
         if self.utm_trafic_debug:
@@ -399,7 +407,7 @@ class utm_parser(object):
             print "Entering get drone data \n"
 
         self.payload = {
-            'time_delta_s' : 1
+        #    'time_delta_s' : 30
         }
         r = ''
         try:
@@ -414,14 +422,15 @@ class utm_parser(object):
             if self.utm_trafic_debug:
                 print colored('Request has too many redirects', 'red')
         except requests.exceptions.HTTPError as err:
-
-            print colored('HTTP error', 'red')
-            print colored(err, 'yellow')
+            if self.utm_trafic_debug:
+                print colored('HTTP error', 'red')
+                print colored(err, 'yellow')
             # sys.exit(1) # Consider the exit since it might be unintentional in some cases
         except requests.exceptions.RequestException as err:
             # Catastrophic error; bail.
-            print colored('Request error', 'red')
-            print colored(err, 'yellow')
+            if self.utm_trafic_debug:
+                print colored('Request error', 'red')
+                print colored(err, 'yellow')
             sys.exit(1)
         else:
             if self.utm_trafic_debug:
@@ -488,8 +497,6 @@ class utm_parser(object):
 
             return self.utm_coords
 
-
-
     def print_nested_list(self, nested_list):
         if self.debug:
             print "Entering print_nested_list"
@@ -500,7 +507,6 @@ class utm_parser(object):
             for j in nested_list[outer_cnt]:
                 print j, '\n'
             outer_cnt += 1
-
 
     def create_empty_map(self, ll_utm, ur_utm):
         delta_x = ur_utm[3] - ll_utm[3]
@@ -524,7 +530,6 @@ class utm_parser(object):
         self.empty_map = np.zeros((width, height, 1), np.uint8)
         if self.debug:
             print "Created empty map with height, width: ", height, width
-
 
     def snfz_into_empty_map(self, utm_coords, upper_right, down_left):
         if self.debug:
@@ -642,26 +647,33 @@ class utm_parser(object):
 
 
 def main():
-        rospy.init_node('utm_parser')#, anonymous=True)
-        rospy.sleep(1)
+    rospy.init_node('utm_parser')#, anonymous=True)
+    rospy.sleep(1)
 
 
-        par = utm_parser()
-        rospy.on_shutdown(par.shutdownHandler)
-        #rospy.timer(rospy.Duration(5), par.dnfz_time_callback)
-        #
-        #par.print_nested_list(par.geoditic_coords)
-        #par.print_test_coords()
+    par = utm_parser()
+    rospy.on_shutdown(par.shutdownHandler)
+    #rospy.timer(rospy.Duration(5), par.dnfz_time_callback)
+    #
+    #par.print_nested_list(par.geoditic_coords)
+    #par.print_test_coords()
 
-       # par.get_dynamic_nfz()
+    #par.get_static_nfz()
 
-        #par.print_zones()
+    #par.print_zones()
 
-        while not rospy.is_shutdown():
-            rospy.Rate(1).sleep()
-            par.check_dynamic_data()
-            par.get_drone_data()
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'utm_parser'
+    heart_msg.rate = 1
 
+    while not rospy.is_shutdown():
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
+        
+        par.check_dynamic_data()
+        par.get_drone_data()
 
 if __name__ == "__main__":
     main()

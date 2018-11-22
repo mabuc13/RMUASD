@@ -20,8 +20,8 @@ class eta(object):
         for i in range(1, len(path)):
             total_distance += self.distance_between_positions(path[i-1], path[i])
 
-        total_time_sec = total_distance * avr_speed
+        total_time_sec = total_distance / avr_speed
         current_time = time.time()
         eta_sec = current_time + total_time_sec
-
+        
         return float(eta_sec)

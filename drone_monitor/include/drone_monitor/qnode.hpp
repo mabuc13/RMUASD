@@ -25,6 +25,9 @@
 	#include <gcs/NiceInfo.h>
 	#include <gcs/DroneSingleValue.h>
 	#include <telemetry/telemetry_statustext.h>
+	#include <node_monitor/nodeOkList.h>
+	#include <node_monitor/heartbeat.h>
+	#include <node_monitor/nodeOk.h>
 #endif
 
 #include <string>
@@ -76,11 +79,18 @@ struct aDrone{
 	size_t throttle;
 	gcs::GPS home;
 	int missionIndex;
+	int mission_length;
 	int drone_wayPoints;
 	int drone_missionLength;
 	size_t ETA;
 	int gcsJobState;
 };
+struct aNode{
+	int res_OK;
+	int state_OK;
+	bool isInit;
+};
+
 
 class QNode : public QThread {
     Q_OBJECT
@@ -89,11 +99,10 @@ public:
 	virtual ~QNode();
 	bool init();
 	void run();
-	void close();
+	void setCurrentDrone(int drone_id);
 
 Q_SIGNALS:
-	void loggingUpdated();
-  void rosShutdown();
+	bool rosShutdown();
 	void sig_armed(bool isArmed);
 	void sig_status(int status);
 
@@ -123,6 +132,8 @@ Q_SIGNALS:
 	void sig_telemetryStatus(int severity, QString text);
 	void sig_gcsJobState(int state,QString text);
 
+	void sig_nodeState(QString name,int ownStatus,int response);
+
 private:
 	int init_argc;
 	char** init_argv;
@@ -131,17 +142,25 @@ private:
 	ros::Subscriber _ETA_sub;
 	ros::Subscriber _TelemetryStatus_sub;
 	ros::Subscriber _JobState_sub;
+	ros::Subscriber _NodeStat_sub;
+	ros::Subscriber _Node_monitor_heartbeat_sub;
 
 	void handle_NiceInfo(gcs::NiceInfo msg);
 	void handle_DroneInfo(gcs::DroneInfo msg);
 	void handle_ETA(gcs::DroneSingleValue msg);
 	void handle_telemetryStatus(telemetry::telemetry_statustext msg);
 	void handle_JobState(gcs::DroneSingleValue msg);
+	void handle_NodeStat(node_monitor::nodeOkList msg);
+	void handle_NodeMonitorHeart(node_monitor::heartbeat msg);
 
 	map<int,aDrone> _Drones;
-	int _currentDrone;
+	map<string,aNode> _Nodes;
 
-	bool closeDown;
+	ros::Time _node_monitor_time;
+	double _node_monitor_rate;
+	int _node_monitor_severity;
+
+	int _currentDrone;
 };
 
 }  // namespace drone_monitor

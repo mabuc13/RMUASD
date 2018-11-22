@@ -1,6 +1,6 @@
 bool        on_the_spot
 float32     abort_alt
-float32     precision_land  # 0 = normal, 1 = opporunistic, 2 = required
+float32     precision_land  # 0 = normal, 1 = opportunistic, 2 = required
 float32     yaw             # -1 for unchanged
 float32     lat
 float32     lon

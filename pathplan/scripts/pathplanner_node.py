@@ -11,9 +11,10 @@ from Path_simplifier import PathSimplifier
 from eta_estimator import *
 import time
 import simplifier_rmuast
+from node_monitor.msg import *
+
 from utm_parser.srv import *
-#from utm_parser.srv import *
-#from utm_parser.msg import *
+from utm_parser.msg import *
 
 
 class PathPlanner(object):
@@ -35,19 +36,21 @@ class PathPlanner(object):
         lower_left = Coordinate(easting=self.start.easting - map_padding, northing=self.start.northing - map_padding)
         upper_right = Coordinate(easting=self.start.easting + map_padding, northing=self.start.northing + map_padding)
 
+        print("[Path planner]: "+ "Waiting for UTM")
         rospy.wait_for_service('/utm_parser/get_snfz')
         get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
+
         self.map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
 
-        print("Distance: ",
+        print("[Path planner]: "+"Distance: ",
               sqrt((self.start.easting - self.goal.easting) ** 2 + (self.start.northing - self.goal.northing) ** 2))
-        print("Computing path...")
+        print("[Path planner]: "+"Computing path...")
 
         t0 = time.time()
         path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
         t1 = time.time()
 
-        print("Found a path in %s seconds." % (t1 - t0))
+        print("[Path planner]: "+"Found a path in %s seconds." % (t1 - t0))
 
         self.path = []
         self.path.append(self.start)
@@ -56,15 +59,15 @@ class PathPlanner(object):
         self.path.pop(-1)
         self.path.append(self.goal)
 
-        print("Number of waypoints: " + str(len(self.path)))
+        print("[Path planner]: "+"Number of waypoints: " + str(len(self.path)))
         # Simplify path:
         ps = PathSimplifier(self.path, step_size=4)
         ps.delete_with_step_size_safe(threshold=8)
         self.path = ps.get_simple_path()
-        print("Number of waypoints after simplifier: " + str(len(self.path)))
+        print("[Path planner]: "+"Number of waypoints after simplifier: " + str(len(self.path)))
 
     def export_kml_path(self, name):
-        print("Exporting")
+        print("[Path planner]: "+"Exporting")
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
         kml.begin(name+'.kml', 'Example', 'Example on the use of kmlclass', 0.1)
@@ -75,11 +78,12 @@ class PathPlanner(object):
             kml.trkpt(i.lat, i.lon, 0.0)
         kml.trksegend()
         kml.end()
-
+    
+    
 
 def handle_getPathPlan(req):
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
-          ") to lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude)+")")
+          ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
     planner = PathPlanner(start=start,goal=theend)
@@ -104,6 +108,14 @@ def handle_distanceCalculations(req):
     return gps2distanceResponse(distance)
 
 
+def alertIncommingCollision(height_of_incomming_drone,heading_of_incomming_drone,id_of_drone_in_collision=1):
+        msg = inCollision()
+        msg.heading = heading_of_incomming_drone
+        msg.height = heading_of_incomming_drone
+        collision_pub.publish(msg)
+
+collision_pub = rospy.Publisher("/pathplan/incomming_collision",inCollision)
+
 if __name__ == '__main__':
     rospy.init_node('pathplan')
     rospy.sleep(1)
@@ -111,6 +123,7 @@ if __name__ == '__main__':
     s = rospy.Service('pathplan/getPlan',pathPlan, handle_getPathPlan)
     s2= rospy.Service('pathplan/getEta',getEta,handle_ETA)
     s3= rospy.Service('pathplan/GPS2GPSdist',gps2distance,handle_distanceCalculations)
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
     """
     ll = GPS()
     ll.latitude = 55.425762
@@ -135,4 +148,12 @@ if __name__ == '__main__':
     planner.export_kml_path("Test_plan")
     """
     print("[Path planner]: "+"Path planner running")
-    rospy.spin()
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'pathplan'
+    heart_msg.rate = 10
+
+    while not rospy.is_shutdown():
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
+

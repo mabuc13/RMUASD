@@ -10,7 +10,7 @@ project(drone_monitor)
 ##############################################################################
 
 # qt_build provides the qt cmake glue, roscpp the comms for a default talker
-find_package(catkin REQUIRED COMPONENTS qt_build roscpp gcs telemetry)
+find_package(catkin REQUIRED COMPONENTS  roscpp gcs telemetry qt_build)
 include_directories(${catkin_INCLUDE_DIRS})
 # Use this to define what the package will export (e.g. libs, headers).
 # Since the default here is to produce only a binary, we don't worry about
