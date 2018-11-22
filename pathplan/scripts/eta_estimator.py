@@ -23,7 +23,5 @@ class eta(object):
         total_time_sec = total_distance / avr_speed
         current_time = time.time()
         eta_sec = current_time + total_time_sec
-
-        print(total_distance)
-
+        
         return float(eta_sec)

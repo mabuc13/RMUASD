@@ -8,6 +8,7 @@ from math import sqrt
 import time
 import json
 import string
+from shapely import geometry
 
 
 class CollisionDetector:
@@ -15,11 +16,14 @@ class CollisionDetector:
     Subscribe to "/gcs/forwardPath". It sends out the whole pathplan from the GCS to the drone.
     Subscribe to "/drone_handler/DroneInfo". It contains info on the specific drones position etc.
     '''
-    def __init__(self):
+    def __init__(self, safety_dist=10, safety_time=10):     # 10 m and 10 sec as default
         self.active_drone_paths = {}
         self.active_drone_info = {}
         self.dist_between_mission_points = {}
         self.dynamic_no_flight_zones = {}
+
+        self.safety_dist_to_dnfz = safety_dist
+        self.safety_extra_time = safety_time
 
         # status variables
         rospy.sleep(1)  # wait until everything is running
@@ -37,7 +41,7 @@ class CollisionDetector:
         '''
         self.active_drone_paths[msg.DroneID] = msg.Path
         self.calc_dist_between_mission_points(msg.Path, msg.DroneID)
-        collision, p1, p2 = self.check_path_for_collision_with_static_dynamic_nfz(msg.Path, msg.DroneID)
+        collision, p1, p2 = self.check_path_for_collision_with_dnfz(msg.Path, msg.DroneID)
         if collision:
             # There's a collision with dynamic zones between p1 and p2:
             pass
@@ -60,8 +64,9 @@ class CollisionDetector:
         Use "int_id" in the string as key in the dict of dnfz
         '''
         try:
-            s = json.loads(msg)
-            self.dynamic_no_flight_zones[s["int_id"]] = s
+            all_json_objs = json.loads(msg)
+            for json_obj in all_json_objs:
+                self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
         except ValueError:
             print("Collision Detector: Couldn't convert string from UTM server to json..")
 
@@ -72,10 +77,13 @@ class CollisionDetector:
         '''
         # For all active drones:
         for i, val in self.active_drone_info.items():
-            # for 5, 10, 15, 20, 25 and 30 seconds into the future:
-            for j in range(5,30,5):
+            # for 5, 10, 15, ... , 60 seconds into the future:
+            for j in range(5,60,5):
                 position = self.calc_future_position(val.drone_id,j)
                 future_time = time.time() + j
+                collision, int_id = self.is_collision_at_future_position(position, future_time)
+                if collision:
+                    print("Collision detected in future....")
                 # Look at dynamic obstacles and see if there's a collision:
 
     def calc_dist_between_mission_points(self, path, drone_id):
@@ -120,7 +128,6 @@ class CollisionDetector:
                     new_easting = (resulting_dist * (p2.easting - p1.easting) / self.dist_between_mission_points[drone_id][i]) + p1.easting
                     new_northing = (resulting_dist * (p2.northing - p1.northing) / self.dist_between_mission_points[drone_id][i]) + p1.northing
                     return Coordinate(northing=new_northing, easting=new_easting)
-
 
     def check_path_for_collision_with_dnfz(self, path, drone_id):
         '''
@@ -170,16 +177,33 @@ class CollisionDetector:
     def pythagoras(self, p1, p2):
         return sqrt((p1.easting - p2.easting)**2 + (p1.northing - p2.northing)**2)
 
-    def dist_to_dnfz(self, p):
-        for int_id, value in self.dynamic_no_flight_zones.items():
-            if self.dynamic_no_flight_zones[int_id]["geometry"] == "circle":
-                coord = self.dynamic_no_flight_zones[int_id]["coordinates"]
+    def is_collision_at_future_position(self, p, t):
+        for int_id, dnfz in self.dynamic_no_flight_zones.items():
+            if dnfz["geometry"] == "circle":
+                coord = dnfz["coordinates"]
                 coord = coord.split(',')
                 dist = self.pythagoras(p, Coordinate(lon=coord[0], lat=coord[1]))
-                if dist <= coord[2]:
-                    return False
-            elif self.dynamic_no_flight_zones[int_id]["geometry"] == "polygon":
-                pass
+                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < t < (dnfz["valid_to_epoch"] + self.safety_extra_time):
+                    if dist <= (coord[2] + self.safety_dist_to_dnfz):
+                        return False, int_id
+            elif dnfz["geometry"] == "polygon":
+                coords = dnfz["coordinates"]
+                coords = coords.split(" ")
+                i = 0
+                for a in coords:
+                    coords[i] = a.split(',')
+                    i += 1
+                list_of_points = []
+                for point in coords:
+                    temp_coord = Coordinate(lat=point[1], lon=point[0])
+                    list_of_points.append(geometry.Point(temp_coord.easting, temp_coord.northing))
+                # Taken from:
+                # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
+                dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
+                dist = dnfz_polygon.distance(geometry.Point(p.easting, p.northing))
+                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < t < (dnfz["valid_to_epoch"] + self.safety_extra_time):
+                    if dist <= self.safety_dist_to_dnfz:
+                        return False, int_id
         return True
 
 if __name__ == "__main__":
