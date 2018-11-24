@@ -22,10 +22,4 @@ while True:
         print(e)
     time.sleep(1)
 
-    try:
-        data = bus.read_i2c_block_data(DEVICE_ADDRESS, VAR_COORDINATE_1, COORDINATE_LEN)
-        (x,y,z) = struct.unpack('<fff',bytearray(data))
-        print(x,y,z)
-    except Exception as e:
-        print(e)
-    time.sleep(1)
+
