@@ -31,36 +31,36 @@ mavlink_lora_atti_sub_topic = '/mavlink_attitude'
 mavlink_lora_keypress_sub_topic = '/keypress' 
 update_interval = 10
 
-def unit_vector(vector):
-    """ Returns the unit vector of the vector.  """
-    return vector / np.linalg.norm(vector)
+# def unit_vector(vector):
+#     """ Returns the unit vector of the vector.  """
+#     return vector / np.linalg.norm(vector)
 
-def angle_between(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+# def angle_between(v1, v2):
+#     """ Returns the angle in radians between vectors 'v1' and 'v2'::
 
-            >>> angle_between((1, 0, 0), (0, 1, 0))
-            1.5707963267948966
-            >>> angle_between((1, 0, 0), (1, 0, 0))
-            0.0
-            >>> angle_between((1, 0, 0), (-1, 0, 0))
-            3.141592653589793
-    """
-    v1_u = unit_vector(v1)
-    v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+#             >>> angle_between((1, 0, 0), (0, 1, 0))
+#             1.5707963267948966
+#             >>> angle_between((1, 0, 0), (1, 0, 0))
+#             0.0
+#             >>> angle_between((1, 0, 0), (-1, 0, 0))
+#             3.141592653589793
+#     """
+#     v1_u = unit_vector(v1)
+#     v2_u = unit_vector(v2)
+#     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
-def py_ang(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2'    """
-    cosang = np.dot(v1, v2)
-    sinang = np.linalg.norm(np.cross(v1, v2))
-    return np.arctan2(sinang, cosang)
+# def py_ang(v1, v2):
+#     """ Returns the angle in radians between vectors 'v1' and 'v2'    """
+#     cosang = np.dot(v1, v2)
+#     sinang = np.linalg.norm(np.cross(v1, v2))
+#     return np.arctan2(sinang, cosang)
 
-def rotate(vector, angle):
-    rotation_mtx = np.array([
-        [cos(angle),-sin(angle)],
-        [sin(angle), cos(angle)]
-    ])
-    return rotation_mtx @ vector
+# def rotate(vector, angle):
+#     rotation_mtx = np.array([
+#         [cos(angle),-sin(angle)],
+#         [sin(angle), cos(angle)]
+#     ])
+#     return rotation_mtx @ vector
 
 class Telemetry(object):
 
@@ -115,8 +115,8 @@ class Telemetry(object):
         self.dowload_mission_service    = rospy.Service("/telemetry/download_mission", Trigger, self.mission_handler.download, buff_size=10)
         self.mission_upload_service     = rospy.Service("/telemetry/upload_mission", UploadMission, self.mission_handler.upload, buff_size=10)
         self.mission_upload_from_file_service = rospy.Service("/telemetry/upload_mission_from_file", UploadFromFile, self.mission_handler.upload_from_file, buff_size=10)
-        self.start_tracking_service     = rospy.Service("/telemetry/start_tracking", Trigger, self.start_tracking, buff_size=10)
-        self.stop_tracking_service      = rospy.Service("/telemetry/stop_tracking", Trigger, self.stop_tracking, buff_size=10)
+        # self.start_tracking_service     = rospy.Service("/telemetry/start_tracking", Trigger, self.start_tracking, buff_size=10)
+        # self.stop_tracking_service      = rospy.Service("/telemetry/stop_tracking", Trigger, self.stop_tracking, buff_size=10)
 
         # Topic handlers
         self.mavlink_msg_pub        = rospy.Publisher(mavlink_lora_pub_topic, mavlink_lora_msg, queue_size=0)
@@ -130,6 +130,7 @@ class Telemetry(object):
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
         rospy.Subscriber("/telemetry/new_mission", mavlink_lora_mission_list, self.mission_handler.on_mission_list)
         rospy.Subscriber("/telemetry/mission_set_current", Int16, self.mission_handler.mission_set_current)
+        rospy.Subscriber("/telemetry/set_landing_target", telemetry_landing_target, self.on_landing_target)
         rospy.Subscriber("/mavlink_interface/mission/ack", mavlink_lora_mission_ack, self.mission_handler.on_mission_ack)
         rospy.Subscriber("/mavlink_interface/command/ack", mavlink_lora_command_ack, self.command_handler.on_command_ack)
         
@@ -248,49 +249,64 @@ class Telemetry(object):
         self.last_heard_sys_status = msg.last_heard_sys_status.secs + msg.last_heard_sys_status.nsecs/1.0e9
         self.batt_volt = msg.batt_volt / 1000.0
 
-    def send_landing_target(self, event):
-        (_, _, _, easting, northing) = self.utmconv.geodetic_to_utm(self.lat, self.lon)
+    def on_landing_target(self, msg):
+        mav_msg = mavlink_lora_msg(
+            msg_id = MAVLINK_MSG_ID_LANDING_TARGET,
+            payload_len = MAVLINK_MSG_ID_LANDING_TARGET_LEN
+        )
 
-        drone_pos = np.array([easting, northing, self.rel_alt], dtype=float)
-        target_pos = np.array([self.target_easting, self.target_northing, 0], dtype=float)
-
-        target_vector = target_pos - drone_pos
-        angle = (self.heading + 180) * pi / 180
-        rotated = rotate(target_vector[0:2], angle)
-        # print(target_vector)
-        # target_vector_x = np.array([rotated[0], target_vector[2]])
-        # target_vector_y = np.array([rotated[1], target_vector[2]])
-        target_vector_x = np.array([target_vector[0], target_vector[2]])
-        target_vector_y = np.array([target_vector[1], target_vector[2]])
-
-        sign_x = np.sign(rotated)[0]
-        sign_y = np.sign(rotated)[1]
-
-        vertical_vector = np.array([0,-1])
-
-        msg = mavlink_lora_msg()
         target_id = 1
-        distance = np.linalg.norm(target_vector)
         size_x = 0
         size_y = 0
-        angle_x = sign_x * py_ang(target_vector_x, vertical_vector)
-        angle_y = sign_y * py_ang(target_vector_y, vertical_vector)
         frame = MAV_FRAME_LOCAL_NED
-        msg.msg_id = MAVLINK_MSG_ID_LANDING_TARGET
-        msg.payload_len = MAVLINK_MSG_ID_LANDING_TARGET_LEN
-        msg.payload = struct.pack('<QfffffBB', 0, target_vector[0], target_vector[1], target_vector[2], size_x, size_y, target_id, frame)
-        # msg.payload = struct.pack('<QfffffBB', 0, tan(angle_x), tan(angle_y), distance, size_x, size_y, target_id, frame)
-        self.mavlink_msg_pub.publish(msg)
 
-        print(tan(angle_x), tan(angle_y))
+        # the angle_x, angly_y and distance fields in the msg is used as x,y and z respectively
+        mav_msg.payload = struct.pack('<QfffffBB', 0, msg.landing_target.x, msg.landing_target.y, msg.landing_target.z, size_x, size_y, target_id, frame)
+        self.mavlink_msg_pub.publish(mav_msg)
 
-    def start_tracking(self, srv):        
-        self.tracking_timer = rospy.Timer(rospy.Duration(0.1), self.send_landing_target)
-        return TriggerResponse(True, "Service called")
+    # def send_landing_target(self, event):
+    #     (_, _, _, easting, northing) = self.utmconv.geodetic_to_utm(self.lat, self.lon)
 
-    def stop_tracking(self, srv):
-        self.tracking_timer.shutdown()
-        return TriggerResponse(True, "Service called")
+    #     drone_pos = np.array([easting, northing, self.rel_alt], dtype=float)
+    #     target_pos = np.array([self.target_easting, self.target_northing, 0], dtype=float)
+
+    #     target_vector = target_pos - drone_pos
+    #     angle = (self.heading + 180) * pi / 180
+    #     rotated = rotate(target_vector[0:2], angle)
+    #     # print(target_vector)
+    #     # target_vector_x = np.array([rotated[0], target_vector[2]])
+    #     # target_vector_y = np.array([rotated[1], target_vector[2]])
+    #     target_vector_x = np.array([target_vector[0], target_vector[2]])
+    #     target_vector_y = np.array([target_vector[1], target_vector[2]])
+
+    #     sign_x = np.sign(rotated)[0]
+    #     sign_y = np.sign(rotated)[1]
+
+    #     vertical_vector = np.array([0,-1])
+
+    #     msg = mavlink_lora_msg()
+    #     target_id = 1
+    #     distance = np.linalg.norm(target_vector)
+    #     size_x = 0
+    #     size_y = 0
+    #     angle_x = sign_x * py_ang(target_vector_x, vertical_vector)
+    #     angle_y = sign_y * py_ang(target_vector_y, vertical_vector)
+    #     frame = MAV_FRAME_LOCAL_NED
+    #     msg.msg_id = MAVLINK_MSG_ID_LANDING_TARGET
+    #     msg.payload_len = MAVLINK_MSG_ID_LANDING_TARGET_LEN
+    #     msg.payload = struct.pack('<QfffffBB', 0, target_vector[0], target_vector[1], target_vector[2], size_x, size_y, target_id, frame)
+    #     # msg.payload = struct.pack('<QfffffBB', 0, tan(angle_x), tan(angle_y), distance, size_x, size_y, target_id, frame)
+    #     self.mavlink_msg_pub.publish(msg)
+
+    #     print(tan(angle_x), tan(angle_y))
+
+    # def start_tracking(self, srv):        
+    #     self.tracking_timer = rospy.Timer(rospy.Duration(0.1), self.send_landing_target)
+    #     return TriggerResponse(True, "Service called")
+
+    # def stop_tracking(self, srv):
+    #     self.tracking_timer.shutdown()
+    #     return TriggerResponse(True, "Service called")
 
     def shutdownHandler(self):
         # shutdown services
@@ -318,49 +334,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-'''
-def signal_handler(signal,somthing):
-    print('You pressed Ctrl+C!')
-    sys.exit(0)
-
-def getDroneStatus():
-    msg = DroneInfo();
-    msg.position.longitude  = 55.6
-    msg.position.latitude   = 55.6
-    msg.position.altitude   = 100
-    msg.next_goal.longitude = 57.6
-    msg.next_goal.latitude  = 57.6
-    msg.next_goal.altitude  = 100
-    msg.velocity[0] = 10.0
-    msg.velocity[1] = 1
-    msg.velocity[2] = 0.1
-    msg.heading = 360 #deg
-    msg.battery_SOC = 68 #Percent
-    msg.drone_id = 2524362
-    msg.GPS_timestamp = 1251351312
-    msg.status = 0
-    return msg
-
-def new_route_reqest_handler(msg):
-    pass
-
-def Drone_State_request_handler(msg):
-    pass
-
-DroneStatus_pub = rospy.Publisher('/Telemetry/DroneStatus',DroneInfo, queue_size=10)
-RouteRequest_sub = rospy.Subscriber('/gcs/PathRequest', DronePath, new_route_reqest_handler)
-DroneState_sub = rospy.Subscriber('/gcs/StateRequest', DroneState, Drone_State_request_handler)
-
-if __name__ == "__main__":
-    signal.signal(signal.SIGINT, signal_handler)
-    rospy.init_node('DroneLinkNode')
-    rate = 50
-    spins = -1
-    while not rospy.is_shutdown():
-        spins = spins +1
-        rospy.Rate(rate).sleep()
-
-        if spins % rate == 0:
-            DroneStatus_pub.publish(getDroneStatus())
-'''

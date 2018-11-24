@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(telemetry)
+project(precision_landing)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -10,10 +10,7 @@ project(telemetry)
 find_package(catkin REQUIRED
   rospy
   message_generation
-  std_msgs
-  geometry_msgs
-  mavlink_lora
-  node_monitor
+  telemetry
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,31 +47,14 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  telemetry_statustext.msg
-  telemetry_heartbeat_status.msg
-  telemetry_mav_mode.msg
-  telemetry_mission_info.msg
-  telemetry_vfr_hud.msg
-  telemetry_home_position.msg
-  telemetry_cmd_retry_fail.msg
-  telemetry_landing_target.msg
-)
+#add_message_files(
+#  FILES
+#)
 
 ## Generate services in the 'srv' folder
-add_service_files(
-   FILES
-   SetMode.srv
-   Origin.srv
-   ChangeSpeed.srv
-   UploadFromFile.srv
-   UploadMission.srv
-   LandDrone.srv
-   TakeoffDrone.srv
-   SetHome.srv
-   GotoWaypoint.srv
-)
+#add_service_files(
+#   FILES
+#)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -84,12 +64,12 @@ add_service_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs  # Or other packages containing msgs
-  geometry_msgs
-  mavlink_lora
-)
+#generate_messages(
+#  DEPENDENCIES
+#  std_msgs  # Or other packages containing msgs
+#  mavlink_lora
+#  telemetry
+#)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
