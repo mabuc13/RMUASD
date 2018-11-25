@@ -9,11 +9,11 @@ from geometry_msgs.msg import Point
 from node_monitor.msg import heartbeat
 
 # defines
-BLUE = 25
-GREEN = 8
-YELLOW = 7
-RED = 1
-LED_PINS = [1, 7, 8, 25]
+BLUE = 22
+GREEN = 10
+YELLOW = 9
+RED = 11
+LED_PINS = [22, 10, 9, 11]
 
 # parameters
 update_interval = 10
@@ -33,17 +33,22 @@ class PiMonitor(object):
             wp.pinMode(pin, 1)
 
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
+        rospy.Subscriber("/telemetry/set_landing_target", telemetry_landing_target, self.on_landing_target)
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
-        rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
+        #rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
 
     def on_heartbeat_status(self, msg):
         wp.digitalWrite(RED, self.red_status)
         self.red_status ^= 1
 
-    def on_drone_pos(self, msg):
+    def on_landing_target(self, msg):
         wp.digitalWrite(YELLOW, self.yellow_status)
         self.yellow_status ^= 1
+
+    def on_drone_pos(self, msg):
+        wp.digitalWrite(BLUE, self.blue_status)
+        self.blue_status ^= 1
 
     def on_drone_attitude(self, msg):
         wp.digitalWrite(GREEN, self.green_status)
@@ -72,7 +77,6 @@ if __name__ == "__main__":
     heart_msg.rate = update_interval
         
     while not rospy.is_shutdown():
-
         heart_msg.header.stamp = rospy.Time.now()
         heartbeat_pub.publish(heart_msg)
         pm.rate.sleep()
