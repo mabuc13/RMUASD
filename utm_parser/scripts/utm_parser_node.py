@@ -42,6 +42,10 @@ import math
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+class dict_init(dict):
+    def __missing__(self, key):
+        return 0
+
 class utm_parser(object):
     def __init__(self):
         self.payload = {
@@ -96,6 +100,8 @@ class utm_parser(object):
         self.dnfz_pub = rospy.Publisher('/utm/dynamic_no_fly_zones', String, queue_size=10)
         self.heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
         self.heart_msg = heartbeat()
+
+        self.recent_drone = dict_init()
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
@@ -463,27 +469,31 @@ class utm_parser(object):
                     print "Succesfully got drone data"
                 try:
                     #print "Drone data: ", data_dict
+                    msg = UTMDroneList.msg
                     for data in data_dict:
                         if not data['uav_id'] == self.post_payload['uav_id']:
                             print data
-                    '''
-                    {u'wp_next_eta_epoch': -1, 
-                    u'wp_next_alt_m': 32, 
-                    u'uav_bat_soc': 51, 
-                    u'wp_next_hdg_deg': -1, 
-                    u'pos_cur_hdg_deg': 359, 
-                    u'uav_id': 3012, 
-                    u'pos_cur_lat_dd': 55.47227, 
-                    u'wp_next_lng_dd': 10.41725, 
-                    u'pos_cur_gps_timestamp': -1, 
-                    u'pos_cur_lng_dd': 10.41726, 
-                    u'pos_cur_alt_m': 507.95, 
-                    u'pos_cur_vel_mps': 0, 
-                    u'uav_op_status': 3, 
-                    u'time_epoch': 1542898219, 
-                    u'wp_next_lat_dd': 55.47227, 
-                    u'wp_next_vel_mps': -1}
-                    '''
+                        if self.recent_drone[data['uav_id']] < data['time_epoch']:
+                            self.recent_drone[data['uav_id']] = data['time_epoch']
+                            drone = UTMDrone()
+                            drone.next_wp.latitude = data['wp_next_lat_dd']
+                            drone.next_wp.longitude = data['wp_next_lng_dd']
+                            drone.next_wp.altitude = data['wp_next_alt_m']
+                            drone.cur_pos.latitude = data['pos_cur_lat_dd']
+                            drone.cur_pos.longitude = data['pos_cur_lng_dd']
+                            drone.cur_pos.altitude = data['pos_cur_alt_m']
+                            drone.next_vel = data['wp_next_vel_mps']
+                            drone.cur_vel = data['pos_cur_vel_mps']
+                            drone.next_heading = data['']
+                            drone.cur_heading = data['pos_cur_hdg_deg']
+                            drone.time = data['time_epoch']
+                            drone.gps_time['pos_cur_gps_timestamp']
+                            drone.battery_soc = data['uav_bat_soc']
+                            drone.drone_priority = data['uav_op_status']
+                            drone.ETA_next_WP = data['wp_next_eta_epoch']
+                            drone.drone_id = data['uav_id']
+
+                            msg.drone_list.append(drone)
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve drone data, maybe there is none")
