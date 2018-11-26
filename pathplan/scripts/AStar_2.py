@@ -3,7 +3,6 @@
 # A* Pathfinding in Python (2.7)
 # Please give credit if used
 
-import numpy
 from heapq import *
 from math import sqrt
 from coordinate import Coordinate
@@ -21,7 +20,7 @@ def static_collision_detector(a):
     return False
 
 
-def astar(coord_start, coord_goal,  map, map_padding, step_multiplier=1,dynamic=False):
+def astar(coord_start, coord_goal, map, map_padding, step_multiplier=1, dynamic=False):
     start = (int(coord_start.easting), int(coord_start.northing))
     goal = (int(coord_goal.easting), int(coord_goal.northing))
 
