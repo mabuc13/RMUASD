@@ -20,6 +20,7 @@
 #include <gcs/getEta.h>
 #include <gcs/gps2distance.h>
 #include <gcs/inCollision.h>
+#include <gcs/safeTakeOff.h>
 #include <node_monitor/heartbeat.h>
 
 #include <DronesAndDocks.hpp>
@@ -45,6 +46,7 @@ ros::ServiceClient pathPlanClient;
 ros::ServiceClient EtaClient;
 ros::ServiceClient GPSdistanceClient;
 ros::ServiceClient client;
+ros::ServiceClient safeTakeOffClient;
 
 
 ros::NodeHandle* nh;
@@ -61,6 +63,11 @@ ostream& operator<<(ostream& os, const gcs::GPS& pos)
     os << "Lon(" << pos.longitude << "), Lat(" << pos.latitude << "), Alt(" << pos.altitude << ")";  
     return os;  
 } 
+
+struct is_safe_for_takeoff{
+    bool takeoff_is_safe;
+    uint time_til_safe_take_off;
+};
 
 void NodeState(uint8 severity,string msg,double rate = 0){
     double curRate = heartbeat_msg.rate;
@@ -87,7 +94,27 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     }
     return srv.response.distance;
 }
+is_safe_for_takeoff safeTakeOff(uint drone_id){
+    gcs::safeTakeOff srv;
+    srv.request.drone_id = drone_id;
+    bool worked = safeTakeOffClient.call(srv);
 
+    is_safe_for_takeoff response;
+    if (worked){
+        if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << srv.response.is_save_to_take_off << endl;
+        response.takeoff_is_safe = srv.response.is_save_to_take_off;
+        response.time_til_safe_take_off = srv.response.time_to_clear;
+        if(heartbeat_msg.text == "SafeTakeOffCheack Failed"){
+            NodeState(node_monitor::heartbeat::nothing,"");
+        }
+    }else{
+        cout << "[Ground Control]: " << "SafeTakeOffcheack failed"<< endl;
+        NodeState(node_monitor::heartbeat::critical_error,"SafeTakeOffCheack Failed");
+        response.takeoff_is_safe = false;
+        response.time_til_safe_take_off = 0;
+    }
+    return response;
+}
 std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
 
     gcs::pathPlan srv;
@@ -337,6 +364,7 @@ void initialize(void){
     client = nh->serviceClient<internet::getIp>("/Internet/getIp");
     EtaClient = nh->serviceClient<gcs::getEta>("/pathplan/getEta");
     GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("pathplan/GPS2GPSdist");
+    safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/Collision_detector/safeTakeOff");
 
     sleep(2);
     /*

@@ -61,6 +61,7 @@ add_service_files(
    pathPlan.srv
    getEta.srv
    gps2distance.srv
+   safeTakeOff.srv
 )
 
 ## Generate actions in the 'action' folder
