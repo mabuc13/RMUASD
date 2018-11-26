@@ -76,6 +76,7 @@ class PrecisionLanding(object):
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/telemetry/mission_info", telemetry_mission_info, self.on_mission_info)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
+        rospy.Subscriber("/telemetry/imu_data_ned", telemetry_imu_ned, self.on_imu_data)
 
         self.landing_target_pub = rospy.Publisher("/telemetry/set_landing_target", telemetry_landing_target, queue_size=0)
 
@@ -97,6 +98,9 @@ class PrecisionLanding(object):
     def on_mission_info(self, msg):
         self.mission_idx = msg.active_waypoint_idx
         self.mission_len = msg.active_mission_len
+
+    def on_imu_data(self, msg):
+        pass
 
     def on_heartbeat_status(self, msg):
         # save the data when switching out of position mode

@@ -22,8 +22,14 @@ class KalmanFilter(object):
                                 [0, 0, 0, 0, 1, 0],
                                 [0, 0, 0, 0, 0, 1]])
 
+        # Measurements include position and accelleration in x and y
+        # TODO The accelleration should maybe be added as a control input instead of a measurement
         self.H      = np.array([[1, 0, 0, 0, 0, 0],
-                                [0, 1, 0, 0, 0, 0]])
+                                [0, 1, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 1, 0],
+                                [0, 0, 0, 0, 0, 1]])
 
         self.P_min  = np.eye(6)
         self.P_plus = np.eye(6)
@@ -31,9 +37,20 @@ class KalmanFilter(object):
         self.x_hat_min  = self.x
         self.x_hat_plus = self.x
 
+        # Members for detecting self-destruct condition
+        # self.maxPredictions = maxPredictions
+        self.predictionCount = 0
+        self.selfDestruct = False
+
+        # Members for delaying drawing feature
+        self.correctionCount = 0
+        # self.startDelay = startDelay
+        # self.valid = False
+
         # Error matrices from Agus lecture
         measurementNoise    = 0.1
         modelNoise          = 2
+        # TODO make sure matrix sizes make sense
         self.Q      = np.eye(6)*modelNoise**2*dt
         self.R      = np.eye(2)*measurementNoise**2/dt
 
@@ -51,6 +68,11 @@ class KalmanFilter(object):
         x, P = self.predict()
         x0 = self.x_hat_plus
 
+
+        # Members for detecting self-destruct condition
+        # self.maxPredictions = maxPredictions
+        self.predictionCount = 0
+        self.selfDestruct = False
         if type(y) != type(None):
             x, P = self.correct(y)
             self.predictionCount = 0
