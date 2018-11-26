@@ -25,6 +25,9 @@ class CollisionDetector:
         self.safety_dist_to_dnfz = safety_dist
         self.safety_extra_time = safety_time
 
+        self.time_threshold_for_dnfz_in_path_planning = 600  # 10 minutes
+        self.time_threshold_for_waiting_on_dnfz = 60    # 60 seconds
+
         # status variables
         rospy.sleep(1)  # wait until everything is running
 
@@ -41,10 +44,25 @@ class CollisionDetector:
         '''
         self.active_drone_paths[msg.DroneID] = msg.Path
         self.calc_dist_between_mission_points(msg.Path, msg.DroneID)
-        collision, p1, p2 = self.check_path_for_collision_with_dnfz(msg.Path, msg.DroneID)
-        if collision:
-            # There's a collision with dynamic zones between p1 and p2:
-            pass
+        start_position = Coordinate(lon=msg.Path[0].longitude, lat=msg.Path[0].latitude)
+        current_time = time.time()
+        for int_id, dnfz in self.dynamic_no_flight_zones.items():
+            if dnfz["geometry"] == "circle":
+                coord = dnfz["coordinates"]
+                coord = coord.split(',')
+                dist = self.pythagoras(start_position, Coordinate(lon=coord[0], lat=coord[1]))
+                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < current_time < (dnfz["valid_to_epoch"] +
+                                                                                         self.safety_extra_time):
+                    if dist <= (coord[2] + self.safety_dist_to_dnfz):
+                        # TODO: The drone can't take of, because it is on an active dnfz
+                        return False, int_id
+            elif dnfz["geometry"] == "polygon":
+                dist = dnfz["polygon"].distance(geometry.Point(start_position.easting, start_position.northing))
+                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < current_time < (dnfz["valid_to_epoch"] +
+                                                                                         self.safety_extra_time):
+                    if dist <= self.safety_dist_to_dnfz:
+                        # TODO: The drone can't take of, because it is on an active dnfz
+                        return False, int_id
 
     def on_drone_info(self, msg):
         '''
@@ -81,15 +99,19 @@ class CollisionDetector:
         collisions with dynamic obstacle.
         '''
         # For all active drones:
+        previous_time = None
+        previous_pos = None
         for i, val in self.active_drone_info.items():
             # for 5, 10, 15, ... , 60 seconds into the future:
-            for j in range(5,60,5):
-                position = self.calc_future_position(val.drone_id,j)
+            for j in range(5, 60, 5):
+                position = self.calc_future_position(val.drone_id, j)
                 future_time = time.time() + j
                 collision, int_id = self.is_collision_at_future_position(position, future_time)
                 if collision:
                     print("Collision detected in future....")
-                    self.make_decision_if_collision(int_id, future_time, position, val.drone_id)
+                    self.make_decision_if_collision(int_id, previous_time, previous_pos, val.drone_id)
+                previous_pos = position
+                previous_time = future_time
 
     def make_polygon(self, json_obj):
         coords = json_obj["coordinates"]
@@ -150,51 +172,6 @@ class CollisionDetector:
                     new_northing = (resulting_dist * (p2.northing - p1.northing) / self.dist_between_mission_points[drone_id][i]) + p1.northing
                     return Coordinate(northing=new_northing, easting=new_easting)
 
-    def check_path_for_collision_with_dnfz(self, path, drone_id):
-        '''
-        Create to index's to iterate through the path plan. "i" is the first waypoint, "j" is the second one.
-        If "i" is larger than "0", then set it to the index of the previously passed waypoint in the plan. There is
-        no need to check for collisions on the path, in places where the drone has already passed and is not coming
-        back to.
-        '''
-        i = 0
-        if self.active_drone_info[drone_id].mission_index > 0:
-            i = self.active_drone_info[drone_id].mission_index - 1
-        j = i + 1
-        collision_detected = False
-        p_start = Coordinate()
-        p_end = Coordinate()
-        while j <= len(path):
-            p1 = Coordinate(lat=path[i].latitude, lon=path[i].longitude)
-            p2 = Coordinate(lat=path[j].latitude, lon=path[j].longitude)
-            p3 = p1
-            dist = self.pythagoras(p1, p2)
-            delta_x = p2.easting - p1.easting
-            delta_y = p2.northing - p1.northing
-
-            # Move in a straight line between
-            for k in range(1, int(dist)):
-                p3.easting = p1.easting + delta_x * float(k/dist)
-                p3.northing = p1.northing + delta_y * float(k/dist)
-                #p3.update_geo_coordinates()
-
-                # Check for collision:
-                # Set the return coordinates to be the coord before the first collision, and the first coordinate after
-                # the collision. That way the coordinates will span over the whole collision in bound.
-                if self.dist_to_dnfz(p3):
-                    # This is the first collision detected?:
-                    if not collision_detected:
-                        collision_detected = True
-                        p_start = p1
-                    p_end = p2
-            i += 1
-            j += 1
-
-        if collision_detected:
-            return True, p_start, p_end
-        else
-            return False, None, None
-
     def pythagoras(self, p1, p2):
         return sqrt((p1.easting - p2.easting)**2 + (p1.northing - p2.northing)**2)
 
@@ -215,7 +192,24 @@ class CollisionDetector:
         return True, None
 
     def make_decision_if_collision(self, dnfz_id, at_time, at_pos, drone_id):
-        pass
+        if (self.dynamic_no_flight_zones[dnfz_id]["valid_to_epoch"] - at_time) <= self.time_threshold_for_waiting_on_dnfz:
+            print("Drone should just wait on dnfz to disappear...")
+        else:
+            print("New path plan is required...")
+            #TODO: Find two coordinates that are clear of collision. One before the collision, and one after.
+            # Find the next position on the path, where there isn't a collision:
+            clear_position = None
+            collision_time = at_time - time.time()
+            i = 5
+            while True:
+                collision_time += i
+                clear_position = self.calc_future_position(drone_id, i)
+                collision, int_id = self.is_collision_at_future_position(clear_position, collision_time)
+                if not collision:
+                    break
+                i += 1
+            # Now publish 'at_time' and 'clear_position'
+
 
 if __name__ == "__main__":
     rospy.init_node('collision_detector')  # , anonymous=True)
