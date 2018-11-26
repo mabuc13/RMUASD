@@ -52,9 +52,9 @@ class utm_parser(object):
         self.geoditic_coords = []
         self.utm_coords = []
         self.coord_conv = utmconv()
-        self.utm_trafic_debug = 1
-        self.debug = 1
-        self.path_debug = 1
+        self.utm_trafic_debug = 0
+        self.debug = 0
+        self.path_debug = 0
         self.utm_coords = []
         self.empty_map = []
         self.map_ll_reference = []
@@ -462,7 +462,28 @@ class utm_parser(object):
                 if self.debug:
                     print "Succesfully got drone data"
                 try:
-                    print "Drone data: ", data_dict
+                    #print "Drone data: ", data_dict
+                    for data in data_dict:
+                        if not data['uav_id'] == self.post_payload['uav_id']:
+                            print data
+                    '''
+                    {u'wp_next_eta_epoch': -1, 
+                    u'wp_next_alt_m': 32, 
+                    u'uav_bat_soc': 51, 
+                    u'wp_next_hdg_deg': -1, 
+                    u'pos_cur_hdg_deg': 359, 
+                    u'uav_id': 3012, 
+                    u'pos_cur_lat_dd': 55.47227, 
+                    u'wp_next_lng_dd': 10.41725, 
+                    u'pos_cur_gps_timestamp': -1, 
+                    u'pos_cur_lng_dd': 10.41726, 
+                    u'pos_cur_alt_m': 507.95, 
+                    u'pos_cur_vel_mps': 0, 
+                    u'uav_op_status': 3, 
+                    u'time_epoch': 1542898219, 
+                    u'wp_next_lat_dd': 55.47227, 
+                    u'wp_next_vel_mps': -1}
+                    '''
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve drone data, maybe there is none")
@@ -543,11 +564,21 @@ class utm_parser(object):
         if self.debug:
             print "Created empty map with height, width: ", height, width
 
+
+
     def snfz_into_empty_map(self, utm_coords, upper_right, down_left):
         if self.debug:
             print "Entered SNFZ into empty map"
         snfz_map = self.empty_map
         zone_counter = 0
+        #Adding fake Static no fly zone
+        fake_geo = [[55.472360, 10.415482, 0], [55.471622, 10.415378, 0], [55.472364, 10.416210, 0], [55.471767, 10.416256, 0]]
+        fake_utm_list = []
+        for w in fake_geo:
+            fake_utm = self.coord_conv.geodetic_to_utm(w[0], w[1])
+            fake_utm_list.append(fake_utm)
+        utm_coords.append(fake_utm_list)
+
 
         for i in utm_coords:
             current_zone = []
@@ -675,17 +706,10 @@ def main():
     par.heart_msg.rate = 1
 
     while not rospy.is_shutdown():
-<<<<<<< HEAD
         rospy.Rate(par.heart_msg.rate).sleep()
         par.heart_msg.header.stamp = rospy.Time.now()
         par.heartbeat_pub.publish(par.heart_msg)
         
-=======
-        rospy.Rate(heart_msg.rate).sleep()
-        heart_msg.header.stamp = rospy.Time.now()
-        heartbeat_pub.publish(heart_msg)
-
->>>>>>> 904b03269d90ce79d3b33cea409e0f966675af16
         par.check_dynamic_data()
         par.get_drone_data()
 
