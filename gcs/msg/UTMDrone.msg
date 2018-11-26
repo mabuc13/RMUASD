@@ -7,8 +7,8 @@ float32 cur_vel
 float32 next_heading
 float32 cur_heading
 
-uint64 time
-uint64 gps_time
+int64 time
+int64 gps_time
 
 float32 battery_soc
 

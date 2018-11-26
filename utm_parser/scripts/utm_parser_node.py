@@ -99,6 +99,7 @@ class utm_parser(object):
 
         self.dnfz_pub = rospy.Publisher('/utm/dynamic_no_fly_zones', String, queue_size=10)
         self.heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+        self.utm_drones_pub = rospy.Publisher('/utm/dronesList',UTMDroneList, queue_size=10)
         self.heart_msg = heartbeat()
 
         self.recent_drone = dict_init()
@@ -414,7 +415,7 @@ class utm_parser(object):
                 return return_map
 
     def get_drone_data(self):
-
+        debug = False
         if self.debug:
             print "Entering get drone data \n"
 
@@ -469,31 +470,33 @@ class utm_parser(object):
                     print "Succesfully got drone data"
                 try:
                     #print "Drone data: ", data_dict
-                    msg = UTMDroneList.msg
+                    msg = UTMDroneList()
+                    i = 1
                     for data in data_dict:
-                        if not data['uav_id'] == self.post_payload['uav_id']:
-                            print data
+                        if debug:
+                            print 'data[' + str(i)+ '/' + str(len(data_dict))+']'
+                            i= i+1
                         if self.recent_drone[data['uav_id']] < data['time_epoch']:
-                            self.recent_drone[data['uav_id']] = data['time_epoch']
+                            self.recent_drone[data['uav_id']] = data['time_epoch']                           
                             drone = UTMDrone()
-                            drone.next_wp.latitude = data['wp_next_lat_dd']
-                            drone.next_wp.longitude = data['wp_next_lng_dd']
-                            drone.next_wp.altitude = data['wp_next_alt_m']
+                            drone.next_WP.latitude = data['wp_next_lat_dd']
+                            drone.next_WP.longitude = data['wp_next_lng_dd']
+                            drone.next_WP.altitude = data['wp_next_alt_m']
                             drone.cur_pos.latitude = data['pos_cur_lat_dd']
                             drone.cur_pos.longitude = data['pos_cur_lng_dd']
                             drone.cur_pos.altitude = data['pos_cur_alt_m']
                             drone.next_vel = data['wp_next_vel_mps']
                             drone.cur_vel = data['pos_cur_vel_mps']
-                            drone.next_heading = data['']
+                            drone.next_heading = data['wp_next_hdg_deg']
                             drone.cur_heading = data['pos_cur_hdg_deg']
                             drone.time = data['time_epoch']
-                            drone.gps_time['pos_cur_gps_timestamp']
+                            drone.gps_time = data['pos_cur_gps_timestamp']
                             drone.battery_soc = data['uav_bat_soc']
                             drone.drone_priority = data['uav_op_status']
                             drone.ETA_next_WP = data['wp_next_eta_epoch']
                             drone.drone_id = data['uav_id']
-
                             msg.drone_list.append(drone)
+                    self.utm_drones_pub.publish(msg)
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve drone data, maybe there is none")
