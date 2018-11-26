@@ -115,27 +115,30 @@ void QNode::handle_NodeMonitorHeart(node_monitor::heartbeat msg){
     _node_monitor_time = msg.header.stamp;
     _node_monitor_rate = msg.rate;
     
-    if(msg.text.length()> 0){
+    if(msg.text.length()> 0 && !(msg.text == _last_text_msg)){
         string severity = "";
         if(msg.severity == node_monitor::heartbeat::info){
             severity = "info";
+            msg.severity = 6;
         }else if(msg.severity == node_monitor::heartbeat::warning){
             severity = "warning";
+            msg.severity=5;
         }else if(msg.severity == node_monitor::heartbeat::error){
             severity = "error";
-            msg.severity++;
+            msg.severity=2;
         }else if(msg.severity == node_monitor::heartbeat::critical_error){
             severity = "critical";
-            msg.severity++;
+            msg.severity=1;
         }else if(msg.severity == node_monitor::heartbeat::fatal_error){
             severity = "fatal";
-            msg.severity++;
+            msg.severity=0;
         }
+        _last_text_msg = msg.text;
         string text ="["+severity+"][" +patch::to_string(ros::Time::now().sec) +"]: " + msg.text+"\n";
         Q_EMIT sig_telemetryStatus(msg.severity,text.c_str());
     }
     if(msg.severity != _node_monitor_severity){
-        _node_monitor_severity = msg.severity;
+        _node_monitor_severity = 1;
         Q_EMIT sig_nodeState("node_monitor",_node_monitor_severity,node_monitor::nodeOk::fine);
     }
 }
@@ -225,6 +228,7 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
         theDrone->msg_dropped_uas = msg.msg_dropped_uas;
         //TODO
     }
+    msg.active_waypoint_idx++;
     if(theDrone->drone_wayPoints !=msg.active_waypoint_idx	||
             theDrone->drone_missionLength != msg.active_mission_len){
         theDrone->drone_wayPoints = msg.active_waypoint_idx;
@@ -318,6 +322,7 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
                                 theDrone->next_waypoint.longitude,
                                 theDrone->next_waypoint.latitude);
     }
+    msg.mission_index++;
     if(theDrone->missionIndex != msg.mission_index){
         theDrone->missionIndex = msg.mission_index;
         Q_EMIT sig_missionIndex(theDrone->missionIndex);

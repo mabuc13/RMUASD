@@ -13,7 +13,7 @@ Descriptors: MB = Mark Buch (mabuc13@student.sdu.dk)
 
 """
 Description:
-This class will handle post and get to the UTM from the GCS. 
+This class will handle post and get to the UTM from the GCS.
 The idea is to have each request as a seperate method.
 
 License: BSD 3-Clause
@@ -41,6 +41,10 @@ import math
 # Disable warning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+class dict_init(dict):
+    def __missing__(self, key):
+        return 0
 
 class utm_parser(object):
     def __init__(self):
@@ -83,6 +87,7 @@ class utm_parser(object):
             'wp_next_eta_epoch': -1,
             'uav_bat_soc': -1
         }
+        self.last_info_pub = time.time()
         self.path_flag = False
         self.latest_dynamic_data = self.get_dynamic_nfz()
         self.published_first_dnfz = 0
@@ -93,6 +98,11 @@ class utm_parser(object):
         self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
 
         self.dnfz_pub = rospy.Publisher('/utm/dynamic_no_fly_zones', String, queue_size=10)
+        self.heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+        self.utm_drones_pub = rospy.Publisher('/utm/dronesList',UTMDroneList, queue_size=10)
+        self.heart_msg = heartbeat()
+
+        self.recent_drone = dict_init()
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
@@ -143,63 +153,73 @@ class utm_parser(object):
         return ros_map, self.map_res, self.map_width, self.map_height
 
     def post_drone_info_handler(self, msg):
+        dummy_payload = self.post_payload
+        now = time.time()
+        if now-self.last_info_pub >= 1:
+            GPS_pos = msg.position
+            self.post_payload['pos_cur_lat_dd'] = GPS_pos.latitude
+            self.post_payload['pos_cur_lng_dd'] = GPS_pos.longitude
+            self.post_payload['pos_cur_alt_m'] = msg.absolute_alt
 
-        GPS_pos = msg.position
-        self.post_payload['pos_cur_lat_dd'] = GPS_pos.latitude
-        self.post_payload['pos_cur_lng_dd'] = GPS_pos.longitude
-        self.post_payload['pos_cur_alt_m'] = GPS_pos.altitude
+            wp_geo = msg.next_waypoint
+            """
+            utm_pos = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
 
-        wp_geo = msg.next_waypoint
-        """
-        utm_pos = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
-       
-        head_vec = [utm_wp[3]-utm_pos[3], utm_wp[4]-utm_pos[4]]
-        if self.debug:
-            print "Vector for heading: ", head_vec
-        vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
-        """
+            head_vec = [utm_wp[3]-utm_pos[3], utm_wp[4]-utm_pos[4]]
+            if self.debug:
+                print "Vector for heading: ", head_vec
+            vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+            """
 
-        self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
-        self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
-        self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp
-        self.post_payload['wp_next_lat_dd'] = wp_geo.latitude
-        self.post_payload['wp_next_lng_dd'] = wp_geo.longitude
-        self.post_payload['wp_next_alt_m'] = wp_geo.altitude
+            self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
+            self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
+            self.post_payload['pos_cur_gps_timestamp'] = -1
+            #print "msgGPS: ", msg.GPS_timestamp, " msg.wp lon lat: ", msg.next_waypoint
+            self.post_payload['wp_next_lat_dd'] = wp_geo.latitude
+            self.post_payload['wp_next_lng_dd'] = wp_geo.longitude
+            self.post_payload['wp_next_alt_m'] = wp_geo.altitude
 
-        self.post_payload['uav_bat_soc'] = msg.battery_SOC
+            self.post_payload['uav_bat_soc'] = msg.battery_SOC
 
-        if self.path_flag:
-            next_wp_geo = self.path[len(self.path)-1]
-            if msg.mission_index+1 < len(self.path):
-                if self.debug:
-                    print("Misssion ["+str(msg.mission_index+1)+"/"+str(msg.mission_length)+"] len: " +str(len(self.path)))
-                next_wp_geo = self.path[msg.mission_index+1]
+            if self.path_flag:
 
-            next_wp_utm = self.coord_conv.geodetic_to_utm(next_wp_geo.latitude, next_wp_geo.longitude)
-            utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
-            head_vec = [utm_wp[3]-next_wp_utm[3], utm_wp[4]-next_wp_utm[4]]
-            vec_degree = 90
-            if not head_vec[0] == 0:
-                vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
-            vec_degree += 90
-            vec_degree = 360 - vec_degree
-            if self.path_debug:
-                print "Msg.mission_wp: ", msg.mission_index
+                if msg.mission_index+1 < len(self.path):
+                    if self.debug:
+                        print("Misssion ["+str(msg.mission_index+1)+"/"+str(msg.mission_length)+"] len: " +str(len(self.path)))
+                    next_wp_geo = self.path[msg.mission_index+1]
 
-                #print "Vector for heading: ", head_vec
-                #print "Heading on this vector: ", vec_degree
+                    next_wp_utm = self.coord_conv.geodetic_to_utm(next_wp_geo.latitude, next_wp_geo.longitude)
+                    utm_wp = self.coord_conv.geodetic_to_utm(wp_geo.latitude, wp_geo.longitude)
+                    head_vec = [utm_wp[3]-next_wp_utm[3], utm_wp[4]-next_wp_utm[4]]
+                    vec_degree = 90
+                    if not head_vec[0] == 0:
+                        vec_degree = math.atan(head_vec[1]/head_vec[0])*180/math.pi #0 equals to east
+                    vec_degree += 90
+                    vec_degree = 360 - vec_degree
+                    if self.path_debug:
+                        print "Msg.mission_wp: ", msg.mission_index
+
+                        #print "Vector for heading: ", head_vec
+                        #print "Heading on this vector: ", vec_degree
 
 
-            self.post_payload['wp_next_hdg_deg'] = vec_degree
-            self.post_payload['wp_next_vel_mps'] = msg.ground_speed
-            self.post_payload['wp_next_eta_epoch'] = time.time() # <<-------------- CALC
+                    self.post_payload['wp_next_hdg_deg'] = vec_degree
+                    self.post_payload['wp_next_vel_mps'] = 5
+                    pos_utm = self.coord_conv.geodetic_to_utm(GPS_pos.latitude, GPS_pos.longitude)
+                    length = math.sqrt((pos_utm[3]-utm_wp[3])**2+(pos_utm[4]-utm_wp[4])**2)
+                    time_to_wp = length/msg.ground_speed
+                    self.post_payload['wp_next_eta_epoch'] = time.time() + time_to_wp
+
+            self.push_drone_data(self.post_payload)
+            self.last_info_pub = time.time()
 
         self.push_drone_data(self.post_payload)
-        print self.post_payload
+        #print self.post_payload
 
     def push_drone_data(self, payload):
         if self.utm_trafic_debug:
             print colored('Trying to POST the data...', 'yellow')
+            print payload
         r = ''
         try:
             r = requests.post(url='https://droneid.dk/rmuasd/utm/tracking_data.php', data=payload, timeout=2)
@@ -313,14 +333,7 @@ class utm_parser(object):
                 right_now = time.time()
                 try:
 
-                    #print data_dict
-                    if self.utm_trafic_debug:
-                        print "Current time: ", time.time()
-                        print "Trial and error: ", data_dict[0]['valid_from_epoch']
-                        time_to_active = float(data_dict[0]['valid_from_epoch']) - right_now
-                        print "Time to active: ", time_to_active
-                        ending = float(data_dict[0]['valid_to_epoch'])
-                        print "Time left: ", ending - right_now
+                    dummy = 1
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve DNFZ, maybe there is none")
@@ -402,12 +415,12 @@ class utm_parser(object):
                 return return_map
 
     def get_drone_data(self):
-
+        debug = False
         if self.debug:
             print "Entering get drone data \n"
 
         self.payload = {
-            'time_delta_s' : 1
+
         }
         r = ''
         try:
@@ -422,14 +435,15 @@ class utm_parser(object):
             if self.utm_trafic_debug:
                 print colored('Request has too many redirects', 'red')
         except requests.exceptions.HTTPError as err:
-
-            print colored('HTTP error', 'red')
-            print colored(err, 'yellow')
+            if self.utm_trafic_debug:
+                print colored('HTTP error', 'red')
+                print colored(err, 'yellow')
             # sys.exit(1) # Consider the exit since it might be unintentional in some cases
         except requests.exceptions.RequestException as err:
             # Catastrophic error; bail.
-            print colored('Request error', 'red')
-            print colored(err, 'yellow')
+            if self.utm_trafic_debug:
+                print colored('Request error', 'red')
+                print colored(err, 'yellow')
             sys.exit(1)
         else:
             if self.utm_trafic_debug:
@@ -444,12 +458,45 @@ class utm_parser(object):
 
 
             except:
-                print colored('Failed to get drone data', 'red')
+                #print colored('Failed to get drone data', 'red')
+                self.heart_msg.severity = heartbeat.error
+                self.heart_msg.text = 'Failed to get drone data'
             else:
+                if self.heart_msg.text == 'Failed to get drone data':
+                    self.heart_msg.severity = heartbeat.nothing
+                    self.heart_msg.text = ''
+
                 if self.debug:
                     print "Succesfully got drone data"
                 try:
-                    print "Drone data: ", data_dict
+                    #print "Drone data: ", data_dict
+                    msg = UTMDroneList()
+                    i = 1
+                    for data in data_dict:
+                        if debug:
+                            print 'data[' + str(i)+ '/' + str(len(data_dict))+']'
+                            i= i+1
+                        if self.recent_drone[data['uav_id']] < data['time_epoch']:
+                            self.recent_drone[data['uav_id']] = data['time_epoch']                           
+                            drone = UTMDrone()
+                            drone.next_WP.latitude = data['wp_next_lat_dd']
+                            drone.next_WP.longitude = data['wp_next_lng_dd']
+                            drone.next_WP.altitude = data['wp_next_alt_m']
+                            drone.cur_pos.latitude = data['pos_cur_lat_dd']
+                            drone.cur_pos.longitude = data['pos_cur_lng_dd']
+                            drone.cur_pos.altitude = data['pos_cur_alt_m']
+                            drone.next_vel = data['wp_next_vel_mps']
+                            drone.cur_vel = data['pos_cur_vel_mps']
+                            drone.next_heading = data['wp_next_hdg_deg']
+                            drone.cur_heading = data['pos_cur_hdg_deg']
+                            drone.time = data['time_epoch']
+                            drone.gps_time = data['pos_cur_gps_timestamp']
+                            drone.battery_soc = data['uav_bat_soc']
+                            drone.drone_priority = data['uav_op_status']
+                            drone.ETA_next_WP = data['wp_next_eta_epoch']
+                            drone.drone_id = data['uav_id']
+                            msg.drone_list.append(drone)
+                    self.utm_drones_pub.publish(msg)
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve drone data, maybe there is none")
@@ -496,8 +543,6 @@ class utm_parser(object):
 
             return self.utm_coords
 
-
-
     def print_nested_list(self, nested_list):
         if self.debug:
             print "Entering print_nested_list"
@@ -508,7 +553,6 @@ class utm_parser(object):
             for j in nested_list[outer_cnt]:
                 print j, '\n'
             outer_cnt += 1
-
 
     def create_empty_map(self, ll_utm, ur_utm):
         delta_x = ur_utm[3] - ll_utm[3]
@@ -534,11 +578,20 @@ class utm_parser(object):
             print "Created empty map with height, width: ", height, width
 
 
+
     def snfz_into_empty_map(self, utm_coords, upper_right, down_left):
         if self.debug:
             print "Entered SNFZ into empty map"
         snfz_map = self.empty_map
         zone_counter = 0
+        #Adding fake Static no fly zone
+        fake_geo = [[55.472360, 10.415482, 0], [55.471622, 10.415378, 0], [55.472364, 10.416210, 0], [55.471767, 10.416256, 0]]
+        fake_utm_list = []
+        for w in fake_geo:
+            fake_utm = self.coord_conv.geodetic_to_utm(w[0], w[1])
+            fake_utm_list.append(fake_utm)
+        utm_coords.append(fake_utm_list)
+
 
         fake_geo = [[55.472360, 10.415482, 0], [55.471622, 10.415378, 0], [55.472364, 10.416210, 0],
                     [55.471767, 10.416256, 0]]
@@ -630,8 +683,6 @@ class utm_parser(object):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-
-
     def print_test_coords(self):
         print "ll coord: ", self.coord_conv.utm_to_geodetic(self.ll_dummy[0], self.ll_dummy[1], self.ll_dummy[3], self.ll_dummy[4])
         print "UR coord: ", self.coord_conv.utm_to_geodetic(self.ur_dummy[0], self.ur_dummy[1], self.ur_dummy[3], self.ur_dummy[4])
@@ -672,16 +723,13 @@ def main():
     #par.get_static_nfz()
 
     #par.print_zones()
-
-    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
-    heart_msg = heartbeat()
-    heart_msg.header.frame_id = 'utm_parser'
-    heart_msg.rate = 1
+    par.heart_msg.header.frame_id = 'utm_parser'
+    par.heart_msg.rate = 1
 
     while not rospy.is_shutdown():
-        rospy.Rate(heart_msg.rate).sleep()
-        heart_msg.header.stamp = rospy.Time.now()
-        heartbeat_pub.publish(heart_msg)
+        rospy.Rate(par.heart_msg.rate).sleep()
+        par.heart_msg.header.stamp = rospy.Time.now()
+        par.heartbeat_pub.publish(par.heart_msg)
         
         par.check_dynamic_data()
         par.get_drone_data()

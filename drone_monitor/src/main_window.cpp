@@ -97,6 +97,49 @@ MainWindow::~MainWindow() {}
 /*****************************************************************************
 ** Implemenation [Slots][manually connected]
 *****************************************************************************/
+namespace  {
+QString getResponseText(int response){
+    QString text;
+    if(response == node_monitor::nodeOk::fine){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#00ff00;'>Fine</span></p>");
+    }else if(response == node_monitor::nodeOk::late){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#ffff00;'>Late</span></p>");
+    }else if(response == node_monitor::nodeOk::none_responsive){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#ff0000;'>Dead</span></p>");
+    }else{
+       text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#000000;'>ERROR</span></p>");
+    }
+    return text;
+}
+QString getStatusText(int status){
+    QString text;
+    if(status == node_monitor::heartbeat::nothing || status == node_monitor::heartbeat::info){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#00ff00;'>Fine</span></p>");
+    }else if(status == node_monitor::heartbeat::warning){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#ffff00;'>Warning</span></p>");
+    }else if(status == node_monitor::heartbeat::error){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#ff2000;'>Error</span></p>");
+    }else if(status == node_monitor::heartbeat::critical_error){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#ff1000;'>Critical</span></p>");
+    }else if(status == node_monitor::heartbeat::fatal_error){
+        text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#ff0000;'>Fatal</span></p>");
+    }else{
+       text = QString(
+            "<p><span style=' font-size:9pt; font-weight:600; color:#000000;'>Unknown</span></p>");
+    }
+    return text;
+}
+}
+
 void MainWindow::set_nodeState(QString name, int ownStatus, int response){
     
     bool newNode = true;
@@ -104,27 +147,15 @@ void MainWindow::set_nodeState(QString name, int ownStatus, int response){
     for(size_t i = 0; i < this->monitoredNodes.size(); i++){
         if(this->monitoredNodes[i].name->text() == name){
             newNode = false;
-            this->monitoredNodes[i].state->setText(patch::to_string(ownStatus).c_str());
-            if(response == node_monitor::nodeOk::fine){
-                this->monitoredNodes[i].response->setText(
-                    "<p><span style=' font-size:9pt; font-weight:600; color:#00ff00;'>Fine</span></p>");
-            }else if(response == node_monitor::nodeOk::late){
-                this->monitoredNodes[i].response->setText(
-                    "<p><span style=' font-size:9pt; font-weight:600; color:#ffff00;'>Late</span></p>");
-            }else if(response == node_monitor::nodeOk::none_responsive){
-                this->monitoredNodes[i].response->setText(
-                    "<p><span style=' font-size:9pt; font-weight:600; color:#ff0000;'>Dead</span></p>");
-            }else{
-               this->monitoredNodes[i].response->setText(
-                    "<p><span style=' font-size:9pt; font-weight:600; color:#000000;'>ERROR</span></p>"); 
-            }
+            this->monitoredNodes[i].state->setText(getStatusText(ownStatus));
+            this->monitoredNodes[i].response->setText(getResponseText(response));
         }
     }
     if(newNode){
         QNodeStateLabel tmp;
         tmp.name = new QLabel(name);
-        tmp.response = new QLabel(patch::to_string(response).c_str());
-        tmp.state = new QLabel(patch::to_string(ownStatus).c_str());
+        tmp.response = new QLabel(getResponseText(response));
+        tmp.state = new QLabel(getStatusText(ownStatus));
         ui.gridLayout_NodeStates->addWidget(tmp.name,monitoredNodes.size()+1,0);
         ui.gridLayout_NodeStates->addWidget(tmp.response,monitoredNodes.size()+1,1);
         ui.gridLayout_NodeStates->addWidget(tmp.state,monitoredNodes.size()+1,2);

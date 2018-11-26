@@ -78,7 +78,8 @@ class PathPlanner(object):
             kml.trkpt(i.lat, i.lon, 0.0)
         kml.trksegend()
         kml.end()
-
+    
+    
 
 def handle_getPathPlan(req):
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
@@ -105,7 +106,6 @@ def handle_distanceCalculations(req):
     obj = eta()
     distance = obj.distance_between_positions(req.point1,req.point2)
     return gps2distanceResponse(distance)
-
 
 if __name__ == '__main__':
     rospy.init_node('pathplan')
@@ -141,9 +141,10 @@ if __name__ == '__main__':
     print("[Path planner]: "+"Path planner running")
     heart_msg = heartbeat()
     heart_msg.header.frame_id = 'pathplan'
-    heart_msg.rate = 10
+    heart_msg.rate = 1
 
     while not rospy.is_shutdown():
         rospy.Rate(heart_msg.rate).sleep()
         heart_msg.header.stamp = rospy.Time.now()
         heartbeat_pub.publish(heart_msg)
+
