@@ -13,10 +13,25 @@
 #include <QMessageBox>
 #include <iostream>
 #include "../include/drone_monitor/main_window.hpp"
+#include <string>
+
+#ifndef Q_MOC_RUN
+	#include <node_monitor/heartbeat.h>
+	#include <node_monitor/nodeOk.h>
+#endif
 
 /*****************************************************************************
 ** Namespaces
 *****************************************************************************/
+namespace patch
+{
+    template < typename T > std::string to_string( const T& n )
+    {
+        std::ostringstream stm ;
+        stm << n ;
+        return stm.str() ;
+    }
+}
 
 namespace drone_monitor {
 
@@ -64,9 +79,12 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode,SIGNAL(sig_droneHandlerState(QString)),this,SLOT(set_droneHandlerState(QString)));
     QObject::connect(&qnode,SIGNAL(sig_telemetryStatus(int,QString)),this,SLOT(set_telemetryStatus(int,QString)));
     QObject::connect(&qnode,SIGNAL(sig_gcsJobState(int,QString)),this,SLOT(set_gcsJobState(int,QString)));
+    QObject::connect(&qnode,SIGNAL(sig_nodeState(QString,int,int)),this,SLOT(set_nodeState(QString,int,int)));
     qnode.init();
 
-
+    ui.gridLayout_NodeStates->addWidget(new QLabel("<b>NodeName<\b>"),0,0);
+    ui.gridLayout_NodeStates->addWidget(new QLabel("<b>Response<\b>"),0,1);
+    ui.gridLayout_NodeStates->addWidget(new QLabel("<b>Status<\b>"),0,2);
 }
 
 MainWindow::~MainWindow() {}
@@ -79,6 +97,42 @@ MainWindow::~MainWindow() {}
 /*****************************************************************************
 ** Implemenation [Slots][manually connected]
 *****************************************************************************/
+void MainWindow::set_nodeState(QString name, int ownStatus, int response){
+    
+    bool newNode = true;
+    //std::cout << name.toUtf8().constData() << endl;
+    for(size_t i = 0; i < this->monitoredNodes.size(); i++){
+        if(this->monitoredNodes[i].name->text() == name){
+            newNode = false;
+            this->monitoredNodes[i].state->setText(patch::to_string(ownStatus).c_str());
+            if(response == node_monitor::nodeOk::fine){
+                this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#00ff00;'>Fine</span></p>");
+            }else if(response == node_monitor::nodeOk::late){
+                this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#ffff00;'>Late</span></p>");
+            }else if(response == node_monitor::nodeOk::none_responsive){
+                this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#ff0000;'>Dead</span></p>");
+            }else{
+               this->monitoredNodes[i].response->setText(
+                    "<p><span style=' font-size:9pt; font-weight:600; color:#000000;'>ERROR</span></p>"); 
+            }
+        }
+    }
+    if(newNode){
+        QNodeStateLabel tmp;
+        tmp.name = new QLabel(name);
+        tmp.response = new QLabel(patch::to_string(response).c_str());
+        tmp.state = new QLabel(patch::to_string(ownStatus).c_str());
+        ui.gridLayout_NodeStates->addWidget(tmp.name,monitoredNodes.size()+1,0);
+        ui.gridLayout_NodeStates->addWidget(tmp.response,monitoredNodes.size()+1,1);
+        ui.gridLayout_NodeStates->addWidget(tmp.state,monitoredNodes.size()+1,2);
+        monitoredNodes.push_back(tmp);
+    }
+
+}
+
 
 void MainWindow::set_armed(bool isArmed){
     if(isArmed){
@@ -305,7 +359,6 @@ void MainWindow::set_gcsJobState(int state, QString text){
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     QMainWindow::closeEvent(event);
-    qnode.close();
 }
 
 }  // namespace drone_monitor

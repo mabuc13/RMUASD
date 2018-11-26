@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
   rospy
   message_generation
   std_msgs
+  geometry_msgs
   mavlink_lora
   node_monitor
 )
@@ -58,6 +59,7 @@ add_message_files(
   telemetry_vfr_hud.msg
   telemetry_home_position.msg
   telemetry_cmd_retry_fail.msg
+  telemetry_landing_target.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -85,6 +87,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
+  geometry_msgs
   mavlink_lora
 )
 

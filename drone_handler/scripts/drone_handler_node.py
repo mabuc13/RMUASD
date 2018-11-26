@@ -12,11 +12,12 @@ from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String, Time
 from std_srvs.srv import Trigger, TriggerResponse
 from telemetry.msg import * # pylint: disable=W0614
-from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack
+from mavlink_lora.msg import mavlink_lora_attitude, mavlink_lora_pos, mavlink_lora_status, mavlink_lora_mission_ack, mavlink_lora_command_ack
 from gcs.msg import DroneInfo, GPS, NiceInfo
+from node_monitor.msg import heartbeat
 
 # defines
-INFO_FREQ = 5
+INFO_FREQ = 10
 
 # parameters
 update_interval = 10
@@ -54,6 +55,7 @@ class DroneHandler(object):
         rospy.Subscriber("/telemetry/home_position", telemetry_home_position, self.on_home_position)
         rospy.Subscriber("/telemetry/cmd_retry_fail", telemetry_cmd_retry_fail, self.on_cmd_fail)
         rospy.Subscriber("/mavlink_interface/mission/ack", mavlink_lora_mission_ack, self.on_mission_ack)
+        rospy.Subscriber("/mavlink_interface/command/ack", mavlink_lora_command_ack, self.on_command_ack)
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
         rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
@@ -74,7 +76,6 @@ class DroneHandler(object):
             drone.update_mission(msg.Path)
             drone.start_mission()
         
-
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
@@ -84,6 +85,8 @@ class DroneHandler(object):
             drone.autopilot     = msg.autopilot
             drone.type          = msg.mav_type
             drone.state         = msg.mav_state
+
+            drone.manual_mission.update_flight_mode(msg.main_mode, msg.sub_mode)
 
     def on_mav_mode(self, msg):
         if msg.system_id in self.drones:
@@ -124,7 +127,7 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.active_sub_waypoint_idx   = msg.active_waypoint_idx
+            drone.active_mission_idx        = msg.active_waypoint_idx
             drone.active_sub_mission_len    = msg.active_mission_len
             drone.active_sub_waypoint       = msg.current_item
 
@@ -143,7 +146,9 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.battery_volt = msg.batt_volt / 1000.0
+            drone.battery_voltage = msg.batt_volt / 1000.0
+            drone.battery_SOC = msg.batt_remaining
+            drone.cpu_load = msg.cpu_load
             drone.msg_sent_gcs = msg.msg_sent_gcs
             drone.msg_received_gcs = msg.msg_received_gcs
             drone.msg_dropped_gcs = msg.msg_dropped_gcs
@@ -160,12 +165,19 @@ class DroneHandler(object):
             drone.absolute_alt = msg.alt
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
+
+            drone.manual_mission.update_position(msg)
             # drone.last_heard = msg.header.stamp
 
     def on_mission_ack(self, msg):
         if msg.drone_id in self.drones:
             drone = self.drones[msg.drone_id]
             drone.on_mission_ack(msg)
+
+    def on_command_ack(self, msg):
+        if msg.drone_id in self.drones:
+            drone = self.drones[msg.drone_id]
+            drone.on_command_ack(msg)
 
     def send_info_cb(self, event):
         # TODO iterate over all drones
@@ -181,7 +193,8 @@ class DroneHandler(object):
                 armed=drone.armed,
                 ground_speed=drone.ground_speed,
                 heading=drone.heading,
-                battery_SOC=drone.battery_volt,
+                battery_voltage=drone.battery_voltage,
+                battery_SOC=drone.battery_SOC,
                 relative_alt=drone.relative_alt,
                 absolute_alt=drone.absolute_alt,
                 # GPS_timestamp=,
@@ -193,7 +206,7 @@ class DroneHandler(object):
             nice2know = NiceInfo(
                 drone_id=drone.id,
                 drone_handler_state=str(drone.fsm_state),
-                last_heard=drone.last_heard,
+                last_heard=drone.last_heard, 
                 up_time=int(drone.up_time),
                 RPY=[drone.roll, drone.pitch, drone.yaw],
                 main_flightmode=drone.main_mode,
@@ -202,8 +215,8 @@ class DroneHandler(object):
                 msg_received_gcs=drone.msg_received_gcs,
                 msg_dropped_gcs=drone.msg_dropped_gcs,
                 msg_dropped_uas=drone.msg_dropped_uas,
-                active_waypoint_idx=drone.active_sub_waypoint_idx,
-                active_mission_len=drone.active_sub_mission_len,
+                active_waypoint_idx=drone.active_mission_idx,
+                active_mission_len=drone.active_mission_len,
                 armed=drone.armed,
                 manual_input=drone.manual_input,
                 hil_simulation=drone.hil_simulation,
@@ -217,6 +230,7 @@ class DroneHandler(object):
                 mav_type=drone.type,
                 climb_rate=drone.climb_rate,
                 throttle=drone.throttle,
+                cpu_load=drone.cpu_load,
                 home=drone.home_position
             )
 
@@ -255,6 +269,11 @@ if __name__ == "__main__":
     rospy.on_shutdown(dh.shutdownHandler)
     # rospy.spin()
 
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'drone_handler'
+    heart_msg.rate = update_interval
+        
     while not rospy.is_shutdown():
 
         # # this makes sure that both function calls is run in the same thread, so it is easier to detect exceptions
@@ -265,5 +284,6 @@ if __name__ == "__main__":
         # if dh.run_ready:
         #     dh.run()
         #     dh.run_ready = False
-
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
         dh.rate.sleep()

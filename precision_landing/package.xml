@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package>
+  <name>precision_landing</name>
+  <version>0.0.0</version>
+  <description>Node that communicates with the landing sensor to retrieve the landing target</description>
+
+  <!-- One maintainer tag required, multiple allowed, one person per tag -->
+  <!-- Example:  -->
+  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
+  <maintainer email="khans13@student.sdu.dk">Kristian Møller Hansen</maintainer>
+
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>telemetry</build_depend>
+  <run_depend>telemetry</run_depend>
+  <build_depend>node_monitor</build_depend>
+  <run_depend>node_monitor</run_depend>
+
+  <export>
+
+  </export>
+</package>

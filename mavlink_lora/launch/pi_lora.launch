@@ -1,0 +1,15 @@
+<!-- launch file -->
+
+<launch>
+
+	<!-- node pkg="rosbag" name="rosbag_record" type="record" args="-a"/ -->
+
+	<node pkg="mavlink_lora" type="mavlink_lora_node" name="mavlink_lora" respawn="true" output="screen">
+		<param name="serial_device" value="/dev/ttyAMA0"/>
+		<param name="serial_baudrate" value="57600"/>
+	</node>
+ 	<node pkg="telemetry" type="telemetry_node.py" name="telemetry" output="screen"></node>
+ 	<node pkg="pi_monitor" type="pi_monitor_node.py" name="pi_monitor" output="screen"></node>
+ 	<node pkg="precision_landing" type="precision_landing_node.py" name="precision_landing" output="screen"></node>
+
+</launch>

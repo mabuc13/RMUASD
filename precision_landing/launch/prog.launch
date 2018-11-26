@@ -1,0 +1,3 @@
+<launch>
+   <node name="precision_landing" pkg="precision_landing" type="precision_landing_node.py" output="screen" />
+</launch>
