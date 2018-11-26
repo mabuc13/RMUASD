@@ -297,7 +297,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
     }
 }
 void Collision_Handler(gcs::inCollision msg){
-
+    
 }
 
 

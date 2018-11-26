@@ -51,6 +51,8 @@ catkin_python_setup()
    NiceInfo.msg
    DroneSingleValue.msg
    inCollision.msg
+   UTMDrone.msg
+   UTMDroneList.msg
 )
 
 ## Generate services in the 'srv' folder
