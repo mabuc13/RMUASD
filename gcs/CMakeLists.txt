@@ -51,6 +51,8 @@ catkin_python_setup()
    NiceInfo.msg
    DroneSingleValue.msg
    inCollision.msg
+   UTMDrone.msg
+   UTMDroneList.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -59,6 +61,7 @@ add_service_files(
    pathPlan.srv
    getEta.srv
    gps2distance.srv
+   safeTakeOff.srv
 )
 
 ## Generate actions in the 'action' folder
