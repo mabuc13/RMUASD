@@ -7,6 +7,8 @@ import datetime
 import numpy as np
 import rmsd
 import copy
+import kalman
+import kalman_acc3
 from utm import utmconv
 from smbus2 import SMBus
 from math import isnan
@@ -17,7 +19,7 @@ from geometry_msgs.msg import Point
 from node_monitor.msg import heartbeat
 
 # defines
-RECORDING_FLIGHT_MODE = "Position Control"
+RECORDING_FLIGHT_MODE = "Altitude Control"
 TAG_ADDRESS = 13
 
 LANDING_TARGET_REF = 0
@@ -63,12 +65,23 @@ class PrecisionLanding(object):
         self.mission_idx = 0
         self.mission_len = 0
 
+        dt = 1/13
+        self.state = np.zeros((4,1), float)
+        self.kalman = kalman.KalmanFilter(self.state, dt)
+        # self.state = np.zeros((6,1), float)
+        # self.kalman = kalman3.KalmanFilter(self.state, dt)
+        # self.state = np.zeros((9,1), float)
+        # self.kalman = kalman_acc3.KalmanFilter(self.state, dt)
+ 
+        self.filtered_pos = Point()
         self.local_drone_pos = Point()
         self.landing_target = Point()
         self.landing_coords = Point(1.17, 0.75, 0)
 
         self.data = np.empty((0,4), float)   
         self.local_data = np.empty((0,3), float)
+        # self.filtered_data = np.empty((0,3), float)
+        self.filtered_data = np.empty((0,2), float)
         self.rotation_matrix = np.array([[1,0],[0,1]])
 
         rospack = rospkg.RosPack()
@@ -87,29 +100,48 @@ class PrecisionLanding(object):
         self.lon = msg.lon
         self.alt = msg.alt
 
-        if self.recording:
-            # rospy.loginfo("Pos!")
-            if self.get_landing_target():
-                (_, _, _, easting, northing) = self.utmconv.geodetic_to_utm(self.lat, self.lon)
-                self.data = np.append(self.data, np.array([[easting, northing, self.local_drone_pos.x, self.local_drone_pos.y]]), axis=0)
-                self.local_data = np.append(self.local_data, np.array([[self.local_drone_pos.x, self.local_drone_pos.y, self.local_drone_pos.z]]), axis=0)
-                msg = telemetry_landing_target(
-                    landing_target=self.landing_target
-                )
-                self.landing_target_pub.publish(msg)
+        # if self.recording:
+        #     # rospy.loginfo("Pos!")
+        #     if self.get_landing_target():
+        #         (_, _, _, easting, northing) = self.utmconv.geodetic_to_utm(self.lat, self.lon)
+        #         self.data = np.append(self.data, np.array([[easting, northing, self.local_drone_pos.x, self.local_drone_pos.y]]), axis=0)
+        #         self.local_data = np.append(self.local_data, np.array([[self.local_drone_pos.x, self.local_drone_pos.y, self.local_drone_pos.z]]), axis=0)
+
+        #         msg = telemetry_landing_target(
+        #             landing_target=self.landing_target
+        #         )
+        #         self.landing_target_pub.publish(msg)
 
     def on_mission_info(self, msg):
         self.mission_idx = msg.active_waypoint_idx
         self.mission_len = msg.active_mission_len
 
     def on_imu_data(self, msg):
-        pass
+        if self.recording:
+            if self.get_landing_target():
+                # measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y], [self.local_drone_pos.z],
+                #     [0], [0], [0], [msg.ax], [msg.ay], [msg.az + 9.82]])
+                measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y]])
+                self.state = self.kalman.update(measurement)
+                self.local_data = np.append(self.local_data, np.array([[self.local_drone_pos.x, self.local_drone_pos.y, self.local_drone_pos.z]]), axis=0)
+
+                msg = telemetry_landing_target(
+                    landing_target=self.landing_target
+                )
+                self.landing_target_pub.publish(msg)
+            else:
+                self.state = self.kalman.update()
+
+            self.filtered_pos = Point(self.state[0,0], self.state[1,0], self.state[2,0])
+            # self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y, self.filtered_pos.z]]), axis=0)
+            self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y]]), axis=0)
+
 
     def on_heartbeat_status(self, msg):
         # save the data when switching out of position mode
         if self.main_mode == RECORDING_FLIGHT_MODE and msg.main_mode != RECORDING_FLIGHT_MODE:
             now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            savename = self.data_path + now + "_landing_data.csv"
+            savename1 = self.data_path + now + "_filtered_data.csv"
             savename2 = self.data_path + now + "_local_data.csv"
 
             # copy data array to prevent other callbacks from screwing things up
@@ -122,9 +154,9 @@ class PrecisionLanding(object):
 
             # self.rotation_matrix = rmsd.kabsch(temp[:,0:2], B)
             # rospy.logwarn(self.rotation_matrix)
-            np.savetxt(savename, self.data, delimiter=',')
+            np.savetxt(savename1, self.filtered_data, delimiter=',')
             np.savetxt(savename2, self.local_data, delimiter=',')
-            self.data = np.empty((0,4), float)
+            self.filtered_data = np.empty((0,2), float)
             self.local_data = np.empty((0,3), float)
 
         self.main_mode = msg.main_mode
@@ -135,18 +167,18 @@ class PrecisionLanding(object):
             data = self.bus.read_i2c_block_data(TAG_ADDRESS, LANDING_TARGET_REF, LANDING_TARGET_SIZE)
             (x,y,z) = struct.unpack('<fff',bytearray(data))
 
-            print(x,y,z)
+            # print(x,y,z)
 
             # Make sure that no nans are accepted as values
-            if isnan(x) or isnan(y) or isnan(z):
+            if isnan(x) or isnan(y):
                 return False
             
-            # if isnan(z):
-            #     z = 0.0
+            if isnan(z):
+                z = 0.0
 
             self.local_drone_pos = Point(x, y, z)
             self.landing_target = Point(self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-z)
-            print(self.landing_target)
+            # print(self.landing_target)
             return True
         except Exception as e:
             rospy.logwarn(e)
@@ -162,7 +194,6 @@ class PrecisionLanding(object):
         if self.sub_mode == "Mission":
             if self.mission_len > 0:
                 if self.mission_idx == self.mission_len - 1:
-
                     if self.get_landing_target():
                         msg = telemetry_landing_target(
                             landing_target=self.landing_target

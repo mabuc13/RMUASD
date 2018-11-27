@@ -39,7 +39,7 @@ class KalmanFilter(object):
 
         # Error matrices from Agus lecture
         measurementNoise    = 1.5
-        modelNoise          = 0.1
+        modelNoise          = 2.5
         self.Q      = np.eye(4)*modelNoise**2*dt
         self.R      = np.eye(2)*measurementNoise**2/dt
 
