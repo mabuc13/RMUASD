@@ -127,6 +127,7 @@ class Telemetry(object):
         self.home_position_pub      = rospy.Publisher("/telemetry/home_position", telemetry_home_position, queue_size=0)
         self.control_commands_pub   = rospy.Publisher("/telemetry/control_commands", telemetry_control_commands, queue_size=0)
         self.imu_ned_pub            = rospy.Publisher("/telemetry/imu_data_ned", telemetry_imu_ned, queue_size=0)
+        self.local_position_ned_pub = rospy.Publisher("/telemetry/local_position_ned", telemetry_local_position_ned, queue_size=0)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
@@ -219,6 +220,20 @@ class Telemetry(object):
             )
 
             self.imu_ned_pub.publish(imu_msg)
+
+        elif msg.msg_id == MAVLINK_MSG_ID_LOCAL_POSITION_NED:
+            (time_boot_ms, x, y, z, vx, vy, vz) = struct.unpack('<Iffffff', msg.payload)
+
+            pos_msg = telemetry_local_position_ned(
+                x=x,
+                y=y,
+                z=z,
+                vx=vx,
+                vy=vy,
+                vz=vz
+            )
+
+            self.local_position_ned_pub.publish(pos_msg)
 
         elif msg.msg_id == MAVLINK_MSG_ID_STATUSTEXT:
             (severity, text) = struct.unpack('<B50s', msg.payload)

@@ -28,7 +28,7 @@ LANDING_TARGET_REF = 0
 LANDING_TARGET_SIZE = 12
 
 # parameters
-update_interval = 20
+update_interval = 30
 
 def rotation_matrix(sigma):
     """
@@ -65,13 +65,20 @@ class PrecisionLanding(object):
         self.mission_idx = 0
         self.mission_len = 0
 
-        dt = 1/13
+        dt = 1/update_interval
         self.state = np.zeros((4,1), float)
         self.kalman = kalman.KalmanFilter(self.state, dt)
         # self.state = np.zeros((6,1), float)
         # self.kalman = kalman3.KalmanFilter(self.state, dt)
         # self.state = np.zeros((9,1), float)
         # self.kalman = kalman_acc3.KalmanFilter(self.state, dt)
+
+        self.vx = 0
+        self.vy = 0
+        self.vz = 0
+        self.ax = 0
+        self.ay = 0
+        self.az = 0
  
         self.filtered_pos = Point()
         self.local_drone_pos = Point()
@@ -92,6 +99,8 @@ class PrecisionLanding(object):
         rospy.Subscriber("/telemetry/mission_info", telemetry_mission_info, self.on_mission_info)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
         rospy.Subscriber("/telemetry/imu_data_ned", telemetry_imu_ned, self.on_imu_data)
+        rospy.Subscriber("/telemetry/local_position_ned", telemetry_local_position_ned, self.on_local_pos)
+        
 
         self.landing_target_pub = rospy.Publisher("/telemetry/set_landing_target", telemetry_landing_target, queue_size=0)
 
@@ -116,26 +125,36 @@ class PrecisionLanding(object):
         self.mission_idx = msg.active_waypoint_idx
         self.mission_len = msg.active_mission_len
 
+    def on_local_pos(self, msg):
+        self.new_vel_reading = True
+        self.vx = msg.vx
+        self.vy = msg.vy
+        self.vz = msg.vz
+
     def on_imu_data(self, msg):
-        if self.recording:
-            if self.get_landing_target():
-                # measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y], [self.local_drone_pos.z],
-                #     [0], [0], [0], [msg.ax], [msg.ay], [msg.az + 9.82]])
-                measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y]])
-                self.state = self.kalman.update(measurement)
-                self.local_data = np.append(self.local_data, np.array([[self.local_drone_pos.x, self.local_drone_pos.y, self.local_drone_pos.z]]), axis=0)
+        self.new_imu_reading = True
+        self.ax = msg.ax
+        self.ay = msg.ay
+        self.az = msg.az
 
-                msg = telemetry_landing_target(
-                    landing_target=self.landing_target
-                )
-                self.landing_target_pub.publish(msg)
-            else:
-                self.state = self.kalman.update()
+        # if self.recording:
+        #     if self.get_landing_target():
+        #         # measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y], [self.local_drone_pos.z],
+        #         #     [0], [0], [0], [msg.ax], [msg.ay], [msg.az + 9.82]])
+        #         measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y]])
+        #         self.state = self.kalman.update(measurement)
+        #         self.local_data = np.append(self.local_data, np.array([[self.local_drone_pos.x, self.local_drone_pos.y, self.local_drone_pos.z]]), axis=0)
 
-            self.filtered_pos = Point(self.state[0,0], self.state[1,0], self.state[2,0])
-            # self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y, self.filtered_pos.z]]), axis=0)
-            self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y]]), axis=0)
+        #         msg = telemetry_landing_target(
+        #             landing_target=self.landing_target
+        #         )
+        #         self.landing_target_pub.publish(msg)
+        #     else:
+        #         self.state = self.kalman.update()
 
+        #     self.filtered_pos = Point(self.state[0,0], self.state[1,0], self.state[2,0])
+        #     # self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y, self.filtered_pos.z]]), axis=0)
+        #     self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y]]), axis=0)
 
     def on_heartbeat_status(self, msg):
         # save the data when switching out of position mode
@@ -155,8 +174,8 @@ class PrecisionLanding(object):
             # self.rotation_matrix = rmsd.kabsch(temp[:,0:2], B)
             # rospy.logwarn(self.rotation_matrix)
             np.savetxt(savename1, self.filtered_data, delimiter=',')
-            np.savetxt(savename2, self.local_data, delimiter=',')
             self.filtered_data = np.empty((0,2), float)
+            np.savetxt(savename2, self.local_data, delimiter=',')
             self.local_data = np.empty((0,3), float)
 
         self.main_mode = msg.main_mode
@@ -166,8 +185,6 @@ class PrecisionLanding(object):
         try:
             data = self.bus.read_i2c_block_data(TAG_ADDRESS, LANDING_TARGET_REF, LANDING_TARGET_SIZE)
             (x,y,z) = struct.unpack('<fff',bytearray(data))
-
-            # print(x,y,z)
 
             # Make sure that no nans are accepted as values
             if isnan(x) or isnan(y):
@@ -189,6 +206,34 @@ class PrecisionLanding(object):
             self.recording = True
         else:
             self.recording = False
+
+        if self.recording:
+            # if self.new_imu_reading:
+            #     self.new_imu_reading = False
+            
+            if self.new_vel_reading:
+                self.new_vel_reading = False
+                if self.get_landing_target():
+                    # update kalman filter with both position and velocity
+                    measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y], [self.vx], [self.vy]])
+                    self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
+                else:
+                    # update kalman filter only with velocity
+                    measurement = np.array([[self.vx], [self.vy]])
+                    self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
+
+            else:
+                if self.get_landing_target():
+                    # update kalman filter with position
+                    measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y]])
+                    self.state = self.kalman.update(measurement, kalman.Measurement.POS)
+                else:
+                    # only do kalman prediction
+                    self.state = self.kalman.update()
+
+            self.filtered_pos = Point(self.state[0,0], self.state[1,0])  
+            self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y]]), axis=0)
+
 
         # activate landing target
         if self.sub_mode == "Mission":
