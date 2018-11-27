@@ -154,36 +154,37 @@ class Telemetry(object):
             sub_mode = custom_mode >> 24
             main_mode = (custom_mode >> 16) & 0xFF
 
-            heartbeat_msg = telemetry_heartbeat_status(
-                system_id=msg.sys_id,
-                component_id=msg.comp_id,
-                timestamp=rospy.Time.now(),
-                main_mode=MAVLINK_MAIN_MODE_LOOKUP[main_mode],
-                sub_mode=MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode],
-                armed=bool(base_mode & 0x80),
-                autopilot=MAVLINK_AUTOPILOT_TYPE_LOOKUP[autopilot],
-                base_mode=base_mode,
-                mav_state=MAVLINK_MAV_STATE_LOOKUP[mav_state],
-                mav_type=MAVLINK_MAV_TYPE_LOOKUP[mav_type],
-                mavlink_version=mavlink_version
-            )
+            if msg.sys_id != 255:
+                heartbeat_msg = telemetry_heartbeat_status(
+                    system_id=msg.sys_id,
+                    component_id=msg.comp_id,
+                    timestamp=rospy.Time.now(),
+                    main_mode=MAVLINK_MAIN_MODE_LOOKUP[main_mode],
+                    sub_mode=MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode],
+                    armed=bool(base_mode & 0x80),
+                    autopilot=MAVLINK_AUTOPILOT_TYPE_LOOKUP[autopilot],
+                    base_mode=base_mode,
+                    mav_state=MAVLINK_MAV_STATE_LOOKUP[mav_state],
+                    mav_type=MAVLINK_MAV_TYPE_LOOKUP[mav_type],
+                    mavlink_version=mavlink_version
+                )
 
-            mav_mode_msg = telemetry_mav_mode(
-                system_id=msg.sys_id,
-                component_id=msg.comp_id,
-                timestamp=rospy.Time.now(),
-                armed=bool(base_mode & 0x80),
-                manual_input=bool(base_mode & 0x40),
-                hil_simulation=bool(base_mode & 0x20),
-                stabilized_mode=bool(base_mode & 0x10),
-                guided_mode=bool(base_mode & 0x08),
-                auto_mode=bool(base_mode & 0x04),
-                test_mode=bool(base_mode & 0x02),
-                custom_mode=bool(base_mode & 0x01)
-            )
+                mav_mode_msg = telemetry_mav_mode(
+                    system_id=msg.sys_id,
+                    component_id=msg.comp_id,
+                    timestamp=rospy.Time.now(),
+                    armed=bool(base_mode & 0x80),
+                    manual_input=bool(base_mode & 0x40),
+                    hil_simulation=bool(base_mode & 0x20),
+                    stabilized_mode=bool(base_mode & 0x10),
+                    guided_mode=bool(base_mode & 0x08),
+                    auto_mode=bool(base_mode & 0x04),
+                    test_mode=bool(base_mode & 0x02),
+                    custom_mode=bool(base_mode & 0x01)
+                )
 
-            self.heartbeat_status_pub.publish(heartbeat_msg)
-            self.mav_mode_pub.publish(mav_mode_msg)
+                self.heartbeat_status_pub.publish(heartbeat_msg)
+                self.mav_mode_pub.publish(mav_mode_msg)
 
         elif msg.msg_id == MAVLINK_MSG_ID_STATUSTEXT:
             (severity, text) = struct.unpack('<B50s', msg.payload)

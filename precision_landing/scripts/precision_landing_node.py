@@ -17,7 +17,7 @@ from geometry_msgs.msg import Point
 from node_monitor.msg import heartbeat
 
 # defines
-RECORDING_FLIGHT_MODE = "Altitude Control"
+RECORDING_FLIGHT_MODE = "Position Control"
 TAG_ADDRESS = 13
 
 LANDING_TARGET_REF = 0
@@ -65,9 +65,10 @@ class PrecisionLanding(object):
 
         self.local_drone_pos = Point()
         self.landing_target = Point()
-        self.landing_coords = Point(1, 1, 0)
+        self.landing_coords = Point(1.17, 0.75, 0)
 
-        self.data = np.empty((0,4), float)        
+        self.data = np.empty((0,4), float)   
+        self.local_data = np.empty((0,3), float)
         self.rotation_matrix = np.array([[1,0],[0,1]])
 
         rospack = rospkg.RosPack()
@@ -86,10 +87,11 @@ class PrecisionLanding(object):
         self.alt = msg.alt
 
         if self.recording:
+            # rospy.loginfo("Pos!")
             if self.get_landing_target():
                 (_, _, _, easting, northing) = self.utmconv.geodetic_to_utm(self.lat, self.lon)
                 self.data = np.append(self.data, np.array([[easting, northing, self.local_drone_pos.x, self.local_drone_pos.y]]), axis=0)
-
+                self.local_data = np.append(self.local_data, np.array([[self.local_drone_pos.x, self.local_drone_pos.y, self.local_drone_pos.z]]), axis=0)
                 msg = telemetry_landing_target(
                     landing_target=self.landing_target
                 )
@@ -104,19 +106,22 @@ class PrecisionLanding(object):
         if self.main_mode == RECORDING_FLIGHT_MODE and msg.main_mode != RECORDING_FLIGHT_MODE:
             now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             savename = self.data_path + now + "_landing_data.csv"
+            savename2 = self.data_path + now + "_local_data.csv"
 
             # copy data array to prevent other callbacks from screwing things up
-            temp = copy.copy(self.data)
+            # temp = copy.copy(self.data)
+
+            # temp[:,0:2] -= rmsd.centroid(temp[:,0:2])
+            # temp[:,2:4] -= rmsd.centroid(temp[:,2:4])
+
+            # B = np.dot(temp[:,0:2], rotation_matrix(90))
+
+            # self.rotation_matrix = rmsd.kabsch(temp[:,0:2], B)
+            # rospy.logwarn(self.rotation_matrix)
+            np.savetxt(savename, self.data, delimiter=',')
+            np.savetxt(savename2, self.local_data, delimiter=',')
             self.data = np.empty((0,4), float)
-
-            temp[:,0:2] -= rmsd.centroid(temp[:,0:2])
-            temp[:,2:4] -= rmsd.centroid(temp[:,2:4])
-
-            B = np.dot(temp[:,0:2], rotation_matrix(90))
-
-            self.rotation_matrix = rmsd.kabsch(temp[:,0:2], B)
-            rospy.logwarn(self.rotation_matrix)
-            np.savetxt(savename, temp, delimiter=',')
+            self.local_data = np.empty((0,3), float)
 
         self.main_mode = msg.main_mode
         self.sub_mode = msg.sub_mode
@@ -126,15 +131,17 @@ class PrecisionLanding(object):
             data = self.bus.read_i2c_block_data(TAG_ADDRESS, LANDING_TARGET_REF, LANDING_TARGET_SIZE)
             (x,y,z) = struct.unpack('<fff',bytearray(data))
 
+            print(x,y,z)
+
             # Make sure that no nans are accepted as values
-            if isnan(x) or isnan(y):
+            if isnan(x) or isnan(y) or isnan(z):
                 return False
             
-            if isnan(z):
-                z = 0.0
+            # if isnan(z):
+            #     z = 0.0
 
             self.local_drone_pos = Point(x, y, z)
-            self.landing_target = Point(x-self.landing_coords.x, y-self.landing_coords.y, z-self.landing_coords.z)
+            self.landing_target = Point(self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-z)
             print(self.landing_target)
             return True
         except Exception as e:
@@ -156,7 +163,7 @@ class PrecisionLanding(object):
                         msg = telemetry_landing_target(
                             landing_target=self.landing_target
                         )
-                        #self.landing_target_pub.publish(msg)
+                        self.landing_target_pub.publish(msg)
 
 
     def shutdownHandler(self):
