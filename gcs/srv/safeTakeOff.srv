@@ -1,0 +1,7 @@
+#input
+uint32 drone_id
+
+---
+# output
+bool is_save_to_take_off
+uint64 time_to_clear

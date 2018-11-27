@@ -25,6 +25,7 @@ class NodeMonitor(object):
 
 		# status variables
         rospy.sleep (3) # wait until everything is running
+        self.dataLock = threading.Lock()
         self.nodeTimes = NodeTime()
         self.nodeRates = NodeTime()
         self.nodeRates['node_monitor'] = 10
@@ -33,13 +34,6 @@ class NodeMonitor(object):
         #subscriber
         rospy.Subscriber("/node_monitor/input/Heartbeat", heartbeat, self.handler_heartbeat)
         rospy.Subscriber("/mavlink_status",mavlink_lora_status,self.handler_mavlink_lora_heartbeat)
-        #rospy.Subscriber("/gcs/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/utm_parser/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/pathplan/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/telemtry/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/drone_handler/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/internet/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/remot3/Heartbeat", heartbeat, self.handler_heartbeat)
 
         self.Heartbeat_pub = rospy.Publisher('/node_monitor/Heartbeat', heartbeat, queue_size = 10)
         self.NodeSates_pub = rospy.Publisher('/node_monitor/node_list',nodeOkList,queue_size= 10)
@@ -48,7 +42,7 @@ class NodeMonitor(object):
         self.heartbeat = heartbeat()
         self.heartbeat.header.frame_id = "node_monitor"
         self.heartbeat.rate = 10
-        self.dataLock = threading.Lock()
+        
 
         self.first_send()
     def first_send(self):
@@ -83,19 +77,9 @@ class NodeMonitor(object):
             self.nodeState[msg.header.frame_id] = msg.severity
 
         if not len(msg.text) == 0:
-            text = "["+msg.header.frame_id+"]["
-            if msg.severity == msg.info:
-                text = text+"info]"
-            elif msg.severity == msg.warning:
-                text = text+"warning]"
-            elif msg.severity == msg.error:
-                text = text+"error]"
-            elif msg.severity == msg.critical_error:
-                text = text+"critical]"
-            elif msg.severity == msg.fatal_error:
-                text = text+"fatal]"
+            text = "["+msg.header.frame_id+"]: "
 
-            text = text+"["+ str(msg.header.stamp.sec) + "]: " + msg.text
+            text = text+ msg.text
 
             msgO = self.heartbeat
             msgO.text = text

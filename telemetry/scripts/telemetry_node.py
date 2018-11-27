@@ -125,6 +125,8 @@ class Telemetry(object):
         self.mav_mode_pub           = rospy.Publisher("/telemetry/mav_mode", telemetry_mav_mode, queue_size=0)
         self.vfr_hud_pub            = rospy.Publisher("/telemetry/vfr_hud", telemetry_vfr_hud, queue_size=0)
         self.home_position_pub      = rospy.Publisher("/telemetry/home_position", telemetry_home_position, queue_size=0)
+        self.control_commands_pub   = rospy.Publisher("/telemetry/control_commands", telemetry_control_commands, queue_size=0)
+        self.imu_ned_pub            = rospy.Publisher("/telemetry/imu_data_ned", telemetry_imu_ned, queue_size=0)
         rospy.Subscriber(mavlink_lora_sub_topic, mavlink_lora_msg, self.on_mavlink_msg)
         rospy.Subscriber(mavlink_lora_pos_sub_topic, mavlink_lora_pos, self.on_mavlink_lora_pos)
         rospy.Subscriber(mavlink_lora_status_sub_topic, mavlink_lora_status, self.on_mavlink_lora_status)
@@ -154,6 +156,7 @@ class Telemetry(object):
             sub_mode = custom_mode >> 24
             main_mode = (custom_mode >> 16) & 0xFF
 
+            # filter out heartbeats from GCS
             if msg.sys_id != 255:
                 heartbeat_msg = telemetry_heartbeat_status(
                     system_id=msg.sys_id,
@@ -185,6 +188,37 @@ class Telemetry(object):
 
                 self.heartbeat_status_pub.publish(heartbeat_msg)
                 self.mav_mode_pub.publish(mav_mode_msg)
+
+        elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_GLOBAL_INT:
+            (time_boot_ms, lat_int, lon_int, alt, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IiifffffffffHB', msg.payload)
+
+            control_cmds_msg = telemetry_control_commands(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=rospy.Time.now(),
+                vx=vx,
+                vy=vy,
+                vz=vz,
+                ax=afx,
+                ay=afy,
+                az=afz
+            )
+
+            self.control_commands_pub.publish(control_cmds_msg)
+
+        elif msg.msg_id == MAVLINK_MSG_ID_HIGHRES_IMU:
+            (_, xacc, yacc, zacc, _, _, _, _, _, _, _, _, _, _, _) = struct.unpack('<QfffffffffffffH', msg.payload)
+
+            imu_msg = telemetry_imu_ned(
+                system_id=msg.sys_id,
+                component_id=msg.comp_id,
+                timestamp=rospy.Time.now(),
+                ax=xacc,
+                ay=yacc,
+                az=zacc
+            )
+
+            self.imu_ned_pub.publish(imu_msg)
 
         elif msg.msg_id == MAVLINK_MSG_ID_STATUSTEXT:
             (severity, text) = struct.unpack('<B50s', msg.payload)
