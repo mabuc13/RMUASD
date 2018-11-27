@@ -21,6 +21,8 @@
 #include <gcs/gps2distance.h>
 #include <gcs/inCollision.h>
 #include <gcs/safeTakeOff.h>
+#include <gcs/UTMDroneList.h>
+#include <gcs/UTMDrone.h>
 #include <node_monitor/heartbeat.h>
 
 #include <DronesAndDocks.hpp>
@@ -30,17 +32,17 @@ using namespace std;
 
 #define DEBUG true
 
-ros::Subscriber DroneStatus_sub;//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
-ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=10)
-
-ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_handler)
-ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
-
+//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
+ros::Publisher RouteRequest_pub;
+ros::Publisher WebInfo_pub;
 ros::Publisher ETA_pub;
 ros::Publisher JobState_pub;
 ros::Publisher Heartbeat_pub;
 
+ros::Subscriber DroneStatus_sub;
 ros::Subscriber Collision_sub;
+ros::Subscriber UTMDrone_sub;
+ros::Subscriber WebInfo_sub;
 
 ros::ServiceClient pathPlanClient;
 ros::ServiceClient EtaClient;
@@ -57,6 +59,7 @@ std::deque<job*> jobQ;
 std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
+std::map<ID_t,simpleDrone> OtherDrones;
 
 ostream& operator<<(ostream& os, const gcs::GPS& pos)  
 {  
@@ -324,6 +327,15 @@ void WebInfo_Handler(std_msgs::String msg_in){
     }
 }
 void Collision_Handler(gcs::inCollision msg){
+    //TODO handle landingzone is noflight zone
+}
+
+void UTMdrone_Handler(gcs::UTMDroneList msg){
+    for(size_t i = 0; i < msg.drone_list.size(); i++){
+        gcs::UTMDrone* drone = &msg.drone_list[i];
+        OtherDrones[drone->drone_id].update_values(*drone);
+        if(DEBUG) cout << "UTM Drone Update: " << OtherDrones[drone->drone_id].getID() << endl;
+    }
     
 }
 
@@ -331,17 +343,16 @@ void Collision_Handler(gcs::inCollision msg){
 void initialize(void){
     nh = new ros::NodeHandle();
 
-    DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
-
     ETA_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/ETA",100);
-    WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
-
     WebInfo_pub = nh->advertise<std_msgs::String>("/internet/ToInternet",100);
     JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
     Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("/node_monitor/input/Heartbeat",100);
 
-    Collision_sub = nh->subscribe("/pathplan/incomming_collision",100,Collision_Handler);
+    Collision_sub = nh->subscribe("/collision_detecter/collision_warning",100,Collision_Handler);
+    WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
+    DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
+    UTMDrone_sub = nh->subscribe("/utm/dronesList",100,UTMdrone_Handler);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){

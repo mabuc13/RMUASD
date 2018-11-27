@@ -5,7 +5,9 @@
 #include <vector>
 #include <string>
 #include <gcs/GPS.h>
+#include <gcs/UTMDrone.h>
 
+#include <UTM.hpp>
 #define ID_t unsigned int
 #define PATH_t std::vector<gcs::GPS>
 #define uint8 unsigned char
@@ -13,6 +15,20 @@
 using namespace std;
 
 class drone;
+
+struct UTM{
+  double north;
+  double east;
+  double altitude;
+  std::string zone;
+};
+struct direction{
+  double north;
+  double east;
+};
+
+gcs::GPS UTM2GPS(UTM coord);
+UTM GPS2UTM(gcs::GPS coord);
 
 class dock{
 public:
@@ -59,6 +75,55 @@ private:
 
 
 
+
+};
+
+class simpleDrone{
+public:
+  simpleDrone();
+  simpleDrone(ID_t ID,gcs::GPS cur_pos);
+  simpleDrone(gcs::UTMDrone info);
+
+  void update_values(gcs::UTMDrone info);
+  gcs::GPS getPosition();
+  UTM getPositionU();
+  UTM getNextPositionU();
+  direction getCurHeading();
+  direction getNextHeading();
+  double getCurVelocity();
+  double getNextVelocity();
+  ID_t getID();
+  double getTime();
+  double getEtaNextWP();
+  uint8_t getPriority();
+  double getBatterySOC();
+
+
+private:
+
+  direction getHeading(double heading);
+  gcs::GPS next_wp;
+  gcs::GPS cur_pos;
+
+  float next_vel;
+  float cur_vel;
+  float cur_vel_est;
+  deque<float> vel_list;
+  float vel_acc;
+
+  float next_heading;
+  float cur_heading;
+
+  int time;
+  int gps_time;
+
+  int battery_soc;
+
+  int drone_priority;
+
+  size_t ETA_next_WP;
+
+  ID_t drone_id;
 
 };
 
