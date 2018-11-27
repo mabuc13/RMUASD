@@ -58,6 +58,7 @@ public:
   void setGoal(dock* goal);
   void setStatus(uint8 status);
 
+  static const uint8 preFlightCheack = 8;
   static const uint8 done = 7;
   static const uint8 ready4takeOff = 6;
   static const uint8 wait4pathplan = 5;

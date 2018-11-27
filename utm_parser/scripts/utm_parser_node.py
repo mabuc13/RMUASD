@@ -177,7 +177,7 @@ class utm_parser(object):
         dummy_payload = self.post_payload
         now = time.time()
         if now-self.last_info_pub > 1:
-
+            
 
             self.post_payload = self.standard_post_payload
 
@@ -265,22 +265,33 @@ class utm_parser(object):
             # Maybe set up for a retry, or continue in a retry loop
             if self.utm_trafic_debug:
                 print colored('Request has timed out', 'red')
+            self.heart_msg.severity = heartbeat.error
+            self.heart_msg.text = 'Failed to post drone data'
         except requests.exceptions.TooManyRedirects:
             # Tell the user their URL was bad and try a different one
             if self.utm_trafic_debug:
                 print colored('Request has too many redirects', 'red')
+            self.heart_msg.severity = heartbeat.error
+            self.heart_msg.text = 'Failed to post drone data'
         except requests.exceptions.HTTPError as err:
             if self.utm_trafic_debug:
                 print colored('HTTP error', 'red')
                 print colored(err, 'yellow')
+            self.heart_msg.severity = heartbeat.error
+            self.heart_msg.text = 'Failed to post drone data'
             # sys.exit(1) # Consider the exit since it might be unintentional in some cases
         except requests.exceptions.RequestException as err:
             # Catastrophic error; bail.
             print colored('Request error', 'red')
             print colored(err, 'yellow')
+            self.heart_msg.severity = heartbeat.fatal_error
+            self.heart_msg.text = 'Failed to post drone data'
 
             sys.exit(1)
         else:
+            if self.heart_msg.text == 'Failed to post drone data':
+                    self.heart_msg.severity = heartbeat.nothing
+                    self.heart_msg.text = ''
             if r.text == '1':  # This check can in theory be omitted since the header check should catch an error
                 if self.utm_trafic_debug:
                     print colored('Success!\n', 'green')
@@ -613,8 +624,6 @@ class utm_parser(object):
         self.empty_map = np.zeros((width, height, 1), np.uint8)
         if self.debug:
             print "Created empty map with height, width: ", height, width
-
-
 
     def snfz_into_empty_map(self, utm_coords, upper_right, down_left):
         if self.debug:

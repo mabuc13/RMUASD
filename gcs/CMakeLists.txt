@@ -58,6 +58,7 @@ catkin_python_setup()
    inCollision.msg
    UTMDrone.msg
    UTMDroneList.msg
+   moveTo.msg
 )
 
 ## Generate services in the 'srv' folder
