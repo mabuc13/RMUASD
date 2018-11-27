@@ -507,29 +507,6 @@ class utm_parser(object):
                     print "Succesfully got drone data"
                 try:
                     #print "Drone data: ", data_dict
-<<<<<<< HEAD
-                    #for data in data_dict:
-                    #    if not data['uav_id'] == self.post_payload['uav_id']:
-                    #        print data
-                    '''
-                    {u'wp_next_eta_epoch': -1, 
-                    u'wp_next_alt_m': 32, 
-                    u'uav_bat_soc': 51, 
-                    u'wp_next_hdg_deg': -1, 
-                    u'pos_cur_hdg_deg': 359, 
-                    u'uav_id': 3012, 
-                    u'pos_cur_lat_dd': 55.47227, 
-                    u'wp_next_lng_dd': 10.41725, 
-                    u'pos_cur_gps_timestamp': -1, 
-                    u'pos_cur_lng_dd': 10.41726, 
-                    u'pos_cur_alt_m': 507.95, 
-                    u'pos_cur_vel_mps': 0, 
-                    u'uav_op_status': 3, 
-                    u'time_epoch': 1542898219, 
-                    u'wp_next_lat_dd': 55.47227, 
-                    u'wp_next_vel_mps': -1}
-                    '''
-=======
                     msg = UTMDroneList()
                     i = 1
                     for data in data_dict:
@@ -557,7 +534,6 @@ class utm_parser(object):
                             drone.drone_id = data['uav_id']
                             msg.drone_list.append(drone)
                     self.utm_drones_pub.publish(msg)
->>>>>>> 0e6b018c409692472d4cc03168f8e9301cb98170
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve drone data, maybe there is none")
