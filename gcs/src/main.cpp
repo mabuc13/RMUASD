@@ -21,7 +21,12 @@
 #include <gcs/gps2distance.h>
 #include <gcs/inCollision.h>
 #include <gcs/safeTakeOff.h>
+#include <gcs/UTMDroneList.h>
+#include <gcs/UTMDrone.h>
+#include <gcs/moveTo.h>
 #include <node_monitor/heartbeat.h>
+#include <node_monitor/nodeOkList.h>
+#include <node_monitor/nodeOk.h>
 
 #include <DronesAndDocks.hpp>
 #include <TextCsvReader.hpp>
@@ -29,18 +34,20 @@
 using namespace std;
 
 #define DEBUG true
+#define DO_PREFLIGHT_CHECK false
 
-ros::Subscriber DroneStatus_sub;//= rospy.Subscriber('/Telemetry/DroneStatus',DroneInfo, DroneStatus_handler)
-ros::Publisher RouteRequest_pub;// = rospy.Publisher('/gcs/PathRequest', DronePath, queue_size=10)
-
-ros::Subscriber WebInfo_sub;// = rospy.Subscriber('/FromInternet',String, Web_handler)
-ros::Publisher WebInfo_pub;// = rospy.Publisher('/ToInternet', String, queue_size = 10)
-
+ros::Publisher RouteRequest_pub;
+ros::Publisher Reposition_pub;
+ros::Publisher WebInfo_pub;
 ros::Publisher ETA_pub;
 ros::Publisher JobState_pub;
 ros::Publisher Heartbeat_pub;
 
+ros::Subscriber DroneStatus_sub;
 ros::Subscriber Collision_sub;
+ros::Subscriber UTMDrone_sub;
+ros::Subscriber WebInfo_sub;
+ros::Subscriber nodeMonitor_sub;
 
 ros::ServiceClient pathPlanClient;
 ros::ServiceClient EtaClient;
@@ -57,6 +64,9 @@ std::deque<job*> jobQ;
 std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
+std::map<ID_t,simpleDrone> OtherDrones;
+
+node_monitor::nodeOk utm_parser;
 
 ostream& operator<<(ostream& os, const gcs::GPS& pos)  
 {  
@@ -324,24 +334,39 @@ void WebInfo_Handler(std_msgs::String msg_in){
     }
 }
 void Collision_Handler(gcs::inCollision msg){
-    
+    //TODO handle landingzone is noflight zone
+}
+void UTMdrone_Handler(gcs::UTMDroneList msg){
+    for(size_t i = 0; i < msg.drone_list.size(); i++){
+        gcs::UTMDrone* drone = &msg.drone_list[i];
+        OtherDrones[drone->drone_id].update_values(*drone);
+        if(DEBUG) cout << "UTM Drone Update: " << OtherDrones[drone->drone_id].getID() << endl;
+    }  
+}
+void nodeMonitor_Handler(node_monitor::nodeOkList msg){
+    for(size_t i = 0; i < msg.Nodes.size(); i++){
+        if(msg.Nodes[i].name == "utm_parser"){
+            utm_parser = msg.Nodes[i];
+        }
+    }
 }
 
 
 void initialize(void){
     nh = new ros::NodeHandle();
 
-    DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     RouteRequest_pub = nh->advertise<gcs::DronePath>("/gcs/forwardPath",100);
-
     ETA_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/ETA",100);
-    WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
-
     WebInfo_pub = nh->advertise<std_msgs::String>("/internet/ToInternet",100);
     JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
     Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("/node_monitor/input/Heartbeat",100);
+    Reposition_pub = nh->advertise<gcs::moveTo>("/gcs/rePosition",100);
 
-    Collision_sub = nh->subscribe("/pathplan/incomming_collision",100,Collision_Handler);
+    Collision_sub = nh->subscribe("/collision_detecter/collision_warning",100,Collision_Handler);
+    WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
+    DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
+    UTMDrone_sub = nh->subscribe("/utm/dronesList",100,UTMdrone_Handler);
+    nodeMonitor_sub = nh->subscribe("/node_monitor/node_list",10,nodeMonitor_Handler);
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
@@ -421,6 +446,7 @@ int main(int argc, char** argv){
         r.sleep();
         heartbeat_msg.header.stamp = ros::Time::now();
         Heartbeat_pub.publish(heartbeat_msg);
+        NodeState(node_monitor::heartbeat::nothing,"");
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
@@ -436,6 +462,7 @@ int main(int argc, char** argv){
             }
         }
 
+
         // ############### Do path planing for all jobs waiting for new Path plan ################
         for(size_t i = 0; i < activeJobs.size();i++){
             if(activeJobs[i]->getStatus()==job::wait4pathplan){
@@ -445,19 +472,61 @@ int main(int argc, char** argv){
                 start.altitude = 32;
                 end.altitude = 32;
                 std::vector<gcs::GPS> path = pathPlan(start, end);
-
-                gcs::DronePath msg;
-                msg.Path = path;
-                msg.DroneID = activeJobs[i]->getDrone()->getID();
-
-                RouteRequest_pub.publish(msg);
-                activeJobs[i]->setStatus(job::ready4takeOff);
                 activeJobs[i]->getDrone()->setPath(path);
+                activeJobs[i]->setStatus(job::preFlightCheack);
+                
 
-                webMsg(activeJobs[i]->getQuestHandler(),"request=ready4takeoff");
+                
+                
+
+                webMsg(activeJobs[i]->getQuestHandler(),"request=waiting4preflightCheck");
 
             }
         }
+
+        // ############## Pre FLight Cheacks
+        for(size_t i = 0; i < activeJobs.size();i++){
+            if(activeJobs[i]->getStatus()==job::preFlightCheack){
+                
+
+                gcs::DronePath msg;
+                msg.Path = activeJobs[i]->getDrone()->getPath();
+                msg.DroneID = activeJobs[i]->getDrone()->getID();
+                if(DO_PREFLIGHT_CHECK){
+                    bool allOkay = true;
+
+                    // ######### Cheack that UTM is running ################
+                    if( !(utm_parser.ok == node_monitor::nodeOk::fine && 
+                        (utm_parser.nodeState == node_monitor::heartbeat::info ||
+                        utm_parser.nodeState == node_monitor::heartbeat::nothing)))
+                    {
+                        allOkay = false;
+                        heartbeat_msg.severity = node_monitor::heartbeat::info;
+                        heartbeat_msg.text = "Prefligt Check Failed, UTM not Okay";
+                    }
+
+                    // ######### Cheack that we are not inside no flight zone #########
+                    is_safe_for_takeoff safe = safeTakeOff(activeJobs[i]->getDrone()->getID());
+                    if(!safe.takeoff_is_safe){
+                        allOkay = false;
+                        NodeState(node_monitor::heartbeat::info,"Waiting for no FlightZone to clear before takeOff");
+                    }
+
+                    if(allOkay){
+                        RouteRequest_pub.publish(msg);
+                        activeJobs[i]->setStatus(job::ready4takeOff);
+                        webMsg(activeJobs[i]->getQuestHandler(),"request=ready4takeoff");
+                    }
+
+
+                }else{
+                    RouteRequest_pub.publish(msg);
+                    activeJobs[i]->setStatus(job::ready4takeOff);
+                    webMsg(activeJobs[i]->getQuestHandler(),"request=ready4takeoff");
+                }    
+            }
+        }
+
 
         // ############## Send out INFO on Drone ETA ######################
         if(spins >= rate){
@@ -495,6 +564,8 @@ int main(int argc, char** argv){
                     msg.text = "Ready for takeoff";
                 }else if(msg.value == job::done){
                     msg.text = "Done";
+                }else if(msg.value == job::preFlightCheack){
+                    msg.text = "Waiting for all clear signal";
                 }
             }else{
                 msg.value = job::noMission;
