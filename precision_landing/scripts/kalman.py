@@ -132,8 +132,9 @@ class KalmanFilter(object):
         # predict function
         # self.K          = self.P_plus @ self.H.T @ inv(self.R)
 
+        y_rows = y.shape[0]
         self.x_hat_plus = self.x_hat_min + self.K @ (y - self.H @ self.x_hat_min)
-        self.P_plus     = (np.eye(4) - self.K @ self.H) @ self.P_min
+        self.P_plus     = (np.eye(y_rows) - self.K @ self.H) @ self.P_min
 
         return self.x_hat_plus, self.P_plus
 
