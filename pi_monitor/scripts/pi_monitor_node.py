@@ -34,9 +34,14 @@ class PiMonitor(object):
 
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
         rospy.Subscriber("/telemetry/set_landing_target", telemetry_landing_target, self.on_landing_target)
+        rospy.Subscriber("/telemetry/imu_data_ned", telemetry_imu_ned, self.on_imu_data)
+
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
         #rospy.Subscriber("/mavlink_status", mavlink_lora_status, self.on_drone_status)
+
+    def on_imu_data(self, msg):
+        pass
 
     def on_heartbeat_status(self, msg):
         wp.digitalWrite(RED, self.red_status)

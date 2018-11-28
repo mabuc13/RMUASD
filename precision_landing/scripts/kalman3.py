@@ -8,34 +8,25 @@ class KalmanFilter(object):
     def __init__(self, initial_state, dt):
         self.x      = initial_state
         self.dt     = dt
-        # included acceleration
-        # x < - x + x_velocity
-        # y < - y + y_velocity
-        # x_velocity < - x_velocity + x_acceleration
-        # y_velocity < - y_velocity + y_acceleration
-        # x_acceleration < - x_acceleration
-        # y_acceleration < - y_acceleration
-        self.F      = np.array([[1, 0, dt, 0, dt*dt/2, 0],
-                                [0, 1, 0, dt, 0, dt*dt/2],
-                                [0, 0, 1, 0, dt, 0],
-                                [0, 0, 0, 1, 0, dt],
-                                [0, 0, 0, 0, 1, 0],
-                                [0, 0, 0, 0, 0, 1]])
+        self.F      = np.array([[1,0,0,dt,0,0],
+                                [0,1,0,0,dt,0],
+                                [0,0,1,0,0,dt],
+                                [0,0,0,1,0,0],
+                                [0,0,0,0,1,0],
+                                [0,0,0,0,0,1]])
 
-        # Measurements include position and accelleration in x and y
-        # TODO The accelleration should maybe be added as a control input instead of a measurement
-        self.H      = np.array([[1, 0, 0, 0, 0, 0],
-                                [0, 1, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 1, 0],
-                                [0, 0, 0, 0, 0, 1]])
+        self.H      = np.array([[1,0,0,0,0,0],
+                                [0,1,0,0,0,0],
+                                [0,0,1,0,0,0]])
 
         self.P_min  = np.eye(6)
         self.P_plus = np.eye(6)
 
         self.x_hat_min  = self.x
         self.x_hat_plus = self.x
+
+        # trajectory
+        self.trajectoryPath = []
 
         # Members for detecting self-destruct condition
         # self.maxPredictions = maxPredictions
@@ -47,12 +38,13 @@ class KalmanFilter(object):
         # self.startDelay = startDelay
         # self.valid = False
 
+        # self.velocityThreshold = velocityThresh
+
         # Error matrices from Agus lecture
-        measurementNoise    = 0.1
-        modelNoise          = 2
-        # TODO make sure matrix sizes make sense
+        measurementNoise    = 1.5
+        modelNoise          = 0.1
         self.Q      = np.eye(6)*modelNoise**2*dt
-        self.R      = np.eye(6)*measurementNoise**2/dt
+        self.R      = np.eye(3)*measurementNoise**2/dt
 
         # Error matrices from youtube
         # measurementNoise = 0.5
@@ -68,11 +60,6 @@ class KalmanFilter(object):
         x, P = self.predict()
         x0 = self.x_hat_plus
 
-
-        # Members for detecting self-destruct condition
-        # self.maxPredictions = maxPredictions
-        self.predictionCount = 0
-        self.selfDestruct = False
         if type(y) != type(None):
             x, P = self.correct(y)
             self.predictionCount = 0

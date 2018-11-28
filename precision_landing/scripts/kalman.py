@@ -2,6 +2,12 @@ import numpy as np
 from numpy.linalg import inv, norm
 from numpy.random import randn
 from math import pi
+from enum import Enum
+
+class Measurement(Enum):
+    POS = 1
+    VEL = 2
+    BOTH = 3
 
 class KalmanFilter(object):
 
@@ -13,8 +19,18 @@ class KalmanFilter(object):
                                 [0,0,1,0],
                                 [0,0,0,1]])
 
-        self.H      = np.array([[1,0,0,0],
+        self.H = np.empty((4,4), float)
+
+        self.H_pos  = np.array([[1,0,0,0],
                                 [0,1,0,0]])
+
+        self.H_vel  = np.array([[0,0,1,0],
+                                [0,0,0,1]])
+
+        self.H_both = np.array([[1,0,0,0],
+                                [0,1,0,0],
+                                [0,0,1,0],
+                                [0,0,0,1]])
 
         self.P_min  = np.eye(4)
         self.P_plus = np.eye(4)
@@ -39,9 +55,11 @@ class KalmanFilter(object):
 
         # Error matrices from Agus lecture
         measurementNoise    = 1.5
-        modelNoise          = 0.1
+        modelNoise          = 2.5
         self.Q      = np.eye(4)*modelNoise**2*dt
         self.R      = np.eye(2)*measurementNoise**2/dt
+        self.R2     = np.eye(2)*measurementNoise**2/dt
+        self.R4     = np.eye(4)*measurementNoise**2/dt
 
         # Error matrices from youtube
         # measurementNoise = 0.5
@@ -51,13 +69,26 @@ class KalmanFilter(object):
         #                         [pow(dt,3)/2,    0,              dt**2,          0],
         #                         [0,              pow(dt,3)/2,    0,              dt**2]])*dt
 
-    def update(self, y=None):
+    def update(self, y=None, y_type=Measurement.POS):
         # If there is no new measurement, then we can only make a prediction
 
         x, P = self.predict()
         x0 = self.x_hat_plus
 
         if type(y) != type(None):
+            # make the noise matrix match the size of the measurement            
+            if y.shape[0] == 2:
+                self.R = self.R2
+            else:
+                self.R = self.R4
+
+            if y_type == Measurement.POS:
+                self.H = self.H_pos
+            elif y_type == Measurement.VEL:
+                self.H = self.H_vel
+            else:
+                self.H = self.H_both
+
             x, P = self.correct(y)
             self.predictionCount = 0
             self.correctionCount += 1
@@ -101,8 +132,9 @@ class KalmanFilter(object):
         # predict function
         # self.K          = self.P_plus @ self.H.T @ inv(self.R)
 
+        y_rows = y.shape[0]
         self.x_hat_plus = self.x_hat_min + self.K @ (y - self.H @ self.x_hat_min)
-        self.P_plus     = (np.eye(4) - self.K @ self.H) @ self.P_min
+        self.P_plus     = (np.eye(y_rows) - self.K @ self.H) @ self.P_min
 
         return self.x_hat_plus, self.P_plus
 

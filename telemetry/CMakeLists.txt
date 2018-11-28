@@ -60,6 +60,9 @@ add_message_files(
   telemetry_home_position.msg
   telemetry_cmd_retry_fail.msg
   telemetry_landing_target.msg
+  telemetry_control_commands.msg
+  telemetry_imu_ned.msg
+  telemetry_local_position_ned.msg
 )
 
 ## Generate services in the 'srv' folder

@@ -15,24 +15,30 @@ class KalmanFilter(object):
         # y_velocity < - y_velocity + y_acceleration
         # x_acceleration < - x_acceleration
         # y_acceleration < - y_acceleration
-        self.F      = np.array([[1, 0, dt, 0, dt*dt/2, 0],
-                                [0, 1, 0, dt, 0, dt*dt/2],
-                                [0, 0, 1, 0, dt, 0],
-                                [0, 0, 0, 1, 0, dt],
-                                [0, 0, 0, 0, 1, 0],
-                                [0, 0, 0, 0, 0, 1]])
+        self.F      = np.array([[1, 0, 0, dt, 0, 0, dt*dt/2, 0, 0],
+                                [0, 1, 0, 0, dt, 0, 0, dt*dt/2, 0],
+                                [0, 0, 1, 0, 0, dt, 0, 0, dt*dt/2],
+                                [0, 0, 0, 1, 0, 0, dt, 0, 0],
+                                [0, 0, 0, 0, 1, 0, 0, dt, 0],
+                                [0, 0, 0, 0, 0, 1, 0, 0, dt],
+                                [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 1, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 1]])
 
         # Measurements include position and accelleration in x and y
         # TODO The accelleration should maybe be added as a control input instead of a measurement
-        self.H      = np.array([[1, 0, 0, 0, 0, 0],
-                                [0, 1, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 1, 0],
-                                [0, 0, 0, 0, 0, 1]])
+        self.H      = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 1, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 1, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 1, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 1]])
 
-        self.P_min  = np.eye(6)
-        self.P_plus = np.eye(6)
+        self.P_min  = np.eye(9)
+        self.P_plus = np.eye(9)
 
         self.x_hat_min  = self.x
         self.x_hat_plus = self.x
@@ -48,11 +54,11 @@ class KalmanFilter(object):
         # self.valid = False
 
         # Error matrices from Agus lecture
-        measurementNoise    = 0.1
+        measurementNoise    = 5
         modelNoise          = 2
         # TODO make sure matrix sizes make sense
-        self.Q      = np.eye(6)*modelNoise**2*dt
-        self.R      = np.eye(6)*measurementNoise**2/dt
+        self.Q      = np.eye(9)*modelNoise**2*dt
+        self.R      = np.eye(9)*measurementNoise**2/dt
 
         # Error matrices from youtube
         # measurementNoise = 0.5
@@ -118,7 +124,7 @@ class KalmanFilter(object):
         # self.K          = self.P_plus @ self.H.T @ inv(self.R)
 
         self.x_hat_plus = self.x_hat_min + self.K @ (y - self.H @ self.x_hat_min)
-        self.P_plus     = (np.eye(6) - self.K @ self.H) @ self.P_min
+        self.P_plus     = (np.eye(9) - self.K @ self.H) @ self.P_min
 
         return self.x_hat_plus, self.P_plus
 

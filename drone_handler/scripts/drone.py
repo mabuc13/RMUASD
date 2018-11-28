@@ -36,6 +36,7 @@ class State(Enum):
     PAUSED = 9
     LANDING = 10
     SET_SPEED = 11
+    REPOSITIOM = 12
 
 PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
 PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
