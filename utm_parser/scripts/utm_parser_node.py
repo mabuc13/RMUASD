@@ -79,7 +79,7 @@ class utm_parser(object):
             'pos_cur_alt_m': -1,
             'pos_cur_hdg_deg': -1,
             'pos_cur_vel_mps': -1,
-            'pos_cur_gps_timestamp': -1,
+            'pos_cur_gps_timestamp': 123456,
             'wp_next_lat_dd': -1,
             'wp_next_lng_dd': -1,
             'wp_next_alt_m': -1,
@@ -97,7 +97,7 @@ class utm_parser(object):
             'pos_cur_alt_m': -1,
             'pos_cur_hdg_deg': -1,
             'pos_cur_vel_mps': -1,
-            'pos_cur_gps_timestamp': -1,
+            'pos_cur_gps_timestamp': 123456,
             'wp_next_lat_dd': -1,
             'wp_next_lng_dd': -1,
             'wp_next_alt_m': -1,
@@ -194,7 +194,7 @@ class utm_parser(object):
 
             self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
             self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
-            self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp
+            #self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp
             #print "msgGPS: ", msg.GPS_timestamp, " msg.wp lon lat: ", msg.next_waypoint
 
             self.post_payload['uav_bat_soc'] = msg.battery_SOC
@@ -247,19 +247,22 @@ class utm_parser(object):
         #print self.post_payload
 
     def push_drone_data(self, payload):
+
         if self.push_debug:
             print "Pushed heading:", payload['pos_cur_hdg_deg']
             print "Pushed next heading:", payload['wp_next_hdg_deg']
             print "Pushed absolute altitude", payload['pos_cur_alt_m']
             print "Pushed absolute altitude at next WP", payload['wp_next_alt_m']
             print "Pushed ETA at next waypoint: ", payload['wp_next_eta_epoch']
+            print "Payload: ", payload
 
+            #print "FUll payload: ", payload
         if self.utm_trafic_debug:
             print colored('Trying to POST the data...', 'yellow')
             #print payload
         r = ''
         try:
-            r = requests.post(url='https://droneid.dk/rmuasd/utm/tracking_data.php', data=payload, timeout=2)
+            r = requests.post(url='https://droneid.dk/rmuasd/utm/tracking_data.php', data=self.post_payload, timeout=2)
             r.raise_for_status()
         except requests.exceptions.Timeout:
             # Maybe set up for a retry, or continue in a retry loop
@@ -507,7 +510,6 @@ class utm_parser(object):
                     print "Succesfully got drone data"
                 try:
                     #print "Drone data: ", data_dict
-<<<<<<< HEAD
                     #for data in data_dict:
                     #    if not data['uav_id'] == self.post_payload['uav_id']:
                     #        print data
@@ -529,7 +531,6 @@ class utm_parser(object):
                     u'wp_next_lat_dd': 55.47227, 
                     u'wp_next_vel_mps': -1}
                     '''
-=======
                     msg = UTMDroneList()
                     i = 1
                     for data in data_dict:
@@ -557,7 +558,7 @@ class utm_parser(object):
                             drone.drone_id = data['uav_id']
                             msg.drone_list.append(drone)
                     self.utm_drones_pub.publish(msg)
->>>>>>> 0e6b018c409692472d4cc03168f8e9301cb98170
+
                 except Exception as e:
                     print e
                     rospy.logerr("Failed to retrieve drone data, maybe there is none")
