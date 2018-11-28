@@ -294,10 +294,11 @@ void QNode::handle_DroneInfo(gcs::DroneInfo msg){
         theDrone->SOC = msg.battery_SOC;
         Q_EMIT sig_battery(theDrone->SOC);
     }
-    if(theDrone->time != msg.GPS_timestamp){
-        theDrone->time = msg.GPS_timestamp;
-        sig_time(theDrone->time.c_str());
-    }
+    // TODO fix this to handle epoch time instead of the string format
+    // if(theDrone->time != msg.GPS_timestamp){
+    //     theDrone->time = msg.GPS_timestamp;
+    //     sig_time(theDrone->time.c_str());
+    // }
     if(theDrone->heading != msg.heading){
         theDrone->heading = msg.heading;
         Q_EMIT sig_heading(theDrone->heading);

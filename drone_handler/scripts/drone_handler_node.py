@@ -158,14 +158,15 @@ class DroneHandler(object):
     def on_drone_pos(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
-
-            drone.up_time = msg.time_usec / 1e6
+            drone.gps_timestamp = msg.time_usec
+            drone.up_time = msg.time_boot_usec / 1e6
             drone.latitude = msg.lat
             drone.longitude = msg.lon
             drone.absolute_alt = msg.alt
             drone.relative_alt = msg.relative_alt
             drone.heading = msg.heading
-
+            # timestamp = datetime.utcfromtimestamp(msg.time_usec / 1e6).strftime('%Y-%m-%d %H:%M:%S')
+            # print(timestamp)
             drone.manual_mission.update_position(msg)
             # drone.last_heard = msg.header.stamp
 
@@ -197,7 +198,7 @@ class DroneHandler(object):
                 battery_SOC=drone.battery_SOC,
                 relative_alt=drone.relative_alt,
                 absolute_alt=drone.absolute_alt,
-                # GPS_timestamp=,
+                GPS_timestamp=drone.gps_timestamp,
                 status=drone.gcs_status,
                 mission_index=drone.active_mission_idx,
                 mission_length=drone.active_mission_len
