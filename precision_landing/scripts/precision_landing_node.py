@@ -64,6 +64,8 @@ class PrecisionLanding(object):
         self.alt = 0
         self.mission_idx = 0
         self.mission_len = 0
+        self.new_imu_reading = False
+        self.new_vel_reading = False
 
         dt = 1/update_interval
         self.state = np.zeros((4,1), float)
@@ -173,8 +175,8 @@ class PrecisionLanding(object):
 
             # self.rotation_matrix = rmsd.kabsch(temp[:,0:2], B)
             # rospy.logwarn(self.rotation_matrix)
-            np.savetxt(savename1, self.filtered_data, delimiter=',')
-            self.filtered_data = np.empty((0,2), float)
+            # np.savetxt(savename1, self.filtered_data, delimiter=',')
+            # self.filtered_data = np.empty((0,2), float)
             np.savetxt(savename2, self.local_data, delimiter=',')
             self.local_data = np.empty((0,3), float)
 
@@ -186,16 +188,16 @@ class PrecisionLanding(object):
             data = self.bus.read_i2c_block_data(TAG_ADDRESS, LANDING_TARGET_REF, LANDING_TARGET_SIZE)
             (x,y,z) = struct.unpack('<fff',bytearray(data))
 
+            # print(x,y,z)
             # Make sure that no nans are accepted as values
-            if isnan(x) or isnan(y):
+            if isnan(x) or isnan(y) or isnan(z):
                 return False
             
-            if isnan(z):
-                z = 0.0
+            # if isnan(z):
+            #     z = 0.0
 
             self.local_drone_pos = Point(x, y, z)
             self.landing_target = Point(self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-z)
-            # print(self.landing_target)
             return True
         except Exception as e:
             rospy.logwarn(e)
@@ -207,32 +209,55 @@ class PrecisionLanding(object):
         else:
             self.recording = False
 
-        if self.recording:
+        # print(self.main_mode)
+
+        if self.main_mode == "Stabilized" and self.local_data.shape[0] > 0:
+            now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            savename2 = self.data_path + now + "_local_data.csv"
+            np.savetxt(savename2, self.local_data, delimiter=',')
+            self.local_data = np.empty((0,3), float)
+            rospy.logwarn("SAVING!")
+
+
+        # if self.recording:
             # if self.new_imu_reading:
             #     self.new_imu_reading = False
             
-            if self.new_vel_reading:
-                self.new_vel_reading = False
-                if self.get_landing_target():
-                    # update kalman filter with both position and velocity
-                    measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y], [self.vx], [self.vy]])
-                    self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
-                else:
-                    # update kalman filter only with velocity
-                    measurement = np.array([[self.vx], [self.vy]])
-                    self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
+        if self.get_landing_target():
+            # self.data = np.append(self.data, np.array([[easting, northing, self.local_drone_pos.x, self.local_drone_pos.y]]), axis=0)
+            self.local_data = np.append(self.local_data, np.array([[self.local_drone_pos.x, self.local_drone_pos.y, self.local_drone_pos.z]]), axis=0)
 
-            else:
-                if self.get_landing_target():
-                    # update kalman filter with position
-                    measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y]])
-                    self.state = self.kalman.update(measurement, kalman.Measurement.POS)
-                else:
-                    # only do kalman prediction
-                    self.state = self.kalman.update()
+            msg = telemetry_landing_target(
+                landing_target=self.landing_target
+            )
 
-            self.filtered_pos = Point(self.state[0,0], self.state[1,0])  
-            self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y]]), axis=0)
+            print(self.landing_target)
+            self.landing_target_pub.publish(msg)
+
+            # if self.new_vel_reading:
+            #     self.new_vel_reading = False
+            #     if self.get_landing_target():
+            #         # update kalman filter with both position and velocity
+            #         measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y], [self.vx], [self.vy]])
+            #         # self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
+            #     else:
+            #         # update kalman filter only with velocity
+            #         measurement = np.array([[self.vx], [self.vy]])
+            #         # self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
+
+            # else:
+            #     if self.get_landing_target():
+
+            #         # update kalman filter with position
+            #         measurement = np.array([[self.local_drone_pos.x], [self.local_drone_pos.y]])
+            #         # self.state = self.kalman.update(measurement, kalman.Measurement.POS)
+            #     else:
+            #         # only do kalman prediction
+            #         # self.state = self.kalman.update()
+            #         pass
+
+            # self.filtered_pos = Point(self.state[0,0], self.state[1,0])  
+            # self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y]]), axis=0)
 
 
         # activate landing target
