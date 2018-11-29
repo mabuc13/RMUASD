@@ -97,6 +97,9 @@ Revision
 #define MAVLINK_MSG_ID_SYS_STATUS 1
 #define MAVLINK_MSG_ID_SYS_STATUS_LEN 31
 
+#define MAVLINK_MSG_ID_SYSTEM_TIME 2
+#define MAVLINK_MSG_ID_SYSTEM_TIME_LEN 12
+
 #define MAVLINK_MSG_ID_PARAM_REQUEST_READ 20
 #define MAVLINK_MSG_ID_PARAM_REQUEST_READ_LEN 20
 
@@ -186,6 +189,11 @@ typedef struct __mavlink_sys_status_t {
  uint16_t errors_count4; /*< Autopilot-specific errors*/
  int8_t battery_remaining; /*< Remaining battery energy: (0%: 0, 100%: 100), -1: autopilot estimate the remaining battery*/
 } mavlink_sys_status_t;
+
+typedef struct __mavlink_sys_time_t {
+ uint64_t time_unix_usec; /*< Bitmask showing which onboard controllers and sensors are present. Value of 0: not present. Value of 1: present. Indices defined by ENUM MAV_SYS_STATUS_SENSOR*/
+ uint32_t time_boot_ms; /*< Bitmask showing which onboard controllers and sensors are enabled:  Value of 0: not enabled. Value of 1: enabled. Indices defined by ENUM MAV_SYS_STATUS_SENSOR*/
+ } mavlink_sys_time_t;
 
 typedef struct battery_status_t {
 	unsigned short voltage; /* [mV] */
@@ -327,6 +335,7 @@ unsigned long ml_messages_crc_error(void);
 void ml_set_monitor_all(void);
 short ml_rx_update(unsigned long ms, unsigned char *buf, short buf_cnt);
 mavlink_sys_status_t ml_unpack_msg_sys_status (unsigned char *payload);
+mavlink_sys_time_t ml_unpack_msg_sys_time (unsigned char *payload);
 battery_status_t ml_unpack_msg_battery_status (unsigned char *payload);
 mavlink_attitude_t ml_unpack_msg_attitude (unsigned char *payload);
 mavlink_gps_raw_int_t ml_unpack_msg_gps_raw_int (unsigned char *payload);

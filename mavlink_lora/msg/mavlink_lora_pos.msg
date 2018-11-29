@@ -1,5 +1,6 @@
 Header header
 uint64 time_usec
+uint32 time_boot_usec
 uint8 system_id
 float64 lat
 float64 lon
