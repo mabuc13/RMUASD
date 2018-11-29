@@ -54,8 +54,8 @@ class KalmanFilter(object):
         # self.velocityThreshold = velocityThresh
 
         # Error matrices from Agus lecture
-        measurementNoise    = 1.5
-        modelNoise          = 2.5
+        measurementNoise    = 0.1
+        modelNoise          = 0.1
         self.Q      = np.eye(4)*modelNoise**2*dt
         self.R      = np.eye(2)*measurementNoise**2/dt
         self.R2     = np.eye(2)*measurementNoise**2/dt
@@ -132,9 +132,9 @@ class KalmanFilter(object):
         # predict function
         # self.K          = self.P_plus @ self.H.T @ inv(self.R)
 
-        y_rows = y.shape[0]
+        # y_rows = y.shape[0]
         self.x_hat_plus = self.x_hat_min + self.K @ (y - self.H @ self.x_hat_min)
-        self.P_plus     = (np.eye(y_rows) - self.K @ self.H) @ self.P_min
+        self.P_plus     = (np.eye(4) - self.K @ self.H) @ self.P_min
 
         return self.x_hat_plus, self.P_plus
 

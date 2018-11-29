@@ -99,6 +99,7 @@ class Telemetry(object):
         rospy.sleep (1) # wait until everything is running
 
         self.boot_time = rospy.Time.now().to_sec() * 1000
+        self.drone_boot_epoch = 0
 
         # Service handlers
         self.arm_service                = rospy.Service("/telemetry/arm_drone", Trigger, self.command_handler.arm_drone, buff_size=10)
@@ -159,37 +160,46 @@ class Telemetry(object):
             main_mode = (custom_mode >> 16) & 0xFF
 
             # filter out heartbeats from GCS
-            if msg.sys_id != 255:
-                heartbeat_msg = telemetry_heartbeat_status(
-                    system_id=msg.sys_id,
-                    component_id=msg.comp_id,
-                    timestamp=rospy.Time.now(),
-                    main_mode=MAVLINK_MAIN_MODE_LOOKUP[main_mode],
-                    sub_mode=MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode],
-                    armed=bool(base_mode & 0x80),
-                    autopilot=MAVLINK_AUTOPILOT_TYPE_LOOKUP[autopilot],
-                    base_mode=base_mode,
-                    mav_state=MAVLINK_MAV_STATE_LOOKUP[mav_state],
-                    mav_type=MAVLINK_MAV_TYPE_LOOKUP[mav_type],
-                    mavlink_version=mavlink_version
-                )
+            try:
+                if msg.sys_id != 255:
+                    heartbeat_msg = telemetry_heartbeat_status(
+                        system_id=msg.sys_id,
+                        component_id=msg.comp_id,
+                        timestamp=rospy.Time.now(),
+                        main_mode=MAVLINK_MAIN_MODE_LOOKUP[main_mode],
+                        sub_mode=MAVLINK_SUB_MODE_AUTO_LOOKUP[sub_mode],
+                        armed=bool(base_mode & 0x80),
+                        autopilot=MAVLINK_AUTOPILOT_TYPE_LOOKUP[autopilot],
+                        base_mode=base_mode,
+                        mav_state=MAVLINK_MAV_STATE_LOOKUP[mav_state],
+                        mav_type=MAVLINK_MAV_TYPE_LOOKUP[mav_type],
+                        mavlink_version=mavlink_version
+                    )
 
-                mav_mode_msg = telemetry_mav_mode(
-                    system_id=msg.sys_id,
-                    component_id=msg.comp_id,
-                    timestamp=rospy.Time.now(),
-                    armed=bool(base_mode & 0x80),
-                    manual_input=bool(base_mode & 0x40),
-                    hil_simulation=bool(base_mode & 0x20),
-                    stabilized_mode=bool(base_mode & 0x10),
-                    guided_mode=bool(base_mode & 0x08),
-                    auto_mode=bool(base_mode & 0x04),
-                    test_mode=bool(base_mode & 0x02),
-                    custom_mode=bool(base_mode & 0x01)
-                )
+                    mav_mode_msg = telemetry_mav_mode(
+                        system_id=msg.sys_id,
+                        component_id=msg.comp_id,
+                        timestamp=rospy.Time.now(),
+                        armed=bool(base_mode & 0x80),
+                        manual_input=bool(base_mode & 0x40),
+                        hil_simulation=bool(base_mode & 0x20),
+                        stabilized_mode=bool(base_mode & 0x10),
+                        guided_mode=bool(base_mode & 0x08),
+                        auto_mode=bool(base_mode & 0x04),
+                        test_mode=bool(base_mode & 0x02),
+                        custom_mode=bool(base_mode & 0x01)
+                    )
 
-                self.heartbeat_status_pub.publish(heartbeat_msg)
-                self.mav_mode_pub.publish(mav_mode_msg)
+                    self.heartbeat_status_pub.publish(heartbeat_msg)
+                    self.mav_mode_pub.publish(mav_mode_msg)
+
+            except Exception as e:
+                print(e)
+
+        elif msg.msg_id == MAVLINK_MSG_ID_SYSTEM_TIME:
+            (time_unix_usec, time_boot_ms) = struct.unpack('<QI', msg.payload)
+
+            print(time_unix_usec, time_boot_ms)
 
         elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_GLOBAL_INT:
             (time_boot_ms, lat_int, lon_int, alt, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IiifffffffffHB', msg.payload)
