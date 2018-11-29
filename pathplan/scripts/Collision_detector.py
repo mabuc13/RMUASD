@@ -4,6 +4,7 @@
 from coordinate import Coordinate
 import rospy
 from gcs.msg import DroneInfo, GPS, DronePath, inCollision
+from gcs.srv import safeTakeOff
 from math import sqrt
 import time
 import json
@@ -34,6 +35,8 @@ class CollisionDetector:
 
         # status variables
         rospy.sleep(1)  # wait until everything is running
+
+        self.safe_takeoff_service = rospy.Service("Collision_detector/safeTakeOff", safeTakeOff, on_safe_takeoff)
 
         self.collision_detected_pub = rospy.Publisher("/collision_detector/collision_warning", inCollision, queue_size=10)
 
@@ -77,6 +80,10 @@ class CollisionDetector:
                         self.make_polygon(json_obj)
         except ValueError:
             print("Collision Detector: Couldn't convert string from UTM server to json..")
+
+    def on_safe_takeoff(self, req):
+        safe_bool, time_left = self.is_clear_to_take_of(req.drone_id)
+        return safeTakeOffResponse(safe_bool, time_left)
 
     def is_clear_to_take_of(self, drone_id):
         start_position = Coordinate(lon=self.active_drone_paths[drone_id][0].longitude,
