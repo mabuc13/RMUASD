@@ -608,8 +608,8 @@ class utm_parser(object):
             outer_cnt += 1
 
     def create_empty_map(self, ll_utm, ur_utm):
-        delta_x = ur_utm[3] - ll_utm[3]
-        delta_y = ur_utm[4] - ll_utm[4]
+        delta_x = abs(ur_utm[3] - ll_utm[3])
+        delta_y = abs(ur_utm[4] - ll_utm[4])
         #if self.debug:
         #   print "lower left:", ll_utm
         #   print "upper right: ", utm_ur
@@ -735,8 +735,9 @@ class utm_parser(object):
     #   current_dnfz = self.get_dynamic_nfz()
     #https://stackoverflow.com/questions/34600003/converting-json-to-string-in-python
     def check_dynamic_data(self):
-        message = dnfz()
+        message = String()
         current_dnfz = self.get_dynamic_nfz()
+
         if not self.published_first_dnfz:
             message = json.dumps(current_dnfz)
             self.dnfz_pub.publish(message)
@@ -746,10 +747,11 @@ class utm_parser(object):
                 print colored('Difference in latest and current dnfz found' , 'blue')
                 print colored("Current dnfz: ", 'blue'), current_dnfz
                 print "Latest dnfz: ", self.latest_dynamic_data
-            message.dnfz_data = json.dumps(current_dnfz)
-
+            message = json.dumps(current_dnfz)
             self.dnfz_pub.publish(message)
             self.latest_dynamic_data = current_dnfz
+            #self.dnfz_pub.publish(cur_string)
+
 
 
 
