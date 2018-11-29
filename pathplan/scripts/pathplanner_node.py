@@ -2,7 +2,7 @@
 
 import numpy as np
 from coordinate import Coordinate
-from AStar_with_dnfz import AStar
+from AStar_1 import AStar
 from exportkml import kmlclass
 import rospy
 from gcs.msg import *
@@ -50,8 +50,9 @@ class PathPlanner(object):
         print("[Path planner]: "+"Computing path...")
 
         t0 = time.time()
-        astar_object = AStar(self.start.GPS_data, self.goal.GPS_data, self.map, map_padding,step_multiplier=8)
-        path_reversed = astar_object.compute_static_astar()
+        astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
+        astar_object.set_start_and_goal(self.start, self.goal, t0)
+        path_reversed = astar_object.compute_astar(False) #True equals dynamic no flight zone
 
 
         #path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
@@ -88,7 +89,7 @@ class PathPlanner(object):
     
     
 
-def handle_getPathPlan(req):
+def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the requested message
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
           ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)

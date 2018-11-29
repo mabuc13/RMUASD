@@ -13,6 +13,9 @@ import time
 import json
 import string
 from shapely import geometry
+from std_msgs.msg import String
+import string
+
 #from utm_parser.srv import *
 #from utm_parser.msg import *
 
@@ -46,7 +49,7 @@ class AStar:
         self.init_map()
 
         self.dynamic_no_flight_zones = {}
-        rospy.Subscriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
+        rospy.Subscriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
 
         self.safety_extra_time = 10
         self.safety_dist_to_dnfz = 10
@@ -56,8 +59,12 @@ class AStar:
         Callback function
         Use "int_id" in the string as key in the dict of dnfz
         '''
+
+        string_msg = str(msg.data)
+
+
         try:
-            all_json_objs = json.loads(msg)
+            all_json_objs = json.loads(string_msg)
             for json_obj in all_json_objs:
                 if json_obj["int_id"] in self.dynamic_no_flight_zones:
                     self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
@@ -65,8 +72,8 @@ class AStar:
                     self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
                     if json_obj["geometry"] == "polygon":
                         self.make_polygon(json_obj)
-        except ValueError:
-            print("Collision Detector: Couldn't convert string from UTM server to json..")
+        except ValueError as Err:
+            print("Collision Detector: Couldn't convert string from UTM server to json..", Err)
 
     def make_polygon(self, json_obj):
         coords = json_obj["coordinates"]
@@ -77,7 +84,7 @@ class AStar:
             i += 1
         list_of_points = []
         for point in coords:
-            temp_coord = Coordinate(lat=point[1], lon=point[0])
+            temp_coord = Coordinate(lat=float(point[1]), lon=float(point[0]))
             list_of_points.append(geometry.Point(temp_coord.easting, temp_coord.northing))
         # Taken from:
         # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
