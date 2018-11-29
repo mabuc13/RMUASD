@@ -38,6 +38,7 @@ from kml_reader import kml_no_fly_zones_parser
 from time import gmtime, strftime
 from utm import utmconv
 import math
+import string
 # Disable warning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -734,6 +735,7 @@ class utm_parser(object):
     #   current_dnfz = self.get_dynamic_nfz()
     #https://stackoverflow.com/questions/34600003/converting-json-to-string-in-python
     def check_dynamic_data(self):
+        message = dnfz()
         current_dnfz = self.get_dynamic_nfz()
         if not self.published_first_dnfz:
             message = json.dumps(current_dnfz)
@@ -744,7 +746,7 @@ class utm_parser(object):
                 print colored('Difference in latest and current dnfz found' , 'blue')
                 print colored("Current dnfz: ", 'blue'), current_dnfz
                 print "Latest dnfz: ", self.latest_dynamic_data
-            message = json.dumps(current_dnfz)
+            message.dnfz_data = json.dumps(current_dnfz)
 
             self.dnfz_pub.publish(message)
             self.latest_dynamic_data = current_dnfz
