@@ -14,6 +14,6 @@ float32 battery_soc
 
 uint16 drone_priority
 
-float32 ETA_next_WP
+int64 ETA_next_WP
 
 uint32 drone_id

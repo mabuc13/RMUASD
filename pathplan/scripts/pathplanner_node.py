@@ -2,7 +2,7 @@
 
 import numpy as np
 from coordinate import Coordinate
-from AStar_2 import astar
+from AStar_with_dnfz import AStar
 from exportkml import kmlclass
 import rospy
 from gcs.msg import *
@@ -18,7 +18,8 @@ from utm_parser.msg import *
 
 
 class PathPlanner(object):
-    def __init__(self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)):
+    def __init__(self, start,  goal):
+        #self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)
         # Default position at HCA Airport: lat=55.470415, lon=10.329449
         self.start = Coordinate(GPS_data=start.GPS_data)
         self.goal = Coordinate(GPS_data=goal.GPS_data)
@@ -39,7 +40,9 @@ class PathPlanner(object):
         print("[Path planner]: "+ "Waiting for UTM")
         rospy.wait_for_service('/utm_parser/get_snfz')
         get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
-
+        print "Start", self.start.GPS_data
+        print "Lower left", lower_left.GPS_data
+        print "Upper right", upper_right.GPS_data
         self.map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
 
         print("[Path planner]: "+"Distance: ",
@@ -47,7 +50,11 @@ class PathPlanner(object):
         print("[Path planner]: "+"Computing path...")
 
         t0 = time.time()
-        path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
+        astar_object = AStar(self.start.GPS_data, self.goal.GPS_data, self.map, map_padding,step_multiplier=8)
+        path_reversed = astar_object.compute_static_astar()
+
+
+        #path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
         t1 = time.time()
 
         print("[Path planner]: "+"Found a path in %s seconds." % (t1 - t0))

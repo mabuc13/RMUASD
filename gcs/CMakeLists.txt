@@ -7,7 +7,12 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED rospy std_msgs message_generation roscpp roslib node_monitor)
+find_package(catkin REQUIRED 
+  rospy 
+  std_msgs 
+  message_generation 
+  roscpp roslib 
+  node_monitor)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -53,6 +58,7 @@ catkin_python_setup()
    inCollision.msg
    UTMDrone.msg
    UTMDroneList.msg
+   moveTo.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -61,6 +67,7 @@ add_service_files(
    pathPlan.srv
    getEta.srv
    gps2distance.srv
+   safeTakeOff.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -154,6 +161,7 @@ add_dependencies(${PROJECT_NAME}_node gcs_generate_messages_cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
+   ${GeographicLib_LIBRARIES}
 )
 
 #############

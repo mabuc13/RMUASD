@@ -34,13 +34,6 @@ class NodeMonitor(object):
         #subscriber
         rospy.Subscriber("/node_monitor/input/Heartbeat", heartbeat, self.handler_heartbeat)
         rospy.Subscriber("/mavlink_status",mavlink_lora_status,self.handler_mavlink_lora_heartbeat)
-        #rospy.Subscriber("/gcs/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/utm_parser/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/pathplan/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/telemtry/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/drone_handler/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/internet/Heartbeat", heartbeat, self.handler_heartbeat)
-        #rospy.Subscriber("/remot3/Heartbeat", heartbeat, self.handler_heartbeat)
 
         self.Heartbeat_pub = rospy.Publisher('/node_monitor/Heartbeat', heartbeat, queue_size = 10)
         self.NodeSates_pub = rospy.Publisher('/node_monitor/node_list',nodeOkList,queue_size= 10)

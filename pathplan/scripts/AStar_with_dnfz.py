@@ -52,7 +52,7 @@ class AStar:
         self.init_map()
 
         self.dynamic_no_flight_zones = {}
-        rospy.Substriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
+        rospy.Subscriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
 
         self.safety_extra_time = 10
         self.safety_dist_to_dnfz = 10
