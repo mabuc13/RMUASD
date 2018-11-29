@@ -36,7 +36,7 @@ class CollisionDetector:
         # status variables
         rospy.sleep(1)  # wait until everything is running
 
-        self.safe_takeoff_service = rospy.Service("Collision_detector/safeTakeOff", safeTakeOff, on_safe_takeoff)
+        self.safe_takeoff_service = rospy.Service("collision_detector/safeTakeOff", safeTakeOff, on_safe_takeoff)
 
         self.collision_detected_pub = rospy.Publisher("/collision_detector/collision_warning", inCollision, queue_size=10)
 
