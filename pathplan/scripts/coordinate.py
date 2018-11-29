@@ -32,11 +32,9 @@ class Coordinate(object):
 			self.GPS_data.longitude = self.lon
 			self.GPS_data.altitude = self.altitude
 
-
 	def update_UTM_coordinates(self):
 		self.hemisphere, self.zone, self.letter, self.easting, self.northing = self.converter.geodetic_to_utm(self.lat,
 																											  self.lon)
-
 
 	def update_geo_coordinates(self):
 		self.lat, self.lon = self.converter.utm_to_geodetic(self.hemisphere, self.zone, self.easting, self.northing)
