@@ -10,6 +10,9 @@ project(precision_landing)
 find_package(catkin REQUIRED
   rospy
   message_generation
+  std_msgs  # Or other packages containing msgs
+  geometry_msgs
+  mavlink_lora
   telemetry
 )
 
@@ -47,9 +50,10 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-#add_message_files(
-#  FILES
-#)
+add_message_files(
+ FILES
+ precland_sensor_data.msg
+)
 
 ## Generate services in the 'srv' folder
 #add_service_files(
@@ -64,12 +68,13 @@ catkin_python_setup()
 # )
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES
-#  std_msgs  # Or other packages containing msgs
-#  mavlink_lora
-#  telemetry
-#)
+generate_messages(
+ DEPENDENCIES
+ std_msgs  # Or other packages containing msgs
+ geometry_msgs  # Or other packages containing msgs
+ mavlink_lora
+ telemetry
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##

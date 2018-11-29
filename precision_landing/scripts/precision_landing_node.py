@@ -17,6 +17,7 @@ from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import * # pylint: disable=W0614
 from geometry_msgs.msg import Point
 from node_monitor.msg import heartbeat
+from precision_landing.msg import precland_sensor_data
 
 # defines
 RECORDING_FLIGHT_MODE = "Altitude Control"
@@ -101,7 +102,7 @@ class PrecisionLanding(object):
         rospy.Subscriber("/telemetry/imu_data_ned", telemetry_imu_ned, self.on_imu_data)
         rospy.Subscriber("/telemetry/local_position_ned", telemetry_local_position_ned, self.on_local_pos)
         
-
+        self.sensor_data_pub    = rospy.Publisher("/landing/sensor_data", precland_sensor_data, queue_size=0)
         self.landing_target_pub = rospy.Publisher("/telemetry/set_landing_target", telemetry_landing_target, queue_size=0)
 
     def on_drone_pos(self, msg):
@@ -187,12 +188,15 @@ class PrecisionLanding(object):
             (x,y,z) = struct.unpack('<fff',bytearray(data))
 
             # Make sure that no nans are accepted as values
-            if isnan(x) or isnan(y):
+            if isnan(x) or isnan(y) or isnan(z):
                 return False
             
-            if isnan(z):
-                z = 0.0
+            # if isnan(z):
+            #     z = 0.0
 
+            sensor_data = precland_sensor_data(x, y, z)
+            
+            self.sensor_data_pub.publish(sensor_data)
             self.local_drone_pos = Point(x, y, z)
             self.landing_target = Point(self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-z)
             # print(self.landing_target)
@@ -234,7 +238,7 @@ class PrecisionLanding(object):
             self.filtered_pos = Point(self.state[0,0], self.state[1,0])  
             self.filtered_data = np.append(self.filtered_data, np.array([[self.filtered_pos.x, self.filtered_pos.y]]), axis=0)
 
-
+ 
         # activate landing target
         if self.sub_mode == "Mission":
             if self.mission_len > 0:
