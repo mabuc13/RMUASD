@@ -87,12 +87,18 @@ class PathPlanner(object):
         kml.end()
     
     
+path_planner_dict = {}
 
 def handle_getPathPlan(req):
+    global path_planner_dict
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
           ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
+    if req.drone_id in path_planner_dict:
+        # check for new map
+    else:
+
     planner = PathPlanner(start=start,goal=theend)
     planner.compute_path()
     plan = planner.path
