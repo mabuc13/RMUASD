@@ -98,6 +98,7 @@ class Telemetry(object):
         rospy.sleep (1) # wait until everything is running
 
         self.boot_time = rospy.Time.now().to_sec() * 1000
+        self.drone_boot_epoch = 0
 
         # Service handlers
         self.arm_service                = rospy.Service("/telemetry/arm_drone", Trigger, self.command_handler.arm_drone, buff_size=10)
