@@ -1,15 +1,18 @@
+// INCLUDE STD
 #include <iostream>
 #include <deque>
 #include <vector>
 #include <string>
 #include <fstream>
 #include <map>
-
+#include <math.h>
 #include <locale>
 
+// INCLUDE ROS
 #include <ros/ros.h>
 #include <ros/package.h>
 
+// INCLUDE MESSAGES AND SERVICES
 #include <gcs/GPS.h>
 #include <gcs/DroneInfo.h>
 #include <gcs/DronePath.h>
@@ -28,14 +31,19 @@
 #include <node_monitor/nodeOkList.h>
 #include <node_monitor/nodeOk.h>
 
+// INCLUDE OWN FILES
 #include <DronesAndDocks.hpp>
+#include <DroneDeconflict.hpp>
 #include <TextCsvReader.hpp>
+
 
 using namespace std;
 
 #define DEBUG true
 #define DO_PREFLIGHT_CHECK false
 
+
+// ############################ Clients, Subscribers and Publishers #######################
 ros::Publisher RouteRequest_pub;
 ros::Publisher Reposition_pub;
 ros::Publisher WebInfo_pub;
@@ -56,6 +64,7 @@ ros::ServiceClient client;
 ros::ServiceClient safeTakeOffClient;
 
 
+// ############################# Global Variables ######################################
 ros::NodeHandle* nh;
 
 node_monitor::heartbeat heartbeat_msg;
@@ -65,9 +74,12 @@ std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
 std::map<ID_t,simpleDrone> OtherDrones;
+std::map<ID_t,ID_t> Own2UtmId;
 
 node_monitor::nodeOk utm_parser;
 
+
+// ################################ Misulanius ###########################################
 ostream& operator<<(ostream& os, const gcs::GPS& pos)  
 {  
     os << "Lon(" << pos.longitude << "), Lat(" << pos.latitude << "), Alt(" << pos.altitude << ")";  
@@ -79,6 +91,53 @@ struct is_safe_for_takeoff{
     uint time_til_safe_take_off;
 };
 
+// ############################ Helper functions ##################################
+bool appendDockingStation(string textIn){
+    CSVmsg text(textIn);
+    if(text.hasValue("name") &&
+       text.hasValue("longitude") &&
+       text.hasValue("latitude") &&
+       text.hasValue("altitude"))
+    {
+        Docks.push_back(
+            new dock(text.getValue("name"),
+                 text.getNumValue("latitude"),
+                 text.getNumValue("longitude"),
+                 text.getNumValue("altitude"),
+                 text.getValue("lab") == "true"
+            )
+        );
+        return true;
+    }else{
+        return false;
+    }
+}
+void webMsg(dock* reciver, string msg){
+    std_msgs::String msgOut;
+    string m;
+    m+= "name=gcs,target=";
+    m+=reciver->getName();
+    m+=",";
+    m+=msg;
+    msgOut.data=m;
+    WebInfo_pub.publish(msgOut);
+    //cout << "[Ground Control]: " << m << endl;
+}
+double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2);
+dock* closestLab(drone* theDrone){ // TODO
+    double distance = INFINITY;
+    dock* theLab;
+    for(size_t i = 0; i < Docks.size(); i++){
+        if(Docks[i]->isLab()){
+            double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
+            if(d < distance){
+                distance = d;
+                theLab = Docks[i];
+            }
+        }
+    }
+    return theLab;
+}
 void NodeState(uint8 severity,string msg,double rate = 0){
     double curRate = heartbeat_msg.rate;
     if(rate != 0){
@@ -90,8 +149,11 @@ void NodeState(uint8 severity,string msg,double rate = 0){
     Heartbeat_pub.publish(heartbeat_msg);
     heartbeat_msg.rate = curRate;
 }
+double diff(double num1, double num2){
+    return std::abs(num1-num2);
+}
 
-// ######### Service calls ###########
+// ############################ Service calls ##################################
 double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     gcs::gps2distance srv;
     srv.request.point1 = point1;
@@ -125,11 +187,12 @@ is_safe_for_takeoff safeTakeOff(uint drone_id){
     }
     return response;
 }
-std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end){
+std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,ID_t drone_id){
 
     gcs::pathPlan srv;
     srv.request.start = start;
     srv.request.end = end;
+    srv.request.drone_id = drone_id;
     bool worked;
     NodeState(node_monitor::heartbeat::nothing,"",0.2);
     if(DEBUG) cout << "######################################" << endl << "Calculate Path Plan" << endl << "From: " << start <<endl <<"To: " << end << endl << "#####################################" <<endl;
@@ -166,54 +229,9 @@ int ETA(job* aJob){
     return srv.response.eta;
 }
 
-// ######### Helper functions ###########
-bool appendDockingStation(string textIn){
-    CSVmsg text(textIn);
-    if(text.hasValue("name") &&
-       text.hasValue("longitude") &&
-       text.hasValue("latitude") &&
-       text.hasValue("altitude"))
-    {
-        Docks.push_back(
-            new dock(text.getValue("name"),
-                 text.getNumValue("latitude"),
-                 text.getNumValue("longitude"),
-                 text.getNumValue("altitude"),
-                 text.getValue("lab") == "true"
-            )
-        );
-        return true;
-    }else{
-        return false;
-    }
-}
-void webMsg(dock* reciver, string msg){
-    std_msgs::String msgOut;
-    string m;
-    m+= "name=gcs,target=";
-    m+=reciver->getName();
-    m+=",";
-    m+=msg;
-    msgOut.data=m;
-    WebInfo_pub.publish(msgOut);
-    //cout << "[Ground Control]: " << m << endl;
-}
-dock* closestLab(drone* theDrone){ // TODO
-    double distance = INFINITY;
-    dock* theLab;
-    for(size_t i = 0; i < Docks.size(); i++){
-        if(Docks[i]->isLab()){
-            double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
-            if(d < distance){
-                distance = d;
-                theLab = Docks[i];
-            }
-        }
-    }
-    return theLab;
-}
 
-// ######### Message Handers ##########
+
+// ############################### Message Handers ###################################
 void DroneStatus_Handler(gcs::DroneInfo msg){
     // ###################### Is Drone Registered #####################
     bool isANewDrone = true;
@@ -351,7 +369,7 @@ void nodeMonitor_Handler(node_monitor::nodeOkList msg){
     }
 }
 
-
+// ################################### Main Program ###########################################
 void initialize(void){
     nh = new ros::NodeHandle();
 
@@ -367,6 +385,9 @@ void initialize(void){
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     UTMDrone_sub = nh->subscribe("/utm/dronesList",100,UTMdrone_Handler);
     nodeMonitor_sub = nh->subscribe("/node_monitor/node_list",10,nodeMonitor_Handler);
+
+    //TODO automatic registering of drone ID
+    Own2UtmId[1]=3012;
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
@@ -462,7 +483,6 @@ int main(int argc, char** argv){
             }
         }
 
-
         // ############### Do path planing for all jobs waiting for new Path plan ################
         for(size_t i = 0; i < activeJobs.size();i++){
             if(activeJobs[i]->getStatus()==job::wait4pathplan){
@@ -471,7 +491,7 @@ int main(int argc, char** argv){
                 // always start and stop above docking stations
                 start.altitude = 32;
                 end.altitude = 32;
-                std::vector<gcs::GPS> path = pathPlan(start, end);
+                std::vector<gcs::GPS> path = pathPlan(start, end,activeJobs[i]->getDrone()->getID());
                 activeJobs[i]->getDrone()->setPath(path);
                 activeJobs[i]->setStatus(job::preFlightCheack);
                 
@@ -484,7 +504,7 @@ int main(int argc, char** argv){
             }
         }
 
-        // ############## Pre FLight Cheacks
+        // ############### Pre FLight Cheacks ##################
         for(size_t i = 0; i < activeJobs.size();i++){
             if(activeJobs[i]->getStatus()==job::preFlightCheack){
                 
@@ -527,6 +547,43 @@ int main(int argc, char** argv){
             }
         }
 
+        // ############### Drone deconfliction ################
+        /*for(size_t i = 0; i < activeJobs.size();i++){
+            if(activeJobs[i]->getStatus() == job::ongoing){
+                ID_t ID = Own2UtmId[activeJobs[i]->getDrone()->getID()];
+                simpleDrone ourDrone = OtherDrones[ID];
+                vector<UTM> ourDronePath = ourDrone.getPath(simpleDroneDeconflict::maxSearchTime);
+
+                for (auto it = OtherDrones.begin(); it != OtherDrones.end(); it++ )
+                { // first = key, second = data
+                    if(it->first != ID){ // Make Sure it is not our Drone
+                        simpleDroneDeconflict deCon(ourDrone,it->second,ourDronePath);
+                        if(deCon.isSameHeight()){
+                            if(deCon.isWithinSeachArea()){
+                                //TODO assert that both Drones are in same UTM zone
+                                
+
+                                
+                                
+                                if(it->second.getPriority() == ourDrone.getPriority()){
+                                    //Deconflict SAME Priority
+
+
+
+                                }else if(it->second.getPriority() > ourDrone.getPriority()){
+                                    //If Drone Has Lower Priority
+                                }else{
+                                    //If Drone Has Higher Priority
+                                }
+
+
+                            }
+                            //if(it->second.getPriority()==)
+                        }
+                    }
+                }
+            }
+        }*/
 
         // ############## Send out INFO on Drone ETA ######################
         if(spins >= rate){

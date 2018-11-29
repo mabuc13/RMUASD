@@ -1,6 +1,7 @@
 #input
 GPS start
 GPS end
+uint32 drone_id
 
 ---
 # output
