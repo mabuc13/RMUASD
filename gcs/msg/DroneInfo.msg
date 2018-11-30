@@ -10,7 +10,7 @@ float32 battery_voltage
 float32 relative_alt
 float32 absolute_alt
 
-string GPS_timestamp    # timestamp of when GPS info was read on the drone
+uint64 GPS_timestamp    # timestamp of when GPS info was read on the drone
 uint8 status            # one of the constants below
 uint16 mission_index    # index of the current complete mission (dock to dock)
 uint16 mission_length   # length of the complete mission

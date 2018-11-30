@@ -2,21 +2,7 @@
 #include "DronesAndDocks.hpp"
 #include <iostream>
 #include <math.h>
-
-
-gcs::GPS UTM2GPS(UTM coord){
-  gcs::GPS ret;
-  Geo::UTMtoLL(coord.north,coord.east,coord.zone,ret.latitude,ret.longitude);
-  ret.altitude=coord.altitude;
-  return ret;
-
-}
-UTM GPS2UTM(gcs::GPS coord){
-  UTM ret;
-  Geo::LLtoUTM(coord.latitude,coord.longitude,ret.north,ret.east,ret.zone);
-  ret.altitude = coord.altitude;
-  return ret;
-}
+#include <cmath> 
 
 //################## Dock ###################
 dock::dock(string name,double latitude, double longitude, double altitude, bool isLab):
@@ -85,80 +71,6 @@ void job::setStatus(uint8 status){
     std::cout <<"[Ground control]: "<< "Job: " << this->getQuestHandler()->getName() << " - Status: " << (int)status << std::endl;
 }
 
-//################### SimpleDrone ######################
-simpleDrone::simpleDrone():vel_list(4){}
-simpleDrone::simpleDrone(ID_t ID, gcs::GPS curPos):
-    vel_list(10),cur_pos(curPos),drone_id(ID){}
-
-simpleDrone::simpleDrone(gcs::UTMDrone info):vel_list(4){
-    
-    this->update_values(info);
-}
-void simpleDrone::update_values(gcs::UTMDrone info){
-    this->next_wp = info.next_WP;
-    this->cur_pos = info.cur_pos;
-    this->next_vel = info.next_vel;
-    this->cur_vel = info.cur_vel;
-
-    if(this->drone_id == 0){
-        for(size_t i = 0; i < vel_list.size();i++){
-            vel_list[i]= info.cur_vel;
-            vel_acc+=info.cur_vel;
-        }
-    }
-    this->vel_list.push_back(info.cur_vel);
-    this->vel_acc = info.cur_vel - this->vel_list.front();
-    this->vel_list.pop_front();
-    this->cur_vel_est = this->vel_acc/this->vel_list.size();
-
-    while(info.cur_heading > 360) info.cur_heading -= 360;
-    while(info.cur_heading<0 ) info.cur_heading +=360;
-    while(info.next_heading > 360) info.next_heading -= 360;
-    while(info.next_heading<0 ) info.next_heading +=360;
-
-    this->next_heading = info.next_heading;
-    this->cur_heading = info.cur_heading;
-    this->time = info.time;
-    this->gps_time = info.gps_time;
-    this->battery_soc = info.battery_soc;
-    this->drone_priority = info.drone_priority;
-
-    this->ETA_next_WP= info.ETA_next_WP;
-    this->drone_id = info.drone_id;
-}
-gcs::GPS simpleDrone::getPosition(){return this->cur_pos;}
-UTM simpleDrone::getPositionU(){return GPS2UTM(this->cur_pos);}
-UTM simpleDrone::getNextPositionU(){return GPS2UTM(this->next_wp);}
-direction simpleDrone::getHeading(double heading){
-    double angle;  
-    if(360>= heading && heading >= 270){
-        angle = 450-heading;
-    }else if (270>heading && heading > 90){
-        angle -(heading-90);
-    }else if(heading){
-        angle = 90-heading;
-    }
-    angle = M_PI * angle/180;
-    direction ret;
-    ret.north = std::sin(angle);
-    ret.east = std::cos(angle);
-
-    return ret;
-}
-direction simpleDrone::getCurHeading(){return getHeading(this->cur_heading);}
-direction simpleDrone::getNextHeading(){return getHeading(this->next_heading);}
-double simpleDrone::getCurVelocity(){return this->cur_vel;}
-double simpleDrone::getNextVelocity(){return this->next_vel;}
-ID_t simpleDrone::getID(){return this->drone_id;}
-double simpleDrone::getTime(){
-    if(this->gps_time < 10)
-        return this->time;
-    return this->gps_time;
-}
-double simpleDrone::getEtaNextWP(){return this->ETA_next_WP;}
-double simpleDrone::getBatterySOC(){return this->battery_soc;}
-uint8_t simpleDrone::getPriority(){return this->drone_priority;}
-
 //################### Drone ####################
 drone::drone(ID_t ID, gcs::GPS position):
     ID(ID),
@@ -217,3 +129,75 @@ void drone::setVelocity(double v){
 void drone::setMissionIndex(size_t i){
     this->pathIndex = i;
 }
+
+
+/*point collision[4];
+    collision[0] = pointOfCollision( this->ourDrone.getCurHeading(),
+                                        this->ourDrone.getPositionU(),
+                                        this->otherDrone.getCurHeading(),
+                                        this->otherDrone.getPositionU());
+
+    collision[1] = pointOfCollision( this->ourDrone.getNextHeading(),
+                                        this->ourDrone.getNextPositionU(),
+                                        this->otherDrone.getCurHeading(),
+                                        this->otherDrone.getPositionU());
+    
+    collision[2] = pointOfCollision( this->ourDrone.getCurHeading(),
+                                        this->ourDrone.getPositionU(),
+                                        this->otherDrone.getNextHeading(),
+                                        this->otherDrone.getNextPositionU());
+    
+    collision[3] = pointOfCollision( this->ourDrone.getNextHeading(),
+                                        this->ourDrone.getNextPositionU(),
+                                        this->otherDrone.getNextHeading(),
+                                        this->otherDrone.getNextPositionU());
+    
+    bool willBeThere1[4];
+    bool willBeThere2[4];
+    double tOurDrone[4];
+    double tOtherDrone[4];
+    // #################
+    tOurDrone[0] = time2point(collision[0],this->ourDrone.getCurHeading(),
+                                this->ourDrone.getEstimatedVelocity(),
+                                this->ourDrone.getPositionU());
+    tOurDrone[1] = time2point(collision[1],this->ourDrone.getNextHeading(),
+                                this->ourDrone.getNextVelocity(),
+                                this->ourDrone.getNextPositionU())
+                                + this->ourDrone.getEtaNextWP();
+                                
+    tOurDrone[2] = time2point(collision[2],this->ourDrone.getCurHeading(),
+                                this->ourDrone.getEstimatedVelocity(),
+                                this->ourDrone.getPositionU());
+    tOurDrone[3] = time2point(collision[0],this->ourDrone.getCurHeading(),
+                                this->ourDrone.getEstimatedVelocity(),
+                                this->ourDrone.getPositionU())
+                                + this->ourDrone.getEtaNextWP();
+    // #################
+    tOtherDrone[0] = time2point(collision[0],this->otherDrone.getCurHeading(),
+                                this->otherDrone.getEstimatedVelocity(),
+                                this->otherDrone.getPositionU());
+    tOtherDrone[1] = time2point(collision[1],this->otherDrone.getCurHeading(),
+                                this->otherDrone.getEstimatedVelocity(),
+                                this->otherDrone.getPositionU());
+    tOtherDrone[2] = time2point(collision[2],this->otherDrone.getCurHeading(),
+                                this->otherDrone.getEstimatedVelocity(),
+                                this->otherDrone.getPositionU())
+                                + this->otherDrone.getEtaNextWP();
+    tOtherDrone[3] = time2point(collision[3],this->otherDrone.getCurHeading(),
+                                this->otherDrone.getEstimatedVelocity(),
+                                this->otherDrone.getPositionU())
+                                + this->otherDrone.getEtaNextWP();
+
+    willBeThere1[0] = tOurDrone[0]>0 && tOurDrone[0] < this->ourDrone.getEtaNextWP();
+    willBeThere1[1] = this->ourDrone.getEtaNextWP()-tOurDrone[1]>0;      
+    willBeThere1[2] = tOurDrone[2]>0 && tOurDrone[2] < this->ourDrone.getEtaNextWP(); 
+    willBeThere1[3] = this->ourDrone.getEtaNextWP()-tOurDrone[3]>0; 
+
+    willBeThere2[0] = tOtherDrone[0]>0 && tOtherDrone[0] < this->otherDrone.getEtaNextWP();   
+    willBeThere2[1] = tOtherDrone[1]>0 && tOtherDrone[1] < this->otherDrone.getEtaNextWP(); 
+    willBeThere2[2] = this->otherDrone.getEtaNextWP()-tOtherDrone[2]>0;    
+    willBeThere2[3] = this->otherDrone.getEtaNextWP()-tOtherDrone[3]>0;  
+                            
+    if(tOurDrone < 0 || tOtherDrone <0 ){
+        //TODO crashSite Behind drone
+    }*/
