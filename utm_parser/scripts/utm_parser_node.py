@@ -114,6 +114,7 @@ class utm_parser(object):
         self.published_first_dnfz = 0
         #ROS STUFF
         self.get_snfz_service = rospy.Service("/utm_parser/get_snfz", get_snfz, self.get_snfz_handler, buff_size=10)
+        self.get_dnfz_service = rospy.Service("/utm_parser/get_dnfz", get_dnfz, self.get_dnfz_handler, buff_size=10)
         #self.post_drone_service = rospy.Service("/utm_parser/post_drone_info", post_drone_info, self.post_drone_info_handler, buff_size=10) ##SUBSCRIBE
         self.drone_info_sub = rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.post_drone_info_handler)
         self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
@@ -145,6 +146,11 @@ class utm_parser(object):
         #if self.path_debug:
         #    print "Got path and stored it: ", self.path
         #    print self.path
+
+    def get_dnfz_handler(self, req):
+        dnfz = self.get_dynamic_nfz()
+        message = json.dumps(dnfz)
+        return message
 
     def get_snfz_handler(self, req):
         if self.debug:
@@ -338,12 +344,14 @@ class utm_parser(object):
         if self.debug:
             print "Entering get_dynamic_NFZ \n"
 
-        self.payload = {
+        payload = {
             'data_type': 'dynamic_no_fly'
         }
         r = ''
         try:
-            r = requests.get(url='https://droneid.dk/rmuasd/utm/data.php', params=self.payload, timeout=2)
+            if self.debug:
+                print "Sending requests to dynamic no fly zones utm"
+            r = requests.get(url='https://droneid.dk/rmuasd/utm/data.php', params=payload, timeout=2)
             r.raise_for_status()
         except requests.exceptions.Timeout:
             # Maybe set up for a retry, or continue in a retry loop
