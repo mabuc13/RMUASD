@@ -1,0 +1,3 @@
+<launch>
+   <node name="bag_analyser" pkg="bag_analyser" type="analyser_node.py" output="screen" />
+</launch>
