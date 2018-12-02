@@ -12,6 +12,7 @@ import rospy
 import time
 import json
 import string
+from std_msgs.msg import String
 from shapely import geometry
 from collections import namedtuple
 #from utm_parser.srv import *
@@ -52,7 +53,7 @@ class AStar:
         self.init_map()
 
         self.dynamic_no_flight_zones = {}
-        rospy.Subscriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
+        rospy.Subscriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
 
         self.safety_extra_time = 10
         self.safety_dist_to_dnfz = 10

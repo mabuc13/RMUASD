@@ -96,9 +96,10 @@ def handle_getPathPlan(req):
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
     if req.drone_id in path_planner_dict:
+        pass
         # check for new map
     else:
-
+        pass
     planner = PathPlanner(start=start,goal=theend)
     planner.compute_path()
     plan = planner.path

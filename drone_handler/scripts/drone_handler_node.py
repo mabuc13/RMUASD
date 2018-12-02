@@ -47,6 +47,7 @@ class DroneHandler(object):
         self.heartbeat_info_pub = rospy.Publisher("/drone_handler/heartbeat/info", Time, queue_size=0)
 
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
+        rospy.Subscriber("/gcs/moveTo", moveTo, self.on_move)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
         rospy.Subscriber("/telemetry/mav_mode", telemetry_mav_mode, self.on_mav_mode)
         rospy.Subscriber("/telemetry/statustext", telemetry_statustext, self.on_statustext)
@@ -63,6 +64,11 @@ class DroneHandler(object):
         # rospy.Timer(rospy.Duration(0.1), self.mission_info_cb)
 
         self.rate = rospy.Rate(update_interval)
+
+    def on_move(self, msg):
+        if msg.drone_id in self.drones:
+            drone = self.drones[msg.drone_id]
+            drone.on_move(msg)
 
     def on_cmd_fail(self, msg):
         if msg.system_id in self.drones:
@@ -128,8 +134,8 @@ class DroneHandler(object):
             drone = self.drones[msg.system_id]
 
             drone.active_mission_idx        = msg.active_waypoint_idx
-            drone.active_sub_mission_len    = msg.active_mission_len
-            drone.active_sub_waypoint       = msg.current_item
+            drone.active_mission_len        = msg.active_mission_len
+            # drone.active_sub_waypoint       = msg.current_item
 
 
     def on_drone_attitude(self, msg):

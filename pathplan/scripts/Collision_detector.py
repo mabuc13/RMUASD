@@ -10,6 +10,7 @@ from math import sqrt
 import time
 import json
 import string
+from std_msgs.msg import String
 from shapely import geometry, wkt
 
 
@@ -44,7 +45,7 @@ class CollisionDetector:
         # Subscribe to new drone path's, and dynamic obstacles:
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
         rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.on_drone_info)
-        rospy.Substriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
+        rospy.Substriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
 
     def on_drone_path(self, msg):
         '''
