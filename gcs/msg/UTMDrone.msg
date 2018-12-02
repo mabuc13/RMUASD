@@ -12,7 +12,7 @@ int64 gps_time
 
 float32 battery_soc
 
-uint16 drone_priority
+int16 drone_priority
 
 int64 ETA_next_WP
 

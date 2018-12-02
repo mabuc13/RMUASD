@@ -18,13 +18,13 @@ from utm_parser.msg import *
 
 
 class PathPlanner(object):
-    def __init__(self, start,  goal):
+    def __init__(self, start,  goal, map):
         #self, start=Coordinate(lat=55.470415, lon=10.329449), goal=Coordinate(lat=55.470415, lon=10.329449)
         # Default position at HCA Airport: lat=55.470415, lon=10.329449
         self.start = Coordinate(GPS_data=start.GPS_data)
         self.goal = Coordinate(GPS_data=goal.GPS_data)
         self.path = []
-        self.map = None
+        self.map = map
 
         self.rmuast_simplifier = simplifier_rmuast.FlightPlanner()
 
@@ -32,26 +32,22 @@ class PathPlanner(object):
         self.start = Coordinate(lat=start.latitude, lon=start.longitude)
         self.goal = Coordinate(lat=goal.latitude, lon=goal.longitude)
 
-    def compute_path(self, map_padding=2500):
-
-        lower_left = Coordinate(easting=self.start.easting - map_padding, northing=self.start.northing - map_padding)
-        upper_right = Coordinate(easting=self.start.easting + map_padding, northing=self.start.northing + map_padding)
-
-        print("[Path planner]: "+ "Waiting for UTM")
-        rospy.wait_for_service('/utm_parser/get_snfz')
-        get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
-        print "Start", self.start.GPS_data
-        print "Lower left", lower_left.GPS_data
-        print "Upper right", upper_right.GPS_data
-        self.map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
+    def compute_path(self, dynamic, ground_speed=5, start_time=0, map_padding=2500):
 
         print("[Path planner]: "+"Distance: ",
               sqrt((self.start.easting - self.goal.easting) ** 2 + (self.start.northing - self.goal.northing) ** 2))
         print("[Path planner]: "+"Computing path...")
 
         t0 = time.time()
+<<<<<<< HEAD
+        astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
+        astar_object.set_start_and_goal(self.start, self.goal, start_time)
+        #TODO request dynamic no fly zones from utm parser
+        path_reversed = astar_object.compute_astar(dynamic, ground_speed) #True equals dynamic no flight zone
+=======
         astar_object = AStar(self.start.GPS_data, self.goal.GPS_data, self.map, map_padding,step_multiplier=8)
         path_reversed = astar_object.compute_static_astar()
+>>>>>>> 941ad9c7caa451e65741a18e33eddd2892258f46
 
 
         #path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
@@ -86,15 +82,36 @@ class PathPlanner(object):
         kml.trksegend()
         kml.end()
     
+<<<<<<< HEAD
+path_planner_dict = {}
+
+def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the requested message
+=======
     
 path_planner_dict = {}
 
 def handle_getPathPlan(req):
+>>>>>>> 941ad9c7caa451e65741a18e33eddd2892258f46
     global path_planner_dict
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
           ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
+<<<<<<< HEAD
+    map_padding = 2500
+    if req.drone_id in path_planner_dict:
+        map, old_start = path_planner_dict[req.drone_id]
+        if (old_start.easting - map_padding > start.easting or old_start.northing - map_padding > start.northing or
+                old_start.easting + map_padding < start.easting or old_start.northing + map_padding < start.northing):
+            map = make_static_map(start)
+            path_planner_dict[req.drone_id] = map, start
+    else:
+        map = make_static_map(start)
+        path_planner_dict[req.drone_id] = map, start
+    map, start = path_planner_dict[req.drone_id]
+    planner = PathPlanner(start, theend, map)
+    planner.compute_path(req.useDNFZ, 5, req.startTime, map_padding)
+=======
     if req.drone_id in path_planner_dict:
         pass
         # check for new map
@@ -102,11 +119,27 @@ def handle_getPathPlan(req):
         pass
     planner = PathPlanner(start=start,goal=theend)
     planner.compute_path()
+>>>>>>> 941ad9c7caa451e65741a18e33eddd2892258f46
     plan = planner.path
+    planner.export_kml_path("dynamic_path")
     GPSPlan = []
     for point in plan:
         GPSPlan.append(point.GPS_data)
     return pathPlanResponse(GPSPlan)
+
+
+
+def make_static_map(start, map_padding=2500):
+
+    lower_left = Coordinate(easting=start.easting - map_padding, northing=start.northing - map_padding)
+    upper_right = Coordinate(easting=start.easting + map_padding, northing=start.northing + map_padding)
+
+    print("[Path planner]: " + "Waiting for UTM")
+    rospy.wait_for_service('/utm_parser/get_snfz')
+    get_snfz_handle = rospy.ServiceProxy('/utm_parser/get_snfz', get_snfz)
+
+    map = get_snfz_handle(lower_left.GPS_data, upper_right.GPS_data)
+    return map
 
 def handle_ETA(req):
     # print("[Path planner]: Calculating ETA")
@@ -125,10 +158,14 @@ if __name__ == '__main__':
     rospy.init_node('pathplan')
     rospy.sleep(1)
 
+
     s = rospy.Service('pathplan/getPlan',pathPlan, handle_getPathPlan)
     s2= rospy.Service('pathplan/getEta',getEta,handle_ETA)
     s3= rospy.Service('pathplan/GPS2GPSdist',gps2distance,handle_distanceCalculations)
     heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
+
+
+
     """
     ll = GPS()
     ll.latitude = 55.425762
