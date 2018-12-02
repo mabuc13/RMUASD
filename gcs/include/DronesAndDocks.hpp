@@ -6,6 +6,7 @@
 #include <string>
 #include <gcs/GPS.h>
 #include <gcs/UTMDrone.h>
+#include <gcs/inCollision.h>
 
 #include <UTM.hpp>
 #define ID_t unsigned int
@@ -15,6 +16,25 @@
 using namespace std;
 
 class drone;
+
+struct DNFZinject{
+  int index_from;
+  int index_to;
+
+  gcs::GPS start;
+  gcs::GPS to;
+
+  size_t valid_to;
+  string DNFZ;
+
+  bool stillValid;
+};
+
+struct oldPlan{
+    std::vector<gcs::GPS> plan;
+    int index;
+};
+
 
 class dock{
 public:
@@ -36,14 +56,27 @@ public:
   job(const job &aJob);
   ~job();
   uint8 getStatus(void);
+  uint8 getNextStatus(void);
   drone* getDrone(void);
   dock* getQuestHandler(void);
   dock* getGoal(void);
+  DNFZinject getDNFZinjection();
+  oldPlan getOldPlan();
+  long getWaitTime();
 
   void setDrone(drone* theDrone);
   void setGoal(dock* goal);
   void setStatus(uint8 status);
+  void setNextStatus(uint8 status);
+  void setWaitInAirTo(long waitTo);
+  void DNFZinjection(gcs::inCollision msg);
 
+  void saveOldPlan();
+
+  static const uint8 ready4flightContinuation = 12;
+  static const uint8 resumeFlight = 11;
+  static const uint8 waitInAir = 10;
+  static const uint8 rePathPlan = 9;
   static const uint8 preFlightCheack = 8;
   static const uint8 done = 7;
   static const uint8 ready4takeOff = 6;
@@ -52,16 +85,19 @@ public:
   static const uint8 ongoing = 3;
   static const uint8 queued = 2;
   static const uint8 noMission = 1;
+  static const uint8 notAssigned = 0;
 
 
 private:
   dock* goal= NULL;
   dock* QuestGiver = (NULL);
   uint8 status;
+  uint8 nextStatus;
   drone* worker = (NULL);
 
-
-
+  DNFZinject injection;
+  oldPlan TheOldPlan;
+  long waitInAirTill;
 
 };
 
@@ -74,6 +110,7 @@ public:
   bool isAvailable(void);
   job* getJob(void);
   double getVelocity();
+  double getVelocitySetPoint();
   size_t getMissionIndex();
 
 
@@ -82,6 +119,7 @@ public:
   void setJob(job* aJob);
   void setPosition(gcs::GPS position);
   void setVelocity(double v);
+  void setVelocitySetPoint(double v);
   void setMissionIndex(size_t i);
 
 
@@ -92,6 +130,7 @@ private:
   ID_t ID;
   std::vector<gcs::GPS> thePath;
   double velocity;
+  double velocitySetPoint;
   size_t pathIndex;
 
 };
