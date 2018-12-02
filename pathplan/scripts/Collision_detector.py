@@ -4,7 +4,7 @@
 from coordinate import Coordinate
 import rospy
 from gcs.msg import DroneInfo, GPS, DronePath, inCollision
-from gcs.srv import safeTakeOff
+from gcs.srv import safeTakeOff, safeTakeOffResponse
 from node_monitor.msg import *
 from math import sqrt
 import time
@@ -45,7 +45,7 @@ class CollisionDetector:
         # Subscribe to new drone path's, and dynamic obstacles:
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
         rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.on_drone_info)
-        rospy.Substriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
+        rospy.Subscriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
 
     def on_drone_path(self, msg):
         '''
