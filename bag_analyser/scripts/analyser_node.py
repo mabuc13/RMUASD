@@ -64,9 +64,10 @@ class Analyser(object):
         self.rotation_matrix = np.array([[1,0],[0,1]])
 
         self.fig = plt.gcf()
-        self.ax = self.fig.add_subplot(111, projection='3d')
+        # self.ax = self.fig.add_subplot(111, projection='3d')
         self.fig.show()
         self.fig.canvas.draw()
+        # plt.show()
 
 
         # rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
@@ -76,6 +77,7 @@ class Analyser(object):
         
         rospy.Subscriber("/telemetry/local_position_ned", telemetry_local_position_ned, self.on_local_pos)
         rospy.Subscriber("/landing/sensor_data", precland_sensor_data, self.on_sensor_data)
+
 
     def on_sensor_data(self, msg):
         self.new_sensor_reading = True
@@ -94,7 +96,8 @@ class Analyser(object):
             self.new_pos_reading = False
             # compute something
 
-            self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
+            plt.scatter(self.local_position_ned[1], self.local_position_ned[0], color='black', s=2) # plot something
+            # self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
             
             # print(self.local_position_ned)
             # print(self.local_position_ned[0], self.local_position_ned[1])
@@ -102,6 +105,7 @@ class Analyser(object):
             # update canvas immediately
             plt.xlim([-10, 10])
             plt.ylim([-10, 10])
+            # self.ax.set_zlim(0, 10)
             # plt.pause(0.01)  # I ain't needed!!!
             self.fig.canvas.draw()
             
@@ -109,7 +113,8 @@ class Analyser(object):
             self.new_sensor_reading = False
             # compute something
 
-            self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2) # plot something
+            plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=2) # plot something
+            # self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2) # plot something
 
             relative_target = self.landing_coords - self.sensor_data
             added = relative_target + self.local_position_ned
@@ -123,9 +128,9 @@ class Analyser(object):
             # update canvas immediately
             plt.xlim([-10, 10])
             plt.ylim([-10, 10])
+            # self.ax.set_zlim(0, 10)
             #plt.pause(0.01)  # I ain't needed!!!
             self.fig.canvas.draw()
-
 
 
     def shutdownHandler(self):
