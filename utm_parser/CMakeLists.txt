@@ -60,6 +60,7 @@ add_service_files(
    FILES
    get_snfz.srv
    post_drone_info.srv
+   get_dnfz.srv
 )
 
 ## Generate actions in the 'action' folder

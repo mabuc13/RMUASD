@@ -157,6 +157,21 @@ mavlink_sys_status_t ml_unpack_msg_sys_status (unsigned char *payload)
 	return sys_status;
 }
 /***************************************************************************/
+mavlink_sys_time_t ml_unpack_msg_sys_time (unsigned char *payload)
+{
+	/* id=2 */
+	mavlink_sys_time_t sys_time;
+ 	uint64_t *ui64p;
+	uint32_t *ui32p;
+	
+	ui64p = (uint64_t *) (payload + 0);
+	sys_time.time_unix_usec = *ui64p;
+	ui32p = (int32_t *) (payload + 8);
+	sys_time.time_boot_ms = *ui32p;
+	
+	return sys_time;
+}
+/***************************************************************************/
 mavlink_gps_raw_int_t ml_unpack_msg_gps_raw_int (unsigned char *payload)
 {
 	/* id=24 */

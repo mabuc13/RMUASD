@@ -86,6 +86,7 @@ ros::Publisher msg_pub, pos_pub, atti_pub, status_pub, mission_ack_pub, command_
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 unsigned short msg_id_global_position_int_received;
 uint8_t recorded_sysid;
+uint64_t drone_boot_time_epoch = 0;
 
 /* Mission upload operations variables */
 unsigned short mission_up_count = 0; /*< Total count of mission elements to be uploaded*/
@@ -192,7 +193,8 @@ void ml_parse_msg(unsigned char *msg)
 		mavlink_lora::mavlink_lora_pos pos;
 		pos.header.stamp = last_heard;
 		mavlink_global_position_int_t glob_pos = ml_unpack_msg_global_position_int (&m.payload.front());
-		pos.time_usec = (uint64_t) glob_pos.time_boot_ms*1000;
+		pos.time_boot_usec = (uint64_t) glob_pos.time_boot_ms*1000;
+        pos.time_usec = drone_boot_time_epoch + glob_pos.time_boot_ms*1000;
         pos.system_id = ml_recorded_sys_id();
 		pos.lat = glob_pos.lat / 1e7;
 		pos.lon = glob_pos.lon / 1e7;
@@ -208,7 +210,8 @@ void ml_parse_msg(unsigned char *msg)
 		mavlink_lora::mavlink_lora_pos pos;
 		pos.header.stamp = last_heard;
 		mavlink_gps_raw_int_t gri = ml_unpack_msg_gps_raw_int (&m.payload.front());
-		pos.time_usec = gri.time_usec;
+		pos.time_usec = gri.time_usec + drone_boot_time_epoch;
+        pos.time_boot_usec = gri.time_usec;
         pos.system_id = ml_recorded_sys_id();
 		pos.lat = gri.lat / 1e7;
 		pos.lon = gri.lon / 1e7;
@@ -218,6 +221,12 @@ void ml_parse_msg(unsigned char *msg)
 		pos_pub.publish(pos);
 	}
 	
+    if (m.msg_id == MAVLINK_MSG_ID_SYSTEM_TIME)
+    {
+        mavlink_sys_time_t sys_time = ml_unpack_msg_sys_time(&m.payload.front());
+        drone_boot_time_epoch = sys_time.time_unix_usec - (sys_time.time_boot_ms*1000);
+    }
+
 	// handle attitude messages
 	if (m.msg_id == MAVLINK_MSG_ID_ATTITUDE)
 	{

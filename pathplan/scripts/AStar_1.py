@@ -7,15 +7,22 @@
 from heapq import *
 from math import sqrt
 from coordinate import Coordinate
-import numpy as np
+#import numpy as np
 import rospy
 import time
-import json
+#import json
 import string
 from shapely import geometry
 from std_msgs.msg import String
 import string
+from utm_parser.srv import *
+import numpy as np
+import json
+from matplotlib.patches import Circle, Wedge, Polygon
+from matplotlib.collections import PatchCollection
+import matplotlib.pyplot as plt
 
+from bokeh.plotting import figure, output_file, show
 #from utm_parser.srv import *
 #from utm_parser.msg import *
 
@@ -51,8 +58,28 @@ class AStar:
         self.dynamic_no_flight_zones = {}
         rospy.Subscriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
 
+        rospy.wait_for_service('/utm_parser/get_snfz')
+        self.get_dnfz_handle = rospy.ServiceProxy('/utm_parser/get_dnfz', get_dnfz)
+
+        dnfz_string = self.get_dnfz_handle()
+        self.string_to_dnfz(dnfz_string)
+
         self.safety_extra_time = 10
         self.safety_dist_to_dnfz = 10
+
+    def string_to_dnfz(self, string):
+
+        data = str(string.dnfz)
+        try:
+            all_json_objs = json.loads(data)
+            for json_obj in all_json_objs:
+                print json_obj
+                self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
+                if json_obj["geometry"] == "polygon":
+                    self.make_polygon(json_obj)
+        except ValueError as Err:
+            print("[AStar]: Couldn't convert string from UTM server to json..", Err)
+        #self.plot_dnfz()
 
     def on_dynamic_no_fly_zones(self, msg):
         '''
@@ -90,6 +117,57 @@ class AStar:
         # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
         dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
         self.dynamic_no_flight_zones[json_obj["int_id"]]["polygon"] = dnfz_polygon
+
+    def plot_dnfz(self):
+
+        np.random.seed(19680801)
+
+        fig, ax = plt.subplots()
+
+        patches = []
+
+        """
+        np.random.seed(19680801)
+        print "Dynamic, no flight zones: ", self.dynamic_no_flight_zones
+        #fig = plt.figure(1, figsize=(5,5), dpi=90)
+        #big = plt.figure(1, figsize=(5,5), dpi=90)
+        fig, ax = plt.subplots()
+    
+        patches = []
+        """
+        for int_id, dnfz in self.dynamic_no_flight_zones.items():
+            coord = dnfz["coordinates"]
+
+            if dnfz["geometry"] == "polygon":
+                coord = coord.split(" ")
+                i = 0
+                for a in coords:
+                    coord[i] = a.split(',')
+                    i += 1
+                list_of_points = []
+                for i in coord:
+                    one_coord = Coordinate(lat=i[1], lon=i[0])
+                    list_of_points.append([one_coord.easting, one_coord.northing])
+                poly = Polygon(list_of_points, True)
+                patches.append(poly)
+            else:
+                coord = coord.split(",")
+                one_coord = Coordinate(lat=coord[1], lon=coord[0])
+                circle = Circle((one_coord.easting, one_coord.northing), coord[2])
+                patches.append(circle)
+
+        colors = 100 * np.random.rand(len(patches))
+        p = PatchCollection(patches, alpha=0.4)
+        p.set_array(np.array(colors))
+        ax.add_collection(p)
+
+        plt.ylim(1141400, 1142400)
+        plt.xlim(332400, 333400)
+        fig.colorbar(p, ax=ax)
+
+        plt.show()
+
+
 
     def heuristic(self, a, b):
         return sqrt(((b[0] - a[0]) ** 2) + ((b[1] - a[1]) ** 2))
@@ -180,15 +258,16 @@ class AStar:
             if dnfz["geometry"] == "circle":
                 coord = dnfz["coordinates"]
                 coord = coord.split(',')
-                dist = self.heuristic(neighbor, Coordinate(lon=coord[0], lat=coord[1]))
-                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < neighbor.time < (
-                        dnfz["valid_to_epoch"] + self.safety_extra_time):
+                idunno = Coordinate(lon=float(coord[0]), lat=float(coord[1]))
+                dist = self.heuristic(neighbor, (idunno.easting, idunno.northing))
+                if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < neighbor[2] < (
+                        int(dnfz["valid_to_epoch"]) + self.safety_extra_time):
                     if dist <= (coord[2] + self.safety_dist_to_dnfz):
                         return True
             elif dnfz["geometry"] == "polygon":
-                dist = dnfz["polygon"].distance(geometry.Point(neighbor.easting, neighbor.northing))
-                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < neighbor.time < (
-                        dnfz["valid_to_epoch"] + self.safety_extra_time):
+                dist = dnfz["polygon"].distance(geometry.Point(neighbor[0], neighbor[1]))
+                if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < neighbor[2] < (
+                        int(dnfz["valid_to_epoch"]) + self.safety_extra_time):
                     if dist <= self.safety_dist_to_dnfz:
                         return True
         return False

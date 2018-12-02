@@ -5,6 +5,7 @@ from coordinate import Coordinate
 import rospy
 from gcs.msg import DroneInfo, GPS, DronePath, inCollision
 from gcs.srv import safeTakeOff
+from node_monitor.msg import *
 from math import sqrt
 import time
 import json
@@ -58,11 +59,11 @@ class CollisionDetector:
         '''
         # Adding the next waypoint index in the plan to the dict
         if msg.status == msg.Run:
-            self.active_drone_info[msg.DroneID] = msg
+            self.active_drone_info[msg.drone_id] = msg
         if msg.status == msg.Land:
             # Drone has landed, so delete the path and ID from the dict's
-            del self.active_drone_info[msg.DroneID]
-            del self.active_drone_paths[msg.DroneID]
+            del self.active_drone_info[msg.drone_id]
+            del self.active_drone_paths[msg.drone_id]
 
     def on_dynamic_no_fly_zones(self, msg):
         '''
@@ -279,7 +280,6 @@ class CollisionDetector:
         next_mission_index = -1
         if (self.dynamic_no_flight_zones[dnfz_id]["valid_to_epoch"] - coll_time) > self.time_threshold_for_waiting_on_dnfz:
             print("New path plan is required...")
-            # Find the next position on the path, where there isn't a collision:
             collision_time = coll_time - time.time()
             i = 1
             while True:
@@ -289,7 +289,9 @@ class CollisionDetector:
                 if not collision:
                     break
                 i += 1
-            # Now publish 'at_time' and 'clear_position'
+            clear_time = 0
+        else:
+            clear_time = self.dynamic_no_flight_zones[dnfz_id]["valid_to_epoch"] + self.time_threshold_for_waiting_on_dnfz
         start_GPS = pos_pre_collision.GPS_data
         end_GPS = pos_post_collision.GPS_data
 
@@ -315,5 +317,17 @@ if __name__ == "__main__":
     rospy.sleep(1)
 
     cd = CollisionDetector()
+
+    heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size=10)
+
+    heart_msg = heartbeat()
+    heart_msg.header.frame_id = 'collision_detector'
+    heart_msg.rate = 1
+
+    while not rospy.is_shutdown():
+        cd.run_collision_check()
+        rospy.Rate(heart_msg.rate).sleep()
+        heart_msg.header.stamp = rospy.Time.now()
+        heartbeat_pub.publish(heart_msg)
 
 # TODO: Remarks: Not sure any of the Shapely thing works.

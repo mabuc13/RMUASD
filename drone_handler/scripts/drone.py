@@ -47,6 +47,7 @@ class Drone(object):
 
         self.id = drone_id
         self.up_time = 0
+        self.gps_timestamp = 0
 
         self.fsm_state = State.GROUNDED
         self.new_mission = False
