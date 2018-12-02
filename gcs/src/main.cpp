@@ -33,7 +33,6 @@
 
 // INCLUDE OWN FILES
 #include <DronesAndDocks.hpp>
-#include <DroneDeconflict.hpp>
 #include <TextCsvReader.hpp>
 
 
@@ -73,7 +72,6 @@ std::deque<job*> jobQ;
 std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
-std::map<ID_t,simpleDrone> OtherDrones;
 std::map<ID_t,ID_t> Own2UtmId;
 
 node_monitor::nodeOk utm_parser;
@@ -354,13 +352,6 @@ void WebInfo_Handler(std_msgs::String msg_in){
 void Collision_Handler(gcs::inCollision msg){
     //TODO handle landingzone is noflight zone
 }
-void UTMdrone_Handler(gcs::UTMDroneList msg){
-    for(size_t i = 0; i < msg.drone_list.size(); i++){
-        gcs::UTMDrone* drone = &msg.drone_list[i];
-        OtherDrones[drone->drone_id].update_values(*drone);
-        if(DEBUG) cout << "UTM Drone Update: " << OtherDrones[drone->drone_id].getID() << endl;
-    }  
-}
 void nodeMonitor_Handler(node_monitor::nodeOkList msg){
     for(size_t i = 0; i < msg.Nodes.size(); i++){
         if(msg.Nodes[i].name == "utm_parser"){
@@ -383,7 +374,7 @@ void initialize(void){
     Collision_sub = nh->subscribe("/collision_detecter/collision_warning",100,Collision_Handler);
     WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
-    UTMDrone_sub = nh->subscribe("/utm/dronesList",100,UTMdrone_Handler);
+    //UTMDrone_sub = nh->subscribe("/utm/dronesList",100,UTMdrone_Handler);
     nodeMonitor_sub = nh->subscribe("/node_monitor/node_list",10,nodeMonitor_Handler);
 
     //TODO automatic registering of drone ID
