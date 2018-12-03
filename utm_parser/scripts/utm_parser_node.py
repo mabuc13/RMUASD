@@ -118,6 +118,7 @@ class utm_parser(object):
         #self.post_drone_service = rospy.Service("/utm_parser/post_drone_info", post_drone_info, self.post_drone_info_handler, buff_size=10) ##SUBSCRIBE
         self.drone_info_sub = rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.post_drone_info_handler)
         self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
+        self.drone_type_sub = rospy.Subscriber("/gcs/medicalTransport", DroneSingleValue, self.update_type)
 
         self.dnfz_pub = rospy.Publisher('/utm/dynamic_no_fly_zones', String, queue_size=10)
         self.heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
@@ -136,6 +137,13 @@ class utm_parser(object):
     fisk.latitude = 0
     fisk.altitude  = 9
     """
+
+    def update_type(self, msg):
+        self.standard_post_payload["uav_op_status"] = int(msg.value)
+        self.post_payload["uav_op_status"] = int(msg.value)
+
+
+
     def save_path(self, msg):
         self.path = msg.Path
         if len(self.path) > 0:
@@ -149,7 +157,16 @@ class utm_parser(object):
 
     def get_dnfz_handler(self, req):
         dnfz = self.get_dynamic_nfz()
-        message = json.dumps(dnfz)
+        #valid from epoch 1543839122
+        #valid to epoch 1545649886
+        message = """ [{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon",
+          "valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223",
+          "int_id": "20"}]"""
+
+
+        #message = json.dumps(dnfz)
+        #print "Message"
+        #print message
         return message
 
     def get_snfz_handler(self, req):
@@ -755,7 +772,7 @@ class utm_parser(object):
                 print colored("Current dnfz: ", 'blue'), current_dnfz
                 print "Latest dnfz: ", self.latest_dynamic_data
             message = json.dumps(current_dnfz)
-            self.dnfz_pub.publish(message)
+            #self.dnfz_pub.publish(message)
             self.latest_dynamic_data = current_dnfz
             #self.dnfz_pub.publish(cur_string)
 
