@@ -2,7 +2,7 @@
 
 import numpy as np
 from coordinate import Coordinate
-from AStar_with_dnfz import AStar
+from AStar_1 import AStar
 from exportkml import kmlclass
 import rospy
 from gcs.msg import *
@@ -39,15 +39,12 @@ class PathPlanner(object):
         print("[Path planner]: "+"Computing path...")
 
         t0 = time.time()
-<<<<<<< HEAD
+
         astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
         astar_object.set_start_and_goal(self.start, self.goal, start_time)
         #TODO request dynamic no fly zones from utm parser
         path_reversed = astar_object.compute_astar(dynamic, ground_speed) #True equals dynamic no flight zone
-=======
-        astar_object = AStar(self.start.GPS_data, self.goal.GPS_data, self.map, map_padding,step_multiplier=8)
-        path_reversed = astar_object.compute_static_astar()
->>>>>>> 941ad9c7caa451e65741a18e33eddd2892258f46
+
 
 
         #path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
@@ -82,22 +79,17 @@ class PathPlanner(object):
         kml.trksegend()
         kml.end()
     
-<<<<<<< HEAD
+
 path_planner_dict = {}
 
 def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the requested message
-=======
-    
-path_planner_dict = {}
 
-def handle_getPathPlan(req):
->>>>>>> 941ad9c7caa451e65741a18e33eddd2892258f46
     global path_planner_dict
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
           ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
-<<<<<<< HEAD
+
     map_padding = 2500
     if req.drone_id in path_planner_dict:
         map, old_start = path_planner_dict[req.drone_id]
@@ -111,14 +103,7 @@ def handle_getPathPlan(req):
     map, start = path_planner_dict[req.drone_id]
     planner = PathPlanner(start, theend, map)
     planner.compute_path(req.useDNFZ, 5, req.startTime, map_padding)
-=======
-    if req.drone_id in path_planner_dict:
-        # check for new map
-    else:
 
-    planner = PathPlanner(start=start,goal=theend)
-    planner.compute_path()
->>>>>>> 941ad9c7caa451e65741a18e33eddd2892258f46
     plan = planner.path
     planner.export_kml_path("dynamic_path")
     GPSPlan = []
