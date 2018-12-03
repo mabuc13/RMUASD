@@ -47,7 +47,7 @@ class Analyser(object):
 
         self.local_position_ned = np.array([0,0,0])
         self.sensor_data = np.array([0,0,0]) 
-        self.landing_coords = np.array([1.17, 0.75, 0])
+        self.landing_coords = np.array([1.5, 1.75, 0])
         self.new_pos_reading = False
         self.new_sensor_reading = False
         self.vx = 0
@@ -64,7 +64,8 @@ class Analyser(object):
         self.rotation_matrix = np.array([[1,0],[0,1]])
 
         self.fig = plt.gcf()
-        self.ax = self.fig.add_subplot(111, projection='3d')
+        # self.ax = self.fig.add_subplot(111, projection='3d')
+        plt.scatter(self.landing_coords[0], self.landing_coords[1], color='blue', s=10)
         self.fig.show()
         self.fig.canvas.draw()
 
@@ -94,7 +95,8 @@ class Analyser(object):
             self.new_pos_reading = False
             # compute something
 
-            self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
+            plt.scatter(self.local_position_ned[1], self.local_position_ned[0], color='black', s=2) # plot something
+            # self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
             
             # print(self.local_position_ned)
             # print(self.local_position_ned[0], self.local_position_ned[1])
@@ -109,11 +111,13 @@ class Analyser(object):
             self.new_sensor_reading = False
             # compute something
 
-            self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2) # plot something
+            plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=2) # plot something
+            # self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2) # plot something
 
             relative_target = self.landing_coords - self.sensor_data
             added = relative_target + self.local_position_ned
-            # self.ax.scatter(relative_target[1], relative_target[0], -relative_target[2], color='blue', s=2) # plot something
+            print(relative_target)
+            plt.scatter(added[1], added[0], color='purple', s=2) # plot something
 
 
             

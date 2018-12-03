@@ -201,42 +201,42 @@ class PrecisionLanding(object):
             # if self.new_imu_reading:
             #     self.new_imu_reading = False
             
-        if self.get_landing_target():
-            # self.data = np.append(self.data, np.array([[easting, northing, self.local_position_landing.x, self.local_position_landing.y]]), axis=0)
-            # self.local_data = np.append(self.local_data, np.array([[self.local_position_landing.x, self.local_position_landing.y, self.local_position_landing.z]]), axis=0)
+        # if self.get_landing_target():
+        #     # self.data = np.append(self.data, np.array([[easting, northing, self.local_position_landing.x, self.local_position_landing.y]]), axis=0)
+        #     # self.local_data = np.append(self.local_data, np.array([[self.local_position_landing.x, self.local_position_landing.y, self.local_position_landing.z]]), axis=0)
 
-            msg = telemetry_landing_target(
-                landing_target=Point(
-                    self.landing_target[0], 
-                    self.landing_target[1], 
-                    self.landing_target[2]
-                )
-            )
-            self.landing_target_pub.publish(msg)
+        #     msg = telemetry_landing_target(
+        #         landing_target=Point(
+        #             self.landing_target[0], 
+        #             self.landing_target[1], 
+        #             self.landing_target[2]
+        #         )
+        #     )
+        #     self.landing_target_pub.publish(msg)
 
-        if self.new_vel_reading:
-            self.new_vel_reading = False
-            if self.get_landing_target():
-                # update kalman filter with both position and velocity
-                measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y], [self.vx], [self.vy]])
-                self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
-            else:
-                # update kalman filter only with velocity
-                measurement = np.array([[self.vx], [self.vy]])
-                self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
+        # if self.new_vel_reading:
+        #     self.new_vel_reading = False
+        #     if self.get_landing_target():
+        #         # update kalman filter with both position and velocity
+        #         measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y], [self.vx], [self.vy]])
+        #         self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
+        #     else:
+        #         # update kalman filter only with velocity
+        #         measurement = np.array([[self.vx], [self.vy]])
+        #         self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
 
-        else:
-            if self.get_landing_target():
+        # else:
+        #     if self.get_landing_target():
 
-                # update kalman filter with position
-                measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y]])
-                self.state = self.kalman.update(measurement, kalman.Measurement.POS)
-            else:
-                # only do kalman prediction
-                self.state = self.kalman.update()
-                pass
+        #         # update kalman filter with position
+        #         measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y]])
+        #         self.state = self.kalman.update(measurement, kalman.Measurement.POS)
+        #     else:
+        #         # only do kalman prediction
+        #         self.state = self.kalman.update()
+        #         pass
 
-        print(self.state[0,0], self.state[1,0])
+        # print(self.state[0,0], self.state[1,0])
         # print(self.local_position_landing.x, self.local_position_landing.y)
 
         if self.recording:
@@ -251,7 +251,11 @@ class PrecisionLanding(object):
                 if self.mission_idx == self.mission_len - 1:
                     if self.get_landing_target():
                         msg = telemetry_landing_target(
-                            landing_target=self.landing_target
+                            landing_target=Point(
+                                self.landing_target[0], 
+                                self.landing_target[1], 
+                                self.landing_target[2]
+                            )
                         )
                         self.landing_target_pub.publish(msg)
 
