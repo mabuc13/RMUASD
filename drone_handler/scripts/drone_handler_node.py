@@ -201,6 +201,7 @@ class DroneHandler(object):
                 next_waypoint=drone.active_waypoint_gps,
                 armed=drone.armed,
                 ground_speed=drone.ground_speed,
+                ground_speed_setpoint=5,
                 heading=drone.heading,
                 battery_voltage=drone.battery_voltage,
                 battery_SOC=drone.battery_SOC,

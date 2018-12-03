@@ -209,6 +209,7 @@ class AStar:
 
     def compute_astar(self, dynamic=False, ground_speed=5):
         self.clear_dicts_and_lists(dynamic)
+        print(self.map_image.shape)
         while self.oheap:
             if dynamic:
                 current = heappop(self.oheap)[1]
