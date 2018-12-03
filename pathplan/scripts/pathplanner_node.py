@@ -2,7 +2,7 @@
 
 import numpy as np
 from coordinate import Coordinate
-from AStar_with_dnfz import AStar
+from AStar_1 import AStar
 from exportkml import kmlclass
 import rospy
 from gcs.msg import *
@@ -39,6 +39,7 @@ class PathPlanner(object):
         print("[Path planner]: "+"Computing path...")
 
         t0 = time.time()
+
         astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
         astar_object.set_start_and_goal(self.start, self.goal, start_time)
         #TODO request dynamic no fly zones from utm parser
@@ -76,10 +77,12 @@ class PathPlanner(object):
             kml.trkpt(i.lat, i.lon, 0.0)
         kml.trksegend()
         kml.end()
-    
+
+
 path_planner_dict = {}
 
 def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the requested message
+
     global path_planner_dict
     print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
           ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
@@ -176,4 +179,3 @@ if __name__ == '__main__':
         rospy.Rate(heart_msg.rate).sleep()
         heart_msg.header.stamp = rospy.Time.now()
         heartbeat_pub.publish(heart_msg)
-
