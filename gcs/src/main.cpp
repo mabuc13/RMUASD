@@ -171,10 +171,11 @@ void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
     }
 }
 
-void uploadFlightPlan(drone* theDrone){
+void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     gcs::DronePath msg;
     msg.Path = theDrone->getPath();
     msg.DroneID = theDrone->getID();
+    msg.loiterAtEnd = loiterAtEnd;
     RouteRequest_pub.publish(msg);
 }
 
@@ -292,6 +293,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         if(msg.status != msg.holding) Drones[index]->setMissionIndex(msg.mission_index);
         Drones[index]->setVelocity(msg.ground_speed);
         Drones[index]->setVelocitySetPoint(msg.ground_speed_setpoint);
+
         if(msg.status == msg.Run){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
@@ -318,6 +320,11 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
             else
             {
                 // std::cout << "Job is null - run" << std::endl;
+            }
+        }else if(msg.status == msg.holding){
+            job* aJob = Drones[index]->getJob();
+            if(aJob != NULL){
+
             }
         }
     }
@@ -395,10 +402,18 @@ void WebInfo_Handler(std_msgs::String msg_in){
 void Collision_Handler(gcs::inCollision msg){
     //TODO handle landingzone is noflight zone
     for(size_t i = 0; i < activeJobs.size(); i++){
-        if(activeJobs[i]->getDrone()->getID() == msg.drone_id){
+        drone *aDrone = activeJobs[i]->getDrone();
+        if(aDrone->getID() == msg.drone_id){
             if(msg.zone_type == gcs::inCollision::normal_zone){
                 activeJobs[i]->DNFZinjection(msg);
                 activeJobs[i]->setStatus(job::rePathPlan);
+                activeJobs[i]->saveOldPlan();
+
+                vector<gcs::GPS> path = aDrone->getPath();
+                vector<gcs::GPS> newPath(path.begin()+aDrone->getMissionIndex(),path.begin()+msg.plan_index1);
+                newPath.push_back(msg.start);
+                aDrone->setPath(newPath);
+                uploadFlightPlan(aDrone,true);
 
             }else if(msg.zone_type == gcs::inCollision::inside_zone){
                 activeJobs[i]->DNFZinjection(msg);
@@ -610,18 +625,22 @@ int main(int argc, char** argv){
             }else if(status == job::rePathPlan){ // ######## rePlan route ################
                 DNFZinject d = activeJobs[i]->getDNFZinjection();
                 if(d.stillValid){
-                    if(d.valid_to-time(nullptr)>30){ // TODO how long is acceptable to wait?
+                    if(d.valid_to-time(nullptr)>0){
                         std::vector<gcs::GPS> path = pathPlan(d.start, d.to,activeJobs[i]->getDrone());
                         std::vector<gcs::GPS> newPath;
                         std::vector<gcs::GPS> currentPath = activeJobs[i]->getDrone()->getPath();
+                        std::vector<gcs::GPS> oldPath = activeJobs[i]->getOldPlan().plan;
                         int mission_index = activeJobs[i]->getDrone()->getMissionIndex();
+
                         size_t items = path.size();
-                        items+= d.index_from-mission_index +1;
-                        items+= currentPath.size()-d.index_to;
+                        items+= currentPath.size()-mission_index;
+                        items+= oldPath.size()-d.index_to;
+
                         newPath.reserve(items);
                         newPath.insert(newPath.end(),currentPath.begin()+mission_index,currentPath.begin()+d.index_from);
                         newPath.insert(newPath.end(),path.begin(),path.end());
-                        newPath.insert(newPath.end(),currentPath.begin()+d.index_to,currentPath.end());
+                        newPath.insert(newPath.end(),oldPath.begin()+d.index_to,oldPath.end());
+
                         activeJobs[i]->getDrone()->setPath(newPath);
                         uploadFlightPlan(activeJobs[i]->getDrone());
                         activeJobs[i]->setStatus(job::ready4flightContinuation); 
@@ -631,6 +650,8 @@ int main(int argc, char** argv){
                         activeJobs[i]->setWaitInAirTo(d.valid_to);
                         activeJobs[i]->setNextStatus(job::resumeFlight);
                     }
+                    d.stillValid = false;
+                    activeJobs[i]->DNFZinjection(d);
                 }else{
                     std::vector<gcs::GPS> path = pathPlan(activeJobs[i]->getDrone()->getPosition(), activeJobs[i]->getGoal()->getPosition(),activeJobs[i]->getDrone());
                     activeJobs[i]->getDrone()->setPath(path);
@@ -716,6 +737,14 @@ int main(int argc, char** argv){
                     msg.text = "Done";
                 }else if(msg.value == job::preFlightCheack){
                     msg.text = "Waiting for all clear signal";
+                }else if(msg.value == job::rePathPlan){
+                    msg.text = "rePlanPath";
+                }if(msg.value == job::waitInAir){
+                    msg.text = "Wait in air";
+                }if(msg.value == job::resumeFlight){
+                    msg.text = "resumeFlight from old plan";
+                }if(msg.value == job::ready4flightContinuation){
+                    msg.text = "ready to continue";
                 }
             }else{
                 msg.value = job::noMission;

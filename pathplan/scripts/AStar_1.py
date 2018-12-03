@@ -22,7 +22,7 @@ from matplotlib.patches import Circle, Wedge, Polygon
 from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
 
-from bokeh.plotting import figure, output_file, show
+#from bokeh.plotting import figure, output_file, show
 #from utm_parser.srv import *
 #from utm_parser.msg import *
 
@@ -211,6 +211,7 @@ class AStar:
 
     def compute_astar(self, dynamic=False, ground_speed=5):
         self.clear_dicts_and_lists(dynamic)
+        print(self.map_image.shape)
         while self.oheap:
             if dynamic:
                 current = heappop(self.oheap)[1]
