@@ -80,7 +80,7 @@ class DroneHandler(object):
             drone = self.drones[msg.DroneID]
 
             drone.update_mission(msg.Path)
-            drone.start_mission()
+            drone.start_mission(msg.loiterAtEnd)
         
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
