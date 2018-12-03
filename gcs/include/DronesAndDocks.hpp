@@ -25,7 +25,6 @@ struct DNFZinject{
   gcs::GPS to;
 
   size_t valid_to;
-  string DNFZ;
 
   bool stillValid;
 };
@@ -70,6 +69,7 @@ public:
   void setNextStatus(uint8 status);
   void setWaitInAirTo(long waitTo);
   void DNFZinjection(gcs::inCollision msg);
+  void DNFZinjection(DNFZinject msg);
 
   void saveOldPlan();
 

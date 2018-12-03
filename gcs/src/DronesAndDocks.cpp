@@ -84,8 +84,10 @@ void job::DNFZinjection(gcs::inCollision msg){
     this->injection.start =msg.start;
     this->injection.to = msg.end;
     this->injection.valid_to = msg.valid_to;
-    this->injection.DNFZ = msg.DNFZ;
     this->injection.stillValid = true;
+}
+void job::DNFZinjection(DNFZinject msg){
+    this->injection = msg;
 }
 DNFZinject job::getDNFZinjection(){
     return this->injection;

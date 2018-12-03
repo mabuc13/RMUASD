@@ -5,7 +5,7 @@ GPS end
 uint64 startTime
 bool useDNFZ
 float64 velocity
-uint32 drone_id
+
 ---
 # output
 GPS[] path
