@@ -22,7 +22,7 @@ from matplotlib.patches import Circle, Wedge, Polygon
 from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
 
-from bokeh.plotting import figure, output_file, show
+#from bokeh.plotting import figure, output_file, show
 #from utm_parser.srv import *
 #from utm_parser.msg import *
 
