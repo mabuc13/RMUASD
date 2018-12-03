@@ -75,37 +75,37 @@ class utm_parser(object):
             'uav_id': 3012,
             'uav_auth_key': '96ba4387cb37a2cbc5f05de53d5eab0c9583f1e102f8fe10ccab04c361234d6cd8cc47c0db4a46e569f03b61374745ebb433c84fac5f4bdfb8d89d2eb1d1ec0f',
             'uav_op_status': 22,
-            'pos_cur_lat_dd': -1,
-            'pos_cur_lng_dd': -1,
-            'pos_cur_alt_m': -1,
-            'pos_cur_hdg_deg': -1,
-            'pos_cur_vel_mps': -1,
-            'pos_cur_gps_timestamp': 123456,
-            'wp_next_lat_dd': -1,
-            'wp_next_lng_dd': -1,
-            'wp_next_alt_m': -1,
-            'wp_next_hdg_deg': -1,
-            'wp_next_vel_mps': -1,
-            'wp_next_eta_epoch': -1,
-            'uav_bat_soc': -1
+            'pos_cur_lat_dd': 0,
+            'pos_cur_lng_dd': 0,
+            'pos_cur_alt_m': 0,
+            'pos_cur_hdg_deg': 0,
+            'pos_cur_vel_mps': 0,
+            'pos_cur_gps_timestamp': 0,
+            'wp_next_lat_dd': 0,
+            'wp_next_lng_dd': 0,
+            'wp_next_alt_m': 0,
+            'wp_next_hdg_deg': 0,
+            'wp_next_vel_mps': 0,
+            'wp_next_eta_epoch': 0,
+            'uav_bat_soc': 0
         }
         self.standard_post_payload = {
             'uav_id': 3012,
             'uav_auth_key': '96ba4387cb37a2cbc5f05de53d5eab0c9583f1e102f8fe10ccab04c361234d6cd8cc47c0db4a46e569f03b61374745ebb433c84fac5f4bdfb8d89d2eb1d1ec0f',
             'uav_op_status': 22,
-            'pos_cur_lat_dd': -1,
-            'pos_cur_lng_dd': -1,
-            'pos_cur_alt_m': -1,
-            'pos_cur_hdg_deg': -1,
-            'pos_cur_vel_mps': -1,
-            'pos_cur_gps_timestamp': 123456,
-            'wp_next_lat_dd': -1,
-            'wp_next_lng_dd': -1,
-            'wp_next_alt_m': -1,
-            'wp_next_hdg_deg': -1,
-            'wp_next_vel_mps': -1,
-            'wp_next_eta_epoch': -1,
-            'uav_bat_soc': -1
+            'pos_cur_lat_dd': 0,
+            'pos_cur_lng_dd': 0,
+            'pos_cur_alt_m': 0,
+            'pos_cur_hdg_deg': 0,
+            'pos_cur_vel_mps': 0,
+            'pos_cur_gps_timestamp': 0,
+            'wp_next_lat_dd': 0,
+            'wp_next_lng_dd': 0,
+            'wp_next_alt_m': 0,
+            'wp_next_hdg_deg': 0,
+            'wp_next_vel_mps': 0,
+            'wp_next_eta_epoch': 0,
+            'uav_bat_soc': 0
         }
         self.at_last_wp = 0
         self.last_info_pub = time.time()
@@ -201,8 +201,7 @@ class utm_parser(object):
 
             self.post_payload['pos_cur_hdg_deg'] = msg.heading #Therefore adding 90 in a CCW manner will make 0 equals north
             self.post_payload['pos_cur_vel_mps'] = msg.ground_speed
-            #self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp
-            #print "msgGPS: ", msg.GPS_timestamp, " msg.wp lon lat: ", msg.next_waypoint
+            self.post_payload['pos_cur_gps_timestamp'] = msg.GPS_timestamp/1000000
 
             self.post_payload['uav_bat_soc'] = msg.battery_SOC
 
