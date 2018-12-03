@@ -106,12 +106,16 @@ public:
   drone(ID_t ID, gcs::GPS position);
   ID_t getID(void);
   gcs::GPS getPosition(void);
-  std::vector<gcs::GPS> getPath(void);
+  std::vector<gcs::GPS>& getPath(void);
   bool isAvailable(void);
   job* getJob(void);
   double getVelocity();
   double getVelocitySetPoint();
   size_t getMissionIndex();
+  int getStatus();
+  int& getGroundHeight();
+  int& getFlightHeight();
+
 
 
   void setAvailable(bool avail);
@@ -121,17 +125,22 @@ public:
   void setVelocity(double v);
   void setVelocitySetPoint(double v);
   void setMissionIndex(size_t i);
+  void setStatus(int status);
 
 
 private:
   job* currentJob = (NULL);
   bool isFree;
+  int status;
   gcs::GPS position;
   ID_t ID;
   std::vector<gcs::GPS> thePath;
   double velocity;
   double velocitySetPoint;
   size_t pathIndex;
+
+  int groundHeight;
+  int flightHeight;
 
 };
 
