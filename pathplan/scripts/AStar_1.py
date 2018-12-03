@@ -35,6 +35,8 @@ class AStar:
         self.map_res = static_map.resolution
         self.map_padding = map_padding
         self.map_image = np.zeros((static_map.map_width, static_map.map_height, 1), np.uint8)
+        self.map_width = static_map.map_width
+        self.map_height = static_map.map_height
         self.lower_left = Coordinate(easting=coord_start.easting - map_padding,
                                      northing=coord_start.northing - map_padding)
         self.upper_right = Coordinate(easting=coord_start.easting + map_padding,
@@ -238,8 +240,9 @@ class AStar:
                 neighbor_transform = (int((neighbor[0] - self.lower_left.easting) / self.map_res),
                                       int((neighbor[1] - self.lower_left.northing) / self.map_res))
 
-                if self.map_image[neighbor_transform[1]][neighbor_transform[0]] != 0:
-                    continue
+                if neighbor_transform[0] < self.map_width and neighbor_transform[1] < self.map_height:
+                    if self.map_image[neighbor_transform[1]][neighbor_transform[0]] != 0:
+                        continue
 
                 if dynamic and self.is_collision_with_dnfz(neighbor):
                     continue

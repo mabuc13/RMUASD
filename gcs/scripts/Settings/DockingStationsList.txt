@@ -1,2 +1,3 @@
 name=Klinik1,latitude=55.4718505,longitude=10.4147090,altitude=0,Lab=True
 name=Klinik2,latitude=55.4722694,longitude=10.4172541,altitude=0,Lab=False
+name=Klinik3,latitude=55.472621,longitude=10.324193,altitude=0,Lab=False
