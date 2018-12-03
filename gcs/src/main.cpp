@@ -737,6 +737,14 @@ int main(int argc, char** argv){
                     msg.text = "Done";
                 }else if(msg.value == job::preFlightCheack){
                     msg.text = "Waiting for all clear signal";
+                }else if(msg.value == job::rePathPlan){
+                    msg.text = "rePlanPath";
+                }if(msg.value == job::waitInAir){
+                    msg.text = "Wait in air";
+                }if(msg.value == job::resumeFlight){
+                    msg.text = "resumeFlight from old plan";
+                }if(msg.value == job::ready4flightContinuation){
+                    msg.text = "ready to continue";
                 }
             }else{
                 msg.value = job::noMission;
