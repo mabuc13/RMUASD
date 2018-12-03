@@ -87,7 +87,7 @@ class PrecisionLanding(object):
         self.filtered_pos = np.empty((0,2), float)
         self.local_position_landing = Point()
         self.landing_target = np.array([0,0,0])
-        self.landing_coords = Point(1.17, 0.75, 0)
+        self.landing_coords = Point(1.5, 1.75, 0)
 
         self.data = np.empty((0,4), float)   
         self.local_data = np.empty((0,3), float)
@@ -201,18 +201,19 @@ class PrecisionLanding(object):
             # if self.new_imu_reading:
             #     self.new_imu_reading = False
             
-        # if self.get_landing_target():
-        #     # self.data = np.append(self.data, np.array([[easting, northing, self.local_position_landing.x, self.local_position_landing.y]]), axis=0)
-        #     # self.local_data = np.append(self.local_data, np.array([[self.local_position_landing.x, self.local_position_landing.y, self.local_position_landing.z]]), axis=0)
+        if self.get_landing_target():
+            # self.data = np.append(self.data, np.array([[easting, northing, self.local_position_landing.x, self.local_position_landing.y]]), axis=0)
+            # self.local_data = np.append(self.local_data, np.array([[self.local_position_landing.x, self.local_position_landing.y, self.local_position_landing.z]]), axis=0)
 
-        #     msg = telemetry_landing_target(
-        #         landing_target=Point(
-        #             self.landing_target[0], 
-        #             self.landing_target[1], 
-        #             self.landing_target[2]
-        #         )
-        #     )
-        #     self.landing_target_pub.publish(msg)
+            msg = telemetry_landing_target(
+                landing_target=Point(
+                    self.landing_target[0], 
+                    self.landing_target[1], 
+                    self.landing_target[2]
+                )
+            )
+            self.landing_target_pub.publish(msg)
+            print(self.local_position_landing)
 
         # if self.new_vel_reading:
         #     self.new_vel_reading = False
@@ -240,9 +241,10 @@ class PrecisionLanding(object):
         # print(self.local_position_landing.x, self.local_position_landing.y)
 
         if self.recording:
-            self.local_data = np.append(self.local_data, np.array([[self.local_position_landing.x, self.local_position_landing.y, self.local_position_landing.z]]), axis=0)
-            self.filtered_pos = np.array([[ self.state[0,0], self.state[1,0] ]])  
-            self.filtered_data = np.append(self.filtered_data, self.filtered_pos, axis=0)
+            if self.get_landing_target():
+                self.local_data = np.append(self.local_data, np.array([[self.local_position_landing.x, self.local_position_landing.y, self.local_position_landing.z]]), axis=0)
+                self.filtered_pos = np.array([[ self.state[0,0], self.state[1,0] ]])  
+                self.filtered_data = np.append(self.filtered_data, self.filtered_pos, axis=0)
 
  
         # activate landing target
