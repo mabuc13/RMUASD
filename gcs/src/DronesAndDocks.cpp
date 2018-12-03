@@ -124,7 +124,7 @@ ID_t drone::getID(void){
 gcs::GPS drone::getPosition(void){
     return this->position;
 }
-std::vector<gcs::GPS> drone::getPath(void){
+std::vector<gcs::GPS>& drone::getPath(void){
     return this->thePath;
 }
 bool drone::isAvailable(void){
@@ -176,4 +176,20 @@ void drone::setVelocitySetPoint(double v){
 
 double drone::getVelocitySetPoint(){
     return this->velocitySetPoint;
+}
+
+void drone::setStatus(int status){
+    this->status = status;
+}
+
+int drone::getStatus(){
+    return this->status;
+}
+
+int& drone::getGroundHeight(){
+    return this->groundHeight;
+}
+
+int& drone::getFlightHeight(){
+    return this->flightHeight;
 }

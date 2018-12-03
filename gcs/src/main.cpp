@@ -31,6 +31,9 @@
 #include <node_monitor/heartbeat.h>
 #include <node_monitor/nodeOkList.h>
 #include <node_monitor/nodeOk.h>
+#include <drone_decon/RegisterDrone.h>
+#include <drone_decon/RedirectDrone.h>
+#include <drone_decon/GPS.h>
 
 // INCLUDE OWN FILES
 #include <DronesAndDocks.hpp>
@@ -50,12 +53,15 @@ ros::Publisher WebInfo_pub;
 ros::Publisher ETA_pub;
 ros::Publisher JobState_pub;
 ros::Publisher Heartbeat_pub;
+ros::Publisher Transport_pub;
+ros::Publisher RegisterDrone_pub;
 
 ros::Subscriber DroneStatus_sub;
 ros::Subscriber Collision_sub;
 ros::Subscriber UTMDrone_sub;
 ros::Subscriber WebInfo_sub;
 ros::Subscriber nodeMonitor_sub;
+ros::Subscriber drone_decon_sub;
 
 ros::ServiceClient pathPlanClient;
 ros::ServiceClient EtaClient;
@@ -74,6 +80,7 @@ std::vector<dock*> Docks;
 std::vector<drone*> Drones;
 std::deque<job*> activeJobs;
 std::map<ID_t,ID_t> Own2UtmId;
+std::map<ID_t,ID_t> Utm2OwnId;
 
 node_monitor::nodeOk utm_parser;
 
@@ -84,6 +91,12 @@ ostream& operator<<(ostream& os, const gcs::GPS& pos)
     os << "Lon(" << pos.longitude << "), Lat(" << pos.latitude << "), Alt(" << pos.altitude << ")";  
     return os;  
 } 
+gcs::GPS& operator<< (gcs::GPS& pos, const drone_decon::GPS& newPos){
+    pos.altitude = newPos.altitude;
+    pos.longitude = newPos.longitude;
+    pos.latitude = newPos.latitude;
+    return pos;
+}
 
 struct is_safe_for_takeoff{
     bool takeoff_is_safe;
@@ -220,7 +233,7 @@ int ETA(job* aJob){
     std::deque<gcs::GPS> part(path.begin()+aJob->getDrone()->getMissionIndex(),path.end());
     part.push_front(aJob->getDrone()->getPosition());
     srv.request.path = std::vector<gcs::GPS> (part.begin(),part.end());
-    srv.request.speed = aJob->getDrone()->getVelocitySetPoint();
+    srv.request.speed = aJob->getDrone()->getVelocity();
 
     bool worked = EtaClient.call(srv);
 
@@ -287,17 +300,28 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
 
     if(isANewDrone){ // ############## Register if new drone #####################
         Drones.push_back(new drone(msg.drone_id,msg.position));
+        drone_decon::RegisterDrone reg;
+        //TODO automatic registering of drone ID
+        Own2UtmId[1]=3012;
+        Utm2OwnId[3012]=1;
+        reg.drone_id = Own2UtmId[msg.drone_id];
+        RegisterDrone_pub.publish(reg);
+        Drones.back()->getGroundHeight() = msg.absolute_alt-msg.relative_alt;
+        Drones.back()->getFlightHeight() = 32; 
+
         cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << "at : " << msg.position << endl;
     }else{ // ################### Update Drone state #############################
         Drones[index]->setPosition(msg.position);
         if(msg.status != msg.holding) Drones[index]->setMissionIndex(msg.mission_index);
         Drones[index]->setVelocity(msg.ground_speed);
         Drones[index]->setVelocitySetPoint(msg.ground_speed_setpoint);
-
+        Drones[index]->setStatus(msg.status);
         if(msg.status == msg.Run){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
-                if(aJob->getStatus() != job::ongoing){
+                if(aJob->getStatus() == job::ready4takeOff ||
+                    aJob->getStatus() == job::ready4flightContinuation)
+                {
                     aJob->setStatus(job::ongoing);
                 }
             }
@@ -324,7 +348,9 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         }else if(msg.status == msg.holding){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
-
+                if(aJob->getStatus() == job::ongoing){
+                    aJob->setStatus(job::waitInAir);
+                }
             }
         }
     }
@@ -401,6 +427,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
 }
 void Collision_Handler(gcs::inCollision msg){
     //TODO handle landingzone is noflight zone
+    NodeState(node_monitor::heartbeat::info,"DNFZ detected");
     for(size_t i = 0; i < activeJobs.size(); i++){
         drone *aDrone = activeJobs[i]->getDrone();
         if(aDrone->getID() == msg.drone_id){
@@ -438,6 +465,46 @@ void nodeMonitor_Handler(node_monitor::nodeOkList msg){
         }
     }
 }
+void deconflict_Handler(drone_decon::RedirectDrone msg){
+    for(size_t i = 0; i < Drones.size(); i++){
+        if(Utm2OwnId[msg.drone_id]==Drones[i]->getID()){
+            gcs::GPS pos;
+            pos << msg.position;
+            pos.altitude-= Drones[i]->getGroundHeight();
+            if(pos.altitude < 5) pos.altitude = 3;
+            bool changed = false;
+            if(msg.insertBeforeNextWayPoint){
+                if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()])>5 &&
+                    std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()].altitude)>3)
+                {
+                    changed = true;
+                    Drones[i]->getPath().insert(Drones[i]->getPath().begin()+Drones[i]->getMissionIndex(),pos);
+                    for(size_t i2 = Drones[i]->getMissionIndex()+1; i2< Drones[i]->getPath().size(); i2++){
+                        Drones[i]->getPath()[i2].altitude=pos.altitude;
+                    }
+                }
+            }else{
+                if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()+1])>5 &&
+                    std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()+1].altitude)>3)
+                {   
+                    changed = true;
+                    Drones[i]->getPath().insert(Drones[i]->getPath().begin()+Drones[i]->getMissionIndex()+1,pos);
+                    for(size_t i2 = Drones[i]->getMissionIndex()+2; i2< Drones[i]->getPath().size(); i2++){
+                        Drones[i]->getPath()[i2].altitude=pos.altitude;
+                    }
+                }
+            }
+            if(changed){
+                if(Drones[i]->getJob()->getStatus() == job::ongoing){
+                    Drones[i]->getJob()->setStatus(job::resumeFlight);
+                }else{
+                    ROS_ERROR("[Ground Control]: Drone can't handle drone deconflic if not in ongoing state");
+                }     
+            }
+        }
+    }
+
+}
 
 // ################################### Main Program ###########################################
 void initialize(void){
@@ -449,14 +516,17 @@ void initialize(void){
     JobState_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/JobState",100);
     Heartbeat_pub = nh->advertise<node_monitor::heartbeat>("/node_monitor/input/Heartbeat",100);
     Reposition_pub = nh->advertise<gcs::moveTo>("/gcs/rePosition",100);
+    Transport_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/medicalTransport",100);
+    RegisterDrone_pub = nh->advertise<drone_decon::RegisterDrone>("/drone_decon/register",100);
 
     Collision_sub = nh->subscribe("/collision_detecter/collision_warning",100,Collision_Handler);
     WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     nodeMonitor_sub = nh->subscribe("/node_monitor/node_list",10,nodeMonitor_Handler);
-
-    //TODO automatic registering of drone ID
-    Own2UtmId[1]=3012;
+    drone_decon_sub = nh->subscribe("drone_decon/redirect",10,deconflict_Handler);
+    
+    
+    
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
@@ -604,7 +674,22 @@ int main(int argc, char** argv){
                     uploadFlightPlan(activeJobs[i]->getDrone());
                     activeJobs[i]->setStatus(job::ready4takeOff);
                     webMsg(activeJobs[i]->getQuestHandler(),"request=ready4takeoff");
-                }    
+                } 
+                if(!activeJobs[i]->getGoal()->isLab()){
+                    gcs::DroneSingleValue msg;
+                    msg.value = 22;
+                    msg.text = "Flying out to fetch blood";
+                    msg.drone_id = activeJobs[i]->getDrone()->getID();
+                    Transport_pub.publish(msg);
+                }else{
+                    gcs::DroneSingleValue msg;
+                    msg.value = 3;
+                    msg.text = "Flying back with blood";
+                    msg.drone_id = activeJobs[i]->getDrone()->getID();
+                    Transport_pub.publish(msg);
+                }   
+            
+            
             }else if(status == job::done){  // ############# Delete Finnished Jobs ######################
                 delete activeJobs[i];
                 activeJobs.erase(activeJobs.begin()+i);
@@ -663,6 +748,8 @@ int main(int argc, char** argv){
                     activeJobs[i]->setWaitInAirTo(-1);
                     activeJobs[i]->setStatus(activeJobs[i]->getNextStatus());
                     activeJobs[i]->setNextStatus(job::notAssigned);
+                }else{
+                    ROS_ERROR("[Ground Control]: No continuation to this waiting state implemented");
                 }
                 //Check that we can move to next waypoint
             }else if(status == job::notAssigned){
