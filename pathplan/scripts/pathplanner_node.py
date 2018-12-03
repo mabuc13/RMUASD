@@ -46,7 +46,6 @@ class PathPlanner(object):
         path_reversed = astar_object.compute_astar(dynamic, ground_speed) #True equals dynamic no flight zone
 
 
-
         #path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
         t1 = time.time()
 
@@ -78,7 +77,7 @@ class PathPlanner(object):
             kml.trkpt(i.lat, i.lon, 0.0)
         kml.trksegend()
         kml.end()
-    
+
 
 path_planner_dict = {}
 
@@ -89,7 +88,6 @@ def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the
           ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
-
     map_padding = 2500
     if req.drone_id in path_planner_dict:
         map, old_start = path_planner_dict[req.drone_id]
@@ -103,7 +101,6 @@ def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the
     map, start = path_planner_dict[req.drone_id]
     planner = PathPlanner(start, theend, map)
     planner.compute_path(req.useDNFZ, 5, req.startTime, map_padding)
-
     plan = planner.path
     planner.export_kml_path("dynamic_path")
     GPSPlan = []
@@ -182,4 +179,3 @@ if __name__ == '__main__':
         rospy.Rate(heart_msg.rate).sleep()
         heart_msg.header.stamp = rospy.Time.now()
         heartbeat_pub.publish(heart_msg)
-

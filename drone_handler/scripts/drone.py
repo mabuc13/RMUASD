@@ -36,6 +36,7 @@ class State(Enum):
     PAUSED = 9
     LANDING = 10
     SET_SPEED = 11
+    REPOSITION = 12
 
 PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
 PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
@@ -63,13 +64,15 @@ class Drone(object):
         self.active_mission_len = 0
         self.active_mission_idx = 0             # index for the complete plan
 
+        self.holding_waypoint = GPS()
+
         # the drone starts on the ground ( land means ground for now. Change later ) TODO
         self.gcs_status = DroneInfo.Land
 
         # from mission info
-        self.active_sub_waypoint_idx = 0
-        self.active_sub_mission_len = 0
-        self.active_sub_waypoint = mavlink_lora_mission_item_int()
+        # self.active_sub_waypoint_idx = 0
+        # self.active_sub_mission_len = 0
+        # self.active_sub_waypoint = mavlink_lora_mission_item_int()
 
         # from heartbeat status
         self.main_mode = ""
@@ -139,6 +142,27 @@ class Drone(object):
 
         # class that handles the missions manually while an upload is in progress
         self.manual_mission = manual_mission.ManualMission(target_sys=self.id, target_comp=0, reposition_handle=self.reposition)
+
+    def on_move(self, msg):
+        # reset manual mission
+        # reposition
+        # change state to reposition
+
+        self.manual_mission.stop_running()
+        self.manual_mission.reset()
+
+        request = GotoWaypointRequest(
+            relative_alt=True,
+            ground_speed=MISSION_SPEED,
+            latitude=msg.position.latitude,
+            longitude=msg.position.longitude,
+            altitude=msg.position.altitude
+        )
+
+        self.reposition(request)
+        
+        self.holding_waypoint = msg.position
+        self.fsm_state = State.REPOSITION
 
     def on_mission_ack(self, msg):
         if msg.result_text == "MAV_MISSION_ACCEPTED":
@@ -357,6 +381,28 @@ class Drone(object):
             if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 20:
                 self.fsm_state = State.LANDING
 
+        # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.REPOSITION:
+
+            if self.new_mission:
+                self.manual_mission.start_running()
+                self.new_mission = False
+                # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
+                self.fsm_state = State.REQUESTING_UPLOAD
+
+            else:
+                if self.cmd_try_again:
+                    request = GotoWaypointRequest(
+                        relative_alt=True,
+                        ground_speed=MISSION_SPEED,
+                        latitude=self.holding_waypoint.position.latitude,
+                        longitude=self.holding_waypoint.position.longitude,
+                        altitude=self.holding_waypoint.position.altitude
+                    )
+
+                    response = self.reposition(request)
+                    if response.success:
+                        self.cmd_try_again = False
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.LANDING:
             if self.state == "Standby":
