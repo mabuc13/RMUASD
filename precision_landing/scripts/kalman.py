@@ -3,7 +3,7 @@ from numpy.linalg import inv, norm
 from numpy.random import randn
 import time
 from math import pi
-from enum import Enum
+from enum import Enum 
 
 class Measurement(Enum):
     POS = 1
@@ -41,14 +41,6 @@ class KalmanFilter(object):
 
         self.last_timestamp = time.time()
 
-        # trajectory
-        # self.trajectoryPath = []
-
-        # Members for detecting self-destruct condition
-        # self.maxPredictions = maxPredictions
-        # self.predictionCount = 0
-        # self.selfDestruct = False
-
         # Members for delaying drawing feature
         # self.correctionCount = 0
         # self.startDelay = startDelay
@@ -73,19 +65,21 @@ class KalmanFilter(object):
         #                         [0,              pow(dt,3)/2,    0,              dt**2]])*dt
 
     def update(self, y=None, y_type=Measurement.POS):
-        # If there is no new measurement, then we can only make a prediction
-
         timestamp = time.time()
         dt = timestamp - self.last_timestamp
         self.last_timestamp = timestamp
+
         self.F      = np.array([[1,0,dt,0],
                                 [0,1,0,dt],
                                 [0,0,1,0],
                                 [0,0,0,1]])
 
+        # print("dt: {}".format(dt))
+
         x, P = self.predict()
         x0 = self.x_hat_plus
 
+        # If there is no new measurement, then we can only make a prediction
         if type(y) != type(None):
             # make the noise matrix match the size of the measurement            
             if y.shape[0] == 2:
@@ -101,15 +95,12 @@ class KalmanFilter(object):
                 self.H = self.H_both
 
             x, P = self.correct(y)
-            # self.predictionCount = 0
-            # self.correctionCount += 1
 
         else:
             # The prediction was the best we could do in this iteration, so x_hat_plus and P_plus
             # are assigned to the result from the prediction
             self.x_hat_plus = x
             self.P_plus = P
-            # self.predictionCount += 1
 
         return x
 

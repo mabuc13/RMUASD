@@ -7,9 +7,11 @@ import datetime
 import numpy as np
 import rmsd
 import copy
+import time
 import kalman
 from utm import utmconv
 from math import isnan
+from filterpy.stats import plot_covariance_ellipse, plot_3d_covariance
 
 from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import * # pylint: disable=W0614
@@ -29,7 +31,7 @@ LANDING_TARGET_REF = 0
 LANDING_TARGET_SIZE = 12
 
 # parameters
-update_interval = 30
+update_interval = 20
 
 class Analyser(object): 
 
@@ -52,7 +54,9 @@ class Analyser(object):
         self.vx = 0
         self.vy = 0
         self.vz = 0
- 
+        
+        self.last_timestamp = rospy.get_time()
+        self.stop = False
 
         dt = 1/update_interval
         self.state = np.zeros((4,1), float)
@@ -96,7 +100,12 @@ class Analyser(object):
         self.vz = msg.vz
 
     def run(self):
-            
+        timestamp = rospy.get_time()
+        dt = timestamp - self.last_timestamp
+        self.last_timestamp = timestamp
+
+        print("dt: {}".format(dt))
+
         if self.new_pos_reading:
             self.new_pos_reading = False
 
@@ -128,8 +137,8 @@ class Analyser(object):
             plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=5) # plot something
             # self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2) # plot something
 
-            relative_target = self.landing_coords - self.sensor_data
-            added = relative_target + self.local_position_ned
+            # relative_target = self.landing_coords - self.sensor_data
+            # added = relative_target + self.local_position_ned
             # self.ax.scatter(relative_target[1], relative_target[0], -relative_target[2], color='blue', s=2) 
             # self.ax.set_zlim(0, 10)
         else:
@@ -142,6 +151,13 @@ class Analyser(object):
         plt.scatter(self.state[1,0], self.state[0,0], color='orange', s=2)
         self.fig.canvas.draw()
 
+    def plot_covariance(self, event):
+        x = self.kalman.x_hat_plus
+        P = self.kalman.P_plus
+
+        self.stop = True
+        plot_covariance_ellipse(x,P,edgecolor='r')
+        plt.show()
 
     def shutdownHandler(self):
         # shutdown services
@@ -152,6 +168,9 @@ if __name__ == "__main__":
     rospy.sleep(1)
 
     al = Analyser()
+
+
+    # rospy.Timer(rospy.Duration(10), al.plot_covariance, oneshot=True)
 
     rospy.on_shutdown(al.shutdownHandler)
         
