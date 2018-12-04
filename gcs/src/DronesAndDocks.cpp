@@ -26,11 +26,23 @@ bool dock::isLab(void){
 job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued){
     goal = station;
     QuestGiver = station;
+    this->injection.index_from = 0;
+    this->injection.index_to = 0;
+    this->injection.start = gcs::GPS();
+    this->injection.to = gcs::GPS();
+    this->injection.valid_to = 0;
+    this->injection.dnfz_id = 0;
+    this->injection.time = std::time(nullptr);
+    this->injection.stillValid = false;
 }
 job::job(const job &ajob):worker(NULL){
     this ->goal = ajob.goal;
     this-> QuestGiver = ajob.QuestGiver;
     this->status = ajob.status;
+    this->injection = ajob.injection;
+    this->TheOldPlan = ajob.TheOldPlan;
+    this->waitInAirTill = ajob.waitInAirTill;
+    this->nextStatus = ajob.nextStatus;
     this->setDrone(ajob.worker);
 }
 job::~job(){
@@ -81,15 +93,17 @@ uint8 job::getNextStatus(void){
 void job::DNFZinjection(gcs::inCollision msg){
     this->injection.index_from = msg.plan_index1;
     this->injection.index_to = msg.plan_index2;
-    this->injection.start =msg.start;
+    this->injection.start = msg.start;
     this->injection.to = msg.end;
     this->injection.valid_to = msg.valid_to;
+    this->injection.dnfz_id = msg.dnfz_id;
+    this->injection.time = std::time(nullptr);
     this->injection.stillValid = true;
 }
 void job::DNFZinjection(DNFZinject msg){
     this->injection = msg;
 }
-DNFZinject job::getDNFZinjection(){
+DNFZinject& job::getDNFZinjection(){
     return this->injection;
 }
 void job::setWaitInAirTo(long waitTo){

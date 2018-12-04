@@ -13,6 +13,7 @@ import json
 import string
 from std_msgs.msg import String
 from shapely import geometry, wkt
+import threading
 
 class dictEmpty(dict):
     def __missing__(self, key):
@@ -50,8 +51,11 @@ class CollisionDetector:
         rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.on_drone_info)
         rospy.Subscriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
         self.active_drone_paths = dictEmpty()
+        self.drone_paths_lock = dictEmpty()
+        self.drone_info_lock = dictEmpty()
         self.active_drone_info = dictEmpty()
         self.get_dnfz_client()
+        
         
 
     def get_dnfz_client(self):
@@ -67,21 +71,30 @@ class CollisionDetector:
         '''
         Callback function
         '''
-        self.active_drone_paths[msg.DroneID] = msg.Path
-        self.calc_dist_between_mission_points(msg.Path, msg.DroneID)
+        if self.drone_paths_lock[msg.DroneID] == 0:
+            self.drone_paths_lock[msg.DroneID] = threading.Lock()
+
+        with self.drone_paths_lock[msg.DroneID]:    
+            self.active_drone_paths[msg.DroneID] = msg.Path
+            self.calc_dist_between_mission_points(msg.Path, msg.DroneID)
+
     def on_drone_info(self, msg):
         '''
         Callback function
         '''
         # Adding the next waypoint index in the plan to the dict
-        if msg.status == msg.Run:
-            self.active_drone_info[msg.drone_id] = msg
-        if msg.status == msg.Land:
-            # Drone has landed, so delete the path and ID from the dict's
-            if (self.active_drone_info[msg.drone_id]) != 0:
-                del self.active_drone_info[msg.drone_id]
-            #if (self.active_drone_paths[msg.drone_id]) != 0:
-            #    del self.active_drone_paths[msg.drone_id]
+        if self.drone_info_lock[msg.drone_id] == 0:
+            self.drone_info_lock[msg.drone_id] = threading.Lock()
+        
+        with self.drone_info_lock[msg.drone_id]:
+            if msg.status == msg.Run:
+                self.active_drone_info[msg.drone_id] = msg
+            if msg.status == msg.Land:
+                # Drone has landed, so delete the path and ID from the dict's
+                if (self.active_drone_info[msg.drone_id]) != 0:
+                    del self.active_drone_info[msg.drone_id]
+            if msg.status == msg.holding:
+                pass
 
     def on_dynamic_no_fly_zones(self, msg):
         '''
@@ -156,42 +169,44 @@ class CollisionDetector:
         previous_pos = None
         previous_time = None
         for i, val in self.active_drone_info.items():
-            if not self.active_drone_paths[i] == 0:
-                #print "Checking DNFZ for drone 1"
-                previous_pos = Coordinate(GPS_data=self.active_drone_info[i].position)
-                previous_time = self.active_drone_info[i].GPS_timestamp
-                # Are we in a no-fly-zone now?:
-                current_position = Coordinate(GPS_data=val.position)
-                collision, int_id = self.is_collision_at_future_position(current_position, time.time())
-                if collision:
-                    #print "run collision check : ", safety_position.GPS_data
-                    safety_position = self.quick_find_position_outside_dnfz(i, int_id)
-                    self.publish_on_ros(i, self.INSIDE_COLLISION, gps_start=safety_position.GPS_data, gps_end=safety_position.GPS_data,dnfz_id=int_id)
-                    break
+            with self.drone_info_lock[i]:
+                with self.drone_paths_lock[i]:
+                    if not self.active_drone_paths[i] == 0:
+                        #print "Checking DNFZ for drone 1"
+                        previous_pos = Coordinate(GPS_data=self.active_drone_info[i].position)
+                        previous_time = self.active_drone_info[i].GPS_timestamp
+                        # Are we in a no-fly-zone now?:
+                        current_position = Coordinate(GPS_data=val.position)
+                        collision, int_id = self.is_collision_at_future_position(current_position, time.time())
+                        if collision:
+                            #print "run collision check : ", safety_position.GPS_data
+                            safety_position = self.quick_find_position_outside_dnfz(i, int_id)
+                            self.publish_on_ros(i, self.INSIDE_COLLISION, gps_start=safety_position.GPS_data, gps_end=safety_position.GPS_data,dnfz_id=int_id)
+                            break
 
-                # Is there a no-fly-zone on the goal?:
-                eta_goal = self.eta_at_goal(i)
-                #print "Debugging:" , self.active_drone_paths[i]
-                goal_position = Coordinate(GPS_data=self.active_drone_paths[i][-1])
-                collision, int_id = self.is_collision_at_future_position(goal_position, eta_goal)
-                if collision:
-                    #print "run collision check : data none"
-                    self.publish_on_ros(i, self.GOAL_COLLISION)
+                        # Is there a no-fly-zone on the goal?:
+                        eta_goal = self.eta_at_goal(i)
+                        #print "Debugging:" , self.active_drone_paths[i]
+                        goal_position = Coordinate(GPS_data=self.active_drone_paths[i][-1])
+                        collision, int_id = self.is_collision_at_future_position(goal_position, eta_goal)
+                        if collision:
+                            #print "run collision check : data none"
+                            self.publish_on_ros(i, self.GOAL_COLLISION)
 
-                # for 5, 10, 15, ... , 60 seconds into the future:
-                max_future_sight = 60
-                if eta_goal < max_future_sight:
-                    max_future_sight = eta_goal
-                for j in range(5, max_future_sight, 5):
-                    position, index = self.calc_future_position(val.drone_id, j)
-                    future_time = time.time() + j
-                    collision, int_id = self.is_collision_at_future_position(position, future_time)
-                    if collision:
-                        print("Collision detected in future....after ", j,"sec")
-                        self.make_decision_if_collision(int_id, previous_time, future_time, previous_pos, val.drone_id, index)
-                        break
-                    previous_pos = position
-                    previous_time = future_time
+                        # for 5, 10, 15, ... , 60 seconds into the future:
+                        max_future_sight = 60
+                        if eta_goal < max_future_sight:
+                            max_future_sight = eta_goal
+                        for j in range(5, max_future_sight, 5):
+                            position, index = self.calc_future_position(val.drone_id, j)
+                            future_time = time.time() + j
+                            collision, int_id = self.is_collision_at_future_position(position, future_time)
+                            if collision:
+                                print("Collision detected in future....after ", j,"sec")
+                                self.make_decision_if_collision(int_id, previous_time, future_time, previous_pos, val.drone_id, index)
+                                break
+                            previous_pos = position
+                            previous_time = future_time
 
     def make_polygon(self, json_obj):
         coords = json_obj["coordinates"]
@@ -346,7 +361,7 @@ class CollisionDetector:
         msg.start = gps_start
         msg.end = gps_end
         msg.valid_to = valid_to
-        msg.dnfz_id=dnfz_id
+        msg.dnfz_id=int(dnfz_id)
         self.collision_detected_pub.publish(msg)
 
 

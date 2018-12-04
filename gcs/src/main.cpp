@@ -192,6 +192,7 @@ void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     msg.Path = theDrone->getPath();
     msg.DroneID = theDrone->getID();
     msg.loiterAtEnd = loiterAtEnd;
+    if(DEBUG) cout << "[Ground Control]: Posting PathPlan" << endl;
     RouteRequest_pub.publish(msg);
 }
 
@@ -437,31 +438,44 @@ void Collision_Handler(gcs::inCollision msg){
     NodeState(node_monitor::heartbeat::info,"DNFZ detected");
     for(size_t i = 0; i < activeJobs.size(); i++){
         drone *aDrone = activeJobs[i]->getDrone();
-        if(aDrone->getID() == msg.drone_id){
-            if(msg.zone_type == gcs::inCollision::normal_zone){
-                activeJobs[i]->DNFZinjection(msg);
-                activeJobs[i]->setStatus(job::rePathPlan);
-                activeJobs[i]->saveOldPlan();
+        if(!activeJobs[i]->getDNFZinjection().stillValid&&
+            (activeJobs[i]->getDNFZinjection().dnfz_id != msg.dnfz_id ||
+             long(std::time(nullptr)) - activeJobs[i]->getDNFZinjection().time > 30))
+        {
+            cout << "DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+            cout << "DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+            cout << "DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
+            if(aDrone->getID() == msg.drone_id){
+                if(msg.zone_type == gcs::inCollision::normal_zone){
+                    activeJobs[i]->DNFZinjection(msg);
+                    activeJobs[i]->setStatus(job::rePathPlan);
+                    activeJobs[i]->saveOldPlan();
 
-                vector<gcs::GPS> path = aDrone->getPath();
-                vector<gcs::GPS> newPath(path.begin()+aDrone->getMissionIndex(),path.begin()+msg.plan_index1);
-                newPath.push_back(msg.start);
-                aDrone->setPath(newPath);
-                uploadFlightPlan(aDrone,true);
+                    vector<gcs::GPS> path = aDrone->getPath();
+                    vector<gcs::GPS> newPath(path.begin()+aDrone->getMissionIndex(),path.begin()+msg.plan_index1);
+                    newPath.push_back(msg.start);
+                    aDrone->setPath(newPath);
+                    uploadFlightPlan(aDrone,true);
 
-            }else if(msg.zone_type == gcs::inCollision::inside_zone){
-                activeJobs[i]->DNFZinjection(msg);
-                activeJobs[i]->setStatus(job::rePathPlan);
-                activeJobs[i]->saveOldPlan();
-                moveDroneTo(activeJobs[i]->getDrone(),msg.start);
+                }else if(msg.zone_type == gcs::inCollision::inside_zone){
+                    activeJobs[i]->DNFZinjection(msg);
+                    activeJobs[i]->setStatus(job::rePathPlan);
+                    activeJobs[i]->saveOldPlan();
+                    moveDroneTo(activeJobs[i]->getDrone(),msg.start);
 
-            }else if(msg.zone_type == gcs::inCollision::landing_zone){
-                ROS_ERROR("[Ground Control]: can't handle obstructed ladingzone yet");
+                }else if(msg.zone_type == gcs::inCollision::landing_zone){
+                    ROS_ERROR("[Ground Control]: can't handle obstructed ladingzone yet");
+                }else{
+                    ROS_ERROR("[Ground Control]: Error unrecognized dnfz type");
+                }
             }else{
-                ROS_ERROR("[Ground Control]: Error unrecognized dnfz type");
+                cout << "Wrong drone ID" << endl;
             }
-
-
+        }else{
+            NodeState(node_monitor::heartbeat::info,"DNFZ ignored");
+            cout << "DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+            cout << "DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+            cout << "DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
         }
     }
 }
