@@ -39,7 +39,7 @@ class CollisionDetector:
         self.GOAL_COLLISION = inCollision.landing_zone
 
         # status variables
-        rospy.sleep(1)  # wait until everything is running
+        rospy.sleep(4)  # wait until everything is running
 
         self.safe_takeoff_service = rospy.Service("/collision_detector/safeTakeOff", safeTakeOff, self.on_safe_takeoff)
 
@@ -104,22 +104,23 @@ class CollisionDetector:
         safe_bool, time_left = self.is_clear_to_take_of(req.drone_id, req.takeoff_position)
         return safeTakeOffResponse(safe_bool, time_left)
 
-    def is_clear_to_take_of(self, drone_id, start_position):
-        # start_position = Coordinate(lon=self.active_drone_paths[drone_id][0].longitude,
-        #                             lat=self.active_drone_paths[drone_id][0].latitude)
+    def is_clear_to_take_of(self, drone_id, position):
+        start_position = Coordinate(lon=position.longitude,
+                                    lat=position.latitude)
+
         current_time = time.time()
         for int_id, dnfz in self.dynamic_no_flight_zones.items():
             if dnfz["geometry"] == "circle":
                 coord = dnfz["coordinates"]
                 coord = coord.split(',')
                 dist = self.pythagoras(start_position, Coordinate(lon=coord[0], lat=coord[1]))
-                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < current_time < (dnfz["valid_to_epoch"] +
+                if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < current_time < (int(dnfz["valid_to_epoch"]) +
                                                                                          self.safety_extra_time):
-                    if dist <= (coord[2] + self.safety_dist_to_dnfz):
+                    if dist <= (float(coord[2]) + self.safety_dist_to_dnfz):
                         return False, dnfz["valid_to_epoch"]
             elif dnfz["geometry"] == "polygon":
                 dist = dnfz["polygon"].distance(geometry.Point(start_position.easting, start_position.northing))
-                if (dnfz["valid_from_epoch"] - self.safety_extra_time) < current_time < (dnfz["valid_to_epoch"] +
+                if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < current_time < (int(dnfz["valid_to_epoch"]) +
                                                                                          self.safety_extra_time):
                     if dist <= self.safety_dist_to_dnfz:
                         return False, dnfz["valid_to_epoch"]
