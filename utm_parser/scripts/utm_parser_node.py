@@ -24,6 +24,7 @@ import requests
 import json
 import cv2
 import numpy as np
+import rospkg
 from gcs.msg import *
 from node_monitor.msg import heartbeat
 from std_msgs.msg import String
@@ -93,19 +94,19 @@ class utm_parser(object):
             'uav_id': 3012,
             'uav_auth_key': '96ba4387cb37a2cbc5f05de53d5eab0c9583f1e102f8fe10ccab04c361234d6cd8cc47c0db4a46e569f03b61374745ebb433c84fac5f4bdfb8d89d2eb1d1ec0f',
             'uav_op_status': 22,
-            'pos_cur_lat_dd': 0,
-            'pos_cur_lng_dd': 0,
-            'pos_cur_alt_m': 0,
-            'pos_cur_hdg_deg': 0,
-            'pos_cur_vel_mps': 0,
-            'pos_cur_gps_timestamp': 0,
-            'wp_next_lat_dd': 0,
-            'wp_next_lng_dd': 0,
-            'wp_next_alt_m': 0,
-            'wp_next_hdg_deg': 0,
-            'wp_next_vel_mps': 0,
-            'wp_next_eta_epoch': 0,
-            'uav_bat_soc': 0
+            'pos_cur_lat_dd': 1,
+            'pos_cur_lng_dd': 1,
+            'pos_cur_alt_m': 1,
+            'pos_cur_hdg_deg': 1,
+            'pos_cur_vel_mps': 1,
+            'pos_cur_gps_timestamp': 1,
+            'wp_next_lat_dd': -1,
+            'wp_next_lng_dd': -1,
+            'wp_next_alt_m': -1,
+            'wp_next_hdg_deg': -1,
+            'wp_next_vel_mps': -1,
+            'wp_next_eta_epoch': -1,
+            'uav_bat_soc': 100
         }
         self.at_last_wp = 0
         self.last_info_pub = time.time()
@@ -126,6 +127,9 @@ class utm_parser(object):
         self.heart_msg = heartbeat()
 
         self.recent_drone = dict_init()
+
+        self.scenario = rospy.get_param("~scenario")
+        self.posted = False
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
@@ -142,7 +146,52 @@ class utm_parser(object):
         self.standard_post_payload["uav_op_status"] = int(msg.value)
         self.post_payload["uav_op_status"] = int(msg.value)
 
+    def save_json_file(self):
+        # valid from epoch 1543839122
+        # valid to epoch 1545649886
+        """
+        Script to save blocking dynamic no fligh zone
+              message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4",
+              "geometry": "polygon", "valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223", "int_id": "20"}]'
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path("utm_parser")
+        path = package_path + "/dummy_dnfz/blocking.json"
+        data = json.loads(message)
+        with open(path, 'w+') as outfile:
+            json.dump(data, outfile)
 
+        """
+        on_top = {}
+        on_top['valid_from_epoch'] = str(time.time())
+        on_top['valid_to_epoch'] = str(time.time()+25)
+        on_top['name'] = 'On_top'
+        on_top['geometry'] = 'circle'
+        on_top['coordinates'] = str(self.post_payload['pos_cur_lat_dd']) + ","+ str(self.post_payload['pos_cur_lng_dd'])+ ',20'
+        on_top['int_id'] = '80'
+
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path("utm_parser")
+        path = package_path + "/dummy_dnfz/on_top.json"
+
+        with open(path, 'w+') as outfile:
+            json.dump(on_top, outfile)
+
+        #json_object =
+
+        with open(path, 'r') as f:
+            json_object = json.load(f)
+
+        print json_object
+
+    def load_json_file(self, name):
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path("utm_parser")
+        path = package_path + "/dummy_dnfz/" + name + ".json"
+
+        with open(path, 'r') as f:
+            json_object = json.load(f)
+
+        return json_object
 
     def save_path(self, msg):
         self.path = msg.Path
@@ -156,16 +205,30 @@ class utm_parser(object):
         #    print self.path
 
     def get_dnfz_handler(self, req):
+
+        if self.scenario == 0:
+            dnfz = self.get_dynamic_nfz()
+            message = json.dumps(dnfz)
+            return message
+        if self.scenario == 1:
+            data = self.load_json_file("blocking")
+            message = json.dumps(data)
+            #print "Loaded dnfz", message
+            return message
+        if self.scenario == 3:
+            data = self.load_json_file("aarslev")
+            message = json.dumps(data)
+            return message
+        if self.scenario == 4:
+            data = self.load_json_file("on_top")
+            data[0]['coordinates'] = str(self.post_payload['pos_cur_lat_dd']) + "," + str(self.post_payload['pos_cur_lng_dd']) + ',20'
+            data[0]['valid_from_epoch'] = str(int(time.time()))
+            data[0]['valid_to_epoch'] = str(int(time.time() + 25))
+            message = json.dumps(data)
+            print "Added one dummy"
+            return message
         dnfz = self.get_dynamic_nfz()
-        #valid from epoch 1543839122
-        #valid to epoch 1545649886
-        message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon", "valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223", "int_id": "20"}]'
-
-
-        printout = json.dumps(dnfz)
-        #print "JSON dumps", printout
-	#print "Message"
-        #print message
+        message = json.dumps(dnfz)
         return message
 
     def get_snfz_handler(self, req):
@@ -199,8 +262,17 @@ class utm_parser(object):
     def post_drone_info_handler(self, msg):
         dummy_payload = self.post_payload
         now = time.time()
-        if now-self.last_info_pub > 1:
+        if self.scenario == 2 and msg.mission_index == 2 and not self.posted:
+            data = self.load_json_file("on_top")
+            #data = json.loads(string)
+            data[0]['coordinates'] = str(self.post_payload['pos_cur_lat_dd']) + "," + str(self.post_payload['pos_cur_lng_dd']) + ',20'
+            data[0]['valid_from_epoch'] = str(int(time.time()))
+            data[0]['valid_to_epoch'] = str(int(time.time() + 25))
+            message = json.dumps(data)
+            self.dnfz_pub.publish(message)
+            self.posted = True
 
+        if now-self.last_info_pub > 1:
 
             self.post_payload = self.standard_post_payload
 
@@ -221,8 +293,10 @@ class utm_parser(object):
 
             self.post_payload['uav_bat_soc'] = msg.battery_SOC
 
-            if self.path_flag:
 
+
+
+            if self.path_flag:
                 self.post_payload['wp_next_lat_dd'] = wp_geo.latitude
                 self.post_payload['wp_next_lng_dd'] = wp_geo.longitude
                 self.post_payload['wp_next_alt_m'] = wp_geo.altitude-msg.relative_alt+msg.absolute_alt
@@ -257,6 +331,14 @@ class utm_parser(object):
                     self.post_payload['wp_next_vel_mps'] = 5
                     self.post_payload['wp_next_hdg_deg'] = next_heading
                     #vec_degree = math.atan(head_vec[1] / head_vec[0]) * 180 / math.pi
+            else:
+                self.post_payload['wp_next_lat_dd'] = -1
+                self.post_payload['wp_next_lng_dd'] = -1
+                self.post_payload['wp_next_alt_m'] = -1
+                self.post_payload['wp_next_hdg_deg'] = -1
+                self.post_payload['wp_next_vel_mps'] = -1
+                self.post_payload['wp_next_eta_epoch'] = -1
+
             self.push_drone_data(self.post_payload)
             self.last_info_pub = time.time()
 
@@ -771,7 +853,7 @@ class utm_parser(object):
                 print colored("Current dnfz: ", 'blue'), current_dnfz
                 print "Latest dnfz: ", self.latest_dynamic_data
             message = json.dumps(current_dnfz)
-            #self.dnfz_pub.publish(message)
+            self.dnfz_pub.publish(message)
             self.latest_dynamic_data = current_dnfz
             #self.dnfz_pub.publish(cur_string)
 
@@ -796,12 +878,13 @@ def main():
     par.heart_msg.header.frame_id = 'utm_parser'
     par.heart_msg.rate = 1
 
+
     while not rospy.is_shutdown():
         rospy.Rate(par.heart_msg.rate).sleep()
         par.heart_msg.header.stamp = rospy.Time.now()
         par.heartbeat_pub.publish(par.heart_msg)
-
-        par.check_dynamic_data()
+        if par.scenario == 0:
+            par.check_dynamic_data()
         par.get_drone_data()
 
 if __name__ == "__main__":

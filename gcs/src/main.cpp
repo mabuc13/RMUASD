@@ -44,7 +44,7 @@
 using namespace std;
 
 #define DEBUG true
-#define DO_PREFLIGHT_CHECK false
+#define DO_PREFLIGHT_CHECK true
 
 
 // ############################ Clients, Subscribers and Publishers #######################
@@ -209,9 +209,10 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     }
     return srv.response.distance;
 }
-is_safe_for_takeoff safeTakeOff(uint drone_id){
+is_safe_for_takeoff safeTakeOff(drone* my_drone){
     gcs::safeTakeOff srv;
-    srv.request.drone_id = drone_id;
+    srv.request.drone_id = my_drone->getID();
+    srv.request.takeoff_position = my_drone->getPosition();
     bool worked = safeTakeOffClient.call(srv);
 
     is_safe_for_takeoff response;
@@ -568,8 +569,8 @@ void initialize(void){
     pathPlanClient = nh->serviceClient<gcs::pathPlan>("/pathplan/getPlan");
     client = nh->serviceClient<internet::getIp>("/Internet/getIp");
     EtaClient = nh->serviceClient<gcs::getEta>("/pathplan/getEta");
-    GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("pathplan/GPS2GPSdist");
-    safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/Collision_detector/safeTakeOff");
+    GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("/pathplan/GPS2GPSdist");
+    safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/collision_detector/safeTakeOff");
 
     sleep(2);
     /*
@@ -676,7 +677,7 @@ int main(int argc, char** argv){
                     }
 
                     // ######### Cheack that we are not inside no flight zone #########
-                    is_safe_for_takeoff safe = safeTakeOff(activeJobs[i]->getDrone()->getID());
+                    is_safe_for_takeoff safe = safeTakeOff(activeJobs[i]->getDrone());
                     if(!safe.takeoff_is_safe){
                         allOkay = false;
                         NodeState(node_monitor::heartbeat::info,"Waiting for no FlightZone to clear before takeOff");

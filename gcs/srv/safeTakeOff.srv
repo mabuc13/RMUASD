@@ -1,6 +1,6 @@
 #input
 uint32 drone_id
-
+GPS takeoff_position
 ---
 # output
 bool is_save_to_take_off
