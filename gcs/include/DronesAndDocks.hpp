@@ -23,9 +23,9 @@ struct DNFZinject{
 
   gcs::GPS start;
   gcs::GPS to;
-
+  long time;
   size_t valid_to;
-
+  int dnfz_id;
   bool stillValid;
 };
 
@@ -59,7 +59,7 @@ public:
   drone* getDrone(void);
   dock* getQuestHandler(void);
   dock* getGoal(void);
-  DNFZinject getDNFZinjection();
+  DNFZinject& getDNFZinjection();
   oldPlan getOldPlan();
   long getWaitTime();
 

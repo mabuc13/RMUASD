@@ -44,7 +44,7 @@ class PathPlanner(object):
             astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=4)
         else:
             astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
-            
+
         astar_object.set_start_and_goal(self.start, self.goal, start_time)
         #TODO request dynamic no fly zones from utm parser
         path_reversed = astar_object.compute_astar(dynamic, ground_speed) #True equals dynamic no flight zone
@@ -61,7 +61,7 @@ class PathPlanner(object):
 
             self.path = []
             self.path.append(self.start)
-            print "Path_reversed",path_reversed
+            #print "Path_reversed",path_reversed
             for j in reversed(path_reversed):
                 self.path.append(j)
             self.path.pop(-1)
