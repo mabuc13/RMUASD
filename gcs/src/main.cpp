@@ -31,8 +31,9 @@
 #include <node_monitor/heartbeat.h>
 #include <node_monitor/nodeOkList.h>
 #include <node_monitor/nodeOk.h>
-#include <drone_decon/RegisterDrone.h>
+
 #include <drone_decon/RedirectDrone.h>
+#include <drone_decon/RegisterDrone.h>
 #include <drone_decon/GPS.h>
 
 // INCLUDE OWN FILES

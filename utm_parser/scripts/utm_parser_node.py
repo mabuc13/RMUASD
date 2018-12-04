@@ -159,13 +159,12 @@ class utm_parser(object):
         dnfz = self.get_dynamic_nfz()
         #valid from epoch 1543839122
         #valid to epoch 1545649886
-        message = """ [{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon",
-          "valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223",
-          "int_id": "20"}]"""
+        message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon", "valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223", "int_id": "20"}]'
 
 
-        #message = json.dumps(dnfz)
-        #print "Message"
+        printout = json.dumps(dnfz)
+        #print "JSON dumps", printout
+	#print "Message"
         #print message
         return message
 
