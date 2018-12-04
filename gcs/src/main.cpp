@@ -554,8 +554,8 @@ void initialize(void){
     pathPlanClient = nh->serviceClient<gcs::pathPlan>("/pathplan/getPlan");
     client = nh->serviceClient<internet::getIp>("/Internet/getIp");
     EtaClient = nh->serviceClient<gcs::getEta>("/pathplan/getEta");
-    GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("pathplan/GPS2GPSdist");
-    safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/Collision_detector/safeTakeOff");
+    GPSdistanceClient = nh->serviceClient<gcs::gps2distance>("/pathplan/GPS2GPSdist");
+    safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/collision_detector/safeTakeOff");
 
     sleep(2);
     /*
