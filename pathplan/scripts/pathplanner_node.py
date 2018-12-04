@@ -84,8 +84,6 @@ path_planner_dict = {}
 def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the requested message
 
     global path_planner_dict
-    print("[Path planner]: "+"Planning from: lon("+ str(req.start.longitude)+"), lat("+ str(req.start.latitude)+"), alt(" + str(req.start.altitude) +
-          ") to lon("+ str(req.end.longitude)+"), lat("+ str(req.end.latitude)+"), alt(" + str(req.end.altitude)+")")
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
     map_padding = 2500
@@ -103,11 +101,10 @@ def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the
 
 
     map, old_start = path_planner_dict[req.drone_id]
-    print("[Path planner]: old start" + old_start.str())
-    print("[Path planner]: new start" + start.str())
 
+    print("[Path planner]: Planning from: " + start.str() + " - to: " + theend.str())
     planner = PathPlanner(start, theend, map)
-    planner.compute_path(req.useDNFZ, 5, req.startTime, map_padding)
+    planner.compute_path(req.useDNFZ, req.velocity, req.startTime, map_padding)
     plan = planner.path
     planner.export_kml_path("dynamic_path")
     GPSPlan = []
