@@ -8,7 +8,6 @@ import numpy as np
 import rmsd
 import copy
 import kalman
-import kalman_acc3
 from utm import utmconv
 from math import isnan
 
@@ -54,6 +53,11 @@ class Analyser(object):
         self.vy = 0
         self.vz = 0
  
+
+        dt = 1/update_interval
+        self.state = np.zeros((4,1), float)
+        self.kalman = kalman.KalmanFilter(self.state, dt)
+
         self.filtered_pos = np.empty((0,2), float)
         self.landing_target = np.array([0,0,0])
 
@@ -65,9 +69,10 @@ class Analyser(object):
 
         self.fig = plt.gcf()
         # self.ax = self.fig.add_subplot(111, projection='3d')
-        plt.scatter(self.landing_coords[0], self.landing_coords[1], color='blue', s=10)
+        plt.scatter(self.landing_coords[1], self.landing_coords[0], color='blue', s=10)
         self.fig.show()
         self.fig.canvas.draw()
+        # plt.show()
 
 
         # rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
@@ -77,6 +82,7 @@ class Analyser(object):
         
         rospy.Subscriber("/telemetry/local_position_ned", telemetry_local_position_ned, self.on_local_pos)
         rospy.Subscriber("/landing/sensor_data", precland_sensor_data, self.on_sensor_data)
+
 
     def on_sensor_data(self, msg):
         self.new_sensor_reading = True
@@ -93,43 +99,48 @@ class Analyser(object):
             
         if self.new_pos_reading:
             self.new_pos_reading = False
+
             # compute something
 
             plt.scatter(self.local_position_ned[1], self.local_position_ned[0], color='black', s=2) # plot something
             # self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
             
-            # print(self.local_position_ned)
-            # print(self.local_position_ned[0], self.local_position_ned[1])
+            if self.new_sensor_reading:
+                plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=5)
+                # update kalman filter with both position and velocity
+                measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.vx], [self.vy]])
+                self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
+            else:
+                # update kalman filter with velocity
+                measurement = np.array([[self.vx], [self.vy]])
+                self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
 
-            # update canvas immediately
-            plt.xlim([-10, 10])
-            plt.ylim([-10, 10])
-            # plt.pause(0.01)  # I ain't needed!!!
-            self.fig.canvas.draw()
+            # self.ax.set_zlim(0, 10)
             
-        if self.new_sensor_reading:
+        elif self.new_sensor_reading:
             self.new_sensor_reading = False
             # compute something
 
-            plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=2) # plot something
+            # update kalman filter with both position and velocity
+            measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]]])
+            self.state = self.kalman.update(measurement, kalman.Measurement.POS)
+
+            plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=5) # plot something
             # self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2) # plot something
 
             relative_target = self.landing_coords - self.sensor_data
             added = relative_target + self.local_position_ned
-            print(relative_target)
-            plt.scatter(added[1], added[0], color='purple', s=2) # plot something
+            # self.ax.scatter(relative_target[1], relative_target[0], -relative_target[2], color='blue', s=2) 
+            # self.ax.set_zlim(0, 10)
+        else:
+            self.state = self.kalman.update()
 
+        # update canvas immediately
+        plt.xlim([-10, 10])
+        plt.ylim([-10, 10])
 
-            
-            # print(self.sensor_data)
-            # print(self.sensor_data[0], self.sensor_data[1])
-
-            # update canvas immediately
-            plt.xlim([-10, 10])
-            plt.ylim([-10, 10])
-            #plt.pause(0.01)  # I ain't needed!!!
-            self.fig.canvas.draw()
-
+        plt.scatter(self.state[1,0], self.state[0,0], color='orange', s=2)
+        self.fig.canvas.draw()
 
 
     def shutdownHandler(self):
