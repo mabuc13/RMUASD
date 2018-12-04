@@ -4,10 +4,10 @@ from gcs.msg import GPS
 
 class Coordinate(object):
 	def __init__(self, lat=0, lon=0, northing=0, easting=0, GPS_data=0):
-		self.lat = lat
-		self.lon = lon
-		self.northing = northing
-		self.easting = easting
+		self.lat = float(lat)
+		self.lon = float(lon)
+		self.northing = float(northing)
+		self.easting = float(easting)
 		self.altitude = 30
 		self.GPS_data = GPS_data
 		if self.GPS_data != 0:

@@ -81,6 +81,7 @@ class AStar:
                     self.make_polygon(json_obj)
         except ValueError as Err:
             print("[AStar]: Couldn't convert string from UTM server to json..", Err)
+            print(data)
         #self.plot_dnfz()
 
     def on_dynamic_no_fly_zones(self, msg):
