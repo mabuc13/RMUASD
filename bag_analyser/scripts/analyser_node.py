@@ -106,6 +106,7 @@ class Analyser(object):
             # self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
             
             if self.new_sensor_reading:
+                plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=5)
                 # update kalman filter with both position and velocity
                 measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.vx], [self.vy]])
                 self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
@@ -124,7 +125,7 @@ class Analyser(object):
             measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]]])
             self.state = self.kalman.update(measurement, kalman.Measurement.POS)
 
-            plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=2) # plot something
+            plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=5) # plot something
             # self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2) # plot something
 
             relative_target = self.landing_coords - self.sensor_data

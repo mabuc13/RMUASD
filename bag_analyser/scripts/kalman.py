@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.linalg import inv, norm
 from numpy.random import randn
+import time
 from math import pi
 from enum import Enum
 
@@ -38,16 +39,18 @@ class KalmanFilter(object):
         self.x_hat_min  = self.x
         self.x_hat_plus = self.x
 
+        self.last_timestamp = time.time()
+
         # trajectory
-        self.trajectoryPath = []
+        # self.trajectoryPath = []
 
         # Members for detecting self-destruct condition
         # self.maxPredictions = maxPredictions
-        self.predictionCount = 0
-        self.selfDestruct = False
+        # self.predictionCount = 0
+        # self.selfDestruct = False
 
         # Members for delaying drawing feature
-        self.correctionCount = 0
+        # self.correctionCount = 0
         # self.startDelay = startDelay
         # self.valid = False
 
@@ -72,6 +75,14 @@ class KalmanFilter(object):
     def update(self, y=None, y_type=Measurement.POS):
         # If there is no new measurement, then we can only make a prediction
 
+        timestamp = time.time()
+        dt = timestamp - self.last_timestamp
+        self.last_timestamp = timestamp
+        self.F      = np.array([[1,0,dt,0],
+                                [0,1,0,dt],
+                                [0,0,1,0],
+                                [0,0,0,1]])
+
         x, P = self.predict()
         x0 = self.x_hat_plus
 
@@ -90,15 +101,15 @@ class KalmanFilter(object):
                 self.H = self.H_both
 
             x, P = self.correct(y)
-            self.predictionCount = 0
-            self.correctionCount += 1
+            # self.predictionCount = 0
+            # self.correctionCount += 1
 
         else:
             # The prediction was the best we could do in this iteration, so x_hat_plus and P_plus
             # are assigned to the result from the prediction
             self.x_hat_plus = x
             self.P_plus = P
-            self.predictionCount += 1
+            # self.predictionCount += 1
 
         return x
 

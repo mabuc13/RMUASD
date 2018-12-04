@@ -215,27 +215,26 @@ class PrecisionLanding(object):
             self.landing_target_pub.publish(msg)
             print(self.local_position_landing)
 
-        # if self.new_vel_reading:
-        #     self.new_vel_reading = False
-        #     if self.get_landing_target():
-        #         # update kalman filter with both position and velocity
-        #         measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y], [self.vx], [self.vy]])
-        #         self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
-        #     else:
-        #         # update kalman filter only with velocity
-        #         measurement = np.array([[self.vx], [self.vy]])
-        #         self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
+        if self.new_vel_reading:
+            self.new_vel_reading = False
+            if self.get_landing_target():
+                # update kalman filter with both position and velocity
+                measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y], [self.vx], [self.vy]])
+                self.state = self.kalman.update(measurement, kalman.Measurement.BOTH)
+            else:
+                # update kalman filter only with velocity
+                measurement = np.array([[self.vx], [self.vy]])
+                self.state = self.kalman.update(measurement, kalman.Measurement.VEL)
 
-        # else:
-        #     if self.get_landing_target():
-
-        #         # update kalman filter with position
-        #         measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y]])
-        #         self.state = self.kalman.update(measurement, kalman.Measurement.POS)
-        #     else:
-        #         # only do kalman prediction
-        #         self.state = self.kalman.update()
-        #         pass
+        else:
+            if self.get_landing_target():
+                # update kalman filter with position
+                measurement = np.array([[self.local_position_landing.x], [self.local_position_landing.y]])
+                self.state = self.kalman.update(measurement, kalman.Measurement.POS)
+            else:
+                # only do kalman prediction
+                self.state = self.kalman.update()
+                pass
 
         # print(self.state[0,0], self.state[1,0])
         # print(self.local_position_landing.x, self.local_position_landing.y)
