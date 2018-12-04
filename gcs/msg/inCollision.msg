@@ -13,3 +13,5 @@ uint8 inside_zone = 2 #We are currently inside a zone
 uint8 landing_zone = 3 #There is a zone on out landing spot
 
 uint64 valid_to 
+
+int32 dnfz_id

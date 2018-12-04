@@ -249,7 +249,11 @@ class Drone(object):
     def run(self):
 
         if self.active_mission_len > 0:
-            self.active_waypoint_gps = self.active_mission_gps[self.active_mission_idx]
+            try:
+                self.active_waypoint_gps = self.active_mission_gps[self.active_mission_idx]
+            except IndexError as err:
+                rospy.logwarn(err)
+                rospy.logwarn("Can't assign active waypoint. Mission is not up to date yet.")
 
         if self.main_mode in PAUSE_LIST_MAIN or self.sub_mode in PAUSE_LIST_SUB:
             # print("Setting paused!")
