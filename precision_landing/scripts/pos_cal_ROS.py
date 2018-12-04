@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #ROS node  to calculate pos from arduino ranges
 #Eskild Andresen esand14 3/12/18
 
@@ -40,7 +41,7 @@ class posCalROS(object):
         """
         self.testData = ["100,1.80,-92","200,2.11,-92","100,1.80,-92","200,2.11,-92","100,1.80,-92","200,2.11,-92","300,2.11,-92"]
         self.simIndex = 0
-        self.d= 0.33#3.52
+        self.d= 3.52
         self.i = self.d*0.5
         self.j = self.d*(math.sqrt(3)/2)
 

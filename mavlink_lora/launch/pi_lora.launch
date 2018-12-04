@@ -11,5 +11,5 @@
  	<node pkg="telemetry" type="telemetry_node.py" name="telemetry" output="screen"></node>
  	<node pkg="pi_monitor" type="pi_monitor_node.py" name="pi_monitor" output="screen"></node>
  	<node pkg="precision_landing" type="precision_landing_node.py" name="precision_landing" output="screen"></node>
-
+        <node pkg="precision_landing" type="pos_cal_ROS.py" name="precision_landing_serial" output="screen"></node> 
 </launch>
