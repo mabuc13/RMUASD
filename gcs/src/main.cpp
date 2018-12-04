@@ -208,9 +208,10 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     }
     return srv.response.distance;
 }
-is_safe_for_takeoff safeTakeOff(uint drone_id){
+is_safe_for_takeoff safeTakeOff(drone* my_drone){
     gcs::safeTakeOff srv;
-    srv.request.drone_id = drone_id;
+    srv.request.drone_id = my_drone->getID();
+    srv.request.takeoff_position = my_drone->getPosition();
     bool worked = safeTakeOffClient.call(srv);
 
     is_safe_for_takeoff response;
@@ -662,7 +663,7 @@ int main(int argc, char** argv){
                     }
 
                     // ######### Cheack that we are not inside no flight zone #########
-                    is_safe_for_takeoff safe = safeTakeOff(activeJobs[i]->getDrone()->getID());
+                    is_safe_for_takeoff safe = safeTakeOff(activeJobs[i]->getDrone());
                     if(!safe.takeoff_is_safe){
                         allOkay = false;
                         NodeState(node_monitor::heartbeat::info,"Waiting for no FlightZone to clear before takeOff");

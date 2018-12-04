@@ -101,12 +101,12 @@ class CollisionDetector:
             print("Collision Detector: Couldn't convert string from UTM server to json..")
 
     def on_safe_takeoff(self, req):
-        safe_bool, time_left = self.is_clear_to_take_of(req.drone_id)
+        safe_bool, time_left = self.is_clear_to_take_of(req.drone_id, req.takeoff_position)
         return safeTakeOffResponse(safe_bool, time_left)
 
-    def is_clear_to_take_of(self, drone_id):
-        start_position = Coordinate(lon=self.active_drone_paths[drone_id][0].longitude,
-                                    lat=self.active_drone_paths[drone_id][0].latitude)
+    def is_clear_to_take_of(self, drone_id, start_position):
+        # start_position = Coordinate(lon=self.active_drone_paths[drone_id][0].longitude,
+        #                             lat=self.active_drone_paths[drone_id][0].latitude)
         current_time = time.time()
         for int_id, dnfz in self.dynamic_no_flight_zones.items():
             if dnfz["geometry"] == "circle":
