@@ -44,7 +44,7 @@
 using namespace std;
 
 #define DEBUG true
-#define DO_PREFLIGHT_CHECK false
+#define DO_PREFLIGHT_CHECK true
 
 
 // ############################ Clients, Subscribers and Publishers #######################
