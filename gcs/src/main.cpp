@@ -271,18 +271,19 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     NodeState(node_monitor::heartbeat::nothing,"",0.2);
     GPSdistance(start,end);
     if(DEBUG) cout << "######################################" << endl << "Calculate Path Plan" << endl << "From: " << start <<endl <<"To: " << end << endl << "#####################################" <<endl;
-    do{
-        worked = pathPlanClient.call(srv);
-        if (worked){
-        // cout << "[Ground Control]: " << "PathPlanDone" << endl;
-        }else{
-            cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
-            NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding",0.1);
-        }
-    }while(!worked && ros::ok());
-    NodeState(node_monitor::heartbeat::nothing,"");
+  
+    worked = pathPlanClient.call(srv);
+    if (worked){
+    // cout << "[Ground Control]: " << "PathPlanDone" << endl;
+    }else{
+        cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
+        NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding",0.1);
+    }
     
-
+    if(srv.response.path.size() < 2 || !worked){
+        ROS_ERROR("[Ground Control]: Unacceptable Path");
+        throw string("Unacceptable Path");
+    }
     return srv.response.path;
 }
 
@@ -431,6 +432,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
 }
 void Collision_Handler(gcs::inCollision msg){
     //TODO handle landingzone is noflight zone
+    cout << "[Ground Control]: DNFZ detected" << endl;
     NodeState(node_monitor::heartbeat::info,"DNFZ detected");
     for(size_t i = 0; i < activeJobs.size(); i++){
         drone *aDrone = activeJobs[i]->getDrone();
@@ -523,7 +525,7 @@ void initialize(void){
     Transport_pub = nh->advertise<gcs::DroneSingleValue>("/gcs/medicalTransport",100);
     RegisterDrone_pub = nh->advertise<drone_decon::RegisterDrone>("/drone_decon/register",100);
 
-    Collision_sub = nh->subscribe("/collision_detecter/collision_warning",100,Collision_Handler);
+    Collision_sub = nh->subscribe("/collision_detector/collision_warning",100,Collision_Handler);
     WebInfo_sub = nh->subscribe("/internet/FromInternet",100,WebInfo_Handler);
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     nodeMonitor_sub = nh->subscribe("/node_monitor/node_list",10,nodeMonitor_Handler);
@@ -635,15 +637,14 @@ int main(int argc, char** argv){
                 // always start and stop above docking stations
                 start.altitude = 32;
                 end.altitude = 32;
-                std::vector<gcs::GPS> path = pathPlan(start, end,activeJobs[i]->getDrone());
-                activeJobs[i]->getDrone()->setPath(path);
-                activeJobs[i]->setStatus(job::preFlightCheack);
-                
-
-                
-                
-
-                webMsg(activeJobs[i]->getQuestHandler(),"request=waiting4preflightCheck");
+                try{
+                    std::vector<gcs::GPS> path = pathPlan(start, end,activeJobs[i]->getDrone());
+                    activeJobs[i]->getDrone()->setPath(path);
+                    activeJobs[i]->setStatus(job::preFlightCheack);
+                    webMsg(activeJobs[i]->getQuestHandler(),"request=waiting4preflightCheck");
+                }catch( string msg){
+                    NodeState(node_monitor::heartbeat::critical_error,msg);
+                }
 
             }else if(status == job::preFlightCheack){ // ### Pre FLight Cheacks ##################
                 
@@ -712,40 +713,45 @@ int main(int argc, char** argv){
                      ETA_pub.publish(msg);
                 }
             }else if(status == job::rePathPlan){ // ######## rePlan route ################
-                DNFZinject d = activeJobs[i]->getDNFZinjection();
-                if(d.stillValid){
-                    if(d.valid_to-time(nullptr)>0){
-                        std::vector<gcs::GPS> path = pathPlan(d.start, d.to,activeJobs[i]->getDrone());
-                        std::vector<gcs::GPS> newPath;
-                        std::vector<gcs::GPS> currentPath = activeJobs[i]->getDrone()->getPath();
-                        std::vector<gcs::GPS> oldPath = activeJobs[i]->getOldPlan().plan;
-                        int mission_index = activeJobs[i]->getDrone()->getMissionIndex();
+                try{
+                    DNFZinject d = activeJobs[i]->getDNFZinjection();
+                    if(d.stillValid){
+                        if(d.valid_to-time(nullptr)>0){
+                            std::vector<gcs::GPS> path = pathPlan(d.start, d.to,activeJobs[i]->getDrone());
+                            std::vector<gcs::GPS> newPath;
+                            std::vector<gcs::GPS> currentPath = activeJobs[i]->getDrone()->getPath();
+                            std::vector<gcs::GPS> oldPath = activeJobs[i]->getOldPlan().plan;
+                            int mission_index = activeJobs[i]->getDrone()->getMissionIndex();
 
-                        size_t items = path.size();
-                        items+= currentPath.size()-mission_index;
-                        items+= oldPath.size()-d.index_to;
+                            size_t items = path.size();
+                            items+= currentPath.size()-mission_index;
+                            items+= oldPath.size()-d.index_to;
 
-                        newPath.reserve(items);
-                        newPath.insert(newPath.end(),currentPath.begin()+mission_index,currentPath.begin()+d.index_from);
-                        newPath.insert(newPath.end(),path.begin(),path.end());
-                        newPath.insert(newPath.end(),oldPath.begin()+d.index_to,oldPath.end());
+                            newPath.reserve(items);
+                            if( mission_index < d.index_from)
+                                newPath.insert(newPath.end(),currentPath.begin()+mission_index,currentPath.begin()+d.index_from);
+                            newPath.insert(newPath.end(),path.begin(),path.end());
+                            newPath.insert(newPath.end(),oldPath.begin()+d.index_to,oldPath.end());
 
-                        activeJobs[i]->getDrone()->setPath(newPath);
-                        uploadFlightPlan(activeJobs[i]->getDrone());
-                        activeJobs[i]->setStatus(job::ready4flightContinuation); 
+                            activeJobs[i]->getDrone()->setPath(newPath);
+                            uploadFlightPlan(activeJobs[i]->getDrone());
+                            activeJobs[i]->setStatus(job::ready4flightContinuation); 
 
+                        }else{
+                            activeJobs[i]->setStatus(job::waitInAir);
+                            activeJobs[i]->setWaitInAirTo(d.valid_to);
+                            activeJobs[i]->setNextStatus(job::resumeFlight);
+                        }
+                        d.stillValid = false;
+                        activeJobs[i]->DNFZinjection(d);
                     }else{
-                        activeJobs[i]->setStatus(job::waitInAir);
-                        activeJobs[i]->setWaitInAirTo(d.valid_to);
-                        activeJobs[i]->setNextStatus(job::resumeFlight);
+                        std::vector<gcs::GPS> path = pathPlan(activeJobs[i]->getDrone()->getPosition(), activeJobs[i]->getGoal()->getPosition(),activeJobs[i]->getDrone());
+                        activeJobs[i]->getDrone()->setPath(path);
+                        uploadFlightPlan(activeJobs[i]->getDrone());
+                        activeJobs[i]->setStatus(job::ready4flightContinuation);         
                     }
-                    d.stillValid = false;
-                    activeJobs[i]->DNFZinjection(d);
-                }else{
-                    std::vector<gcs::GPS> path = pathPlan(activeJobs[i]->getDrone()->getPosition(), activeJobs[i]->getGoal()->getPosition(),activeJobs[i]->getDrone());
-                    activeJobs[i]->getDrone()->setPath(path);
-                    uploadFlightPlan(activeJobs[i]->getDrone());
-                    activeJobs[i]->setStatus(job::ready4flightContinuation);         
+                }catch( string msg){
+                    NodeState(node_monitor::heartbeat::critical_error,msg);
                 }
             }else if(status == job::waitInAir){ // ######### waiting for somthing ############
                 if(activeJobs[i]->getWaitTime() != -1 && std::time(nullptr) > activeJobs[i]->getWaitTime()){

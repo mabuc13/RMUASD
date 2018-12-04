@@ -66,8 +66,8 @@ class AStar:
         dnfz_string = self.get_dnfz_handle()
         self.string_to_dnfz(dnfz_string)
 
-        self.safety_extra_time = 10
-        self.safety_dist_to_dnfz = 10
+        self.safety_extra_time = 0
+        self.safety_dist_to_dnfz = 0
 
     def string_to_dnfz(self, string):
 
@@ -75,7 +75,7 @@ class AStar:
         try:
             all_json_objs = json.loads(data)
             for json_obj in all_json_objs:
-                print json_obj
+                #print json_obj
                 self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
                 if json_obj["geometry"] == "polygon":
                     self.make_polygon(json_obj)
@@ -212,12 +212,15 @@ class AStar:
 
     def compute_astar(self, dynamic=False, ground_speed=5):
         self.clear_dicts_and_lists(dynamic)
-        print(self.map_image.shape)
+        #print(self.map_image.shape)
+        print(self.heuristic(self.start,self.goal))
         while self.oheap:
             if dynamic:
                 current = heappop(self.oheap)[1]
             else:
                 current = heappop(self.oheap)[1][0:2]
+
+            print "[ASTAR]: Current possition: ", current
 
             if self.goal_dist_thresh >= self.heuristic(current, self.goal):
                 data = []
@@ -236,6 +239,8 @@ class AStar:
                 else:
                     neighbor = (current[0]+i, current[1]+j)
 
+                print "[ASTAR]: Neighbor: ", neighbor
+
                 tentative_g_score = self.gscore[current] + self.heuristic(current, neighbor)
 
                 neighbor_transform = (int((neighbor[0] - self.lower_left.easting) / self.map_res),
@@ -243,19 +248,24 @@ class AStar:
 
                 if neighbor_transform[0] < self.map_width and neighbor_transform[1] < self.map_height:
                     if self.map_image[neighbor_transform[1]][neighbor_transform[0]] != 0:
+                        print "[ASTAR]: Point is in SNFZ"
                         continue
 
                 if dynamic and self.is_collision_with_dnfz(neighbor):
+                    print "[ASTAR]: Point is in DNFZ"
                     continue
 
                 if neighbor[0:2] in self.close_set and tentative_g_score >= self.gscore.get(neighbor, 0):
+                    print "[ASTAR]: Point is already checked, and shorter path exist"
                     continue
 
                 if tentative_g_score < self.gscore.get(neighbor, 0) or neighbor not in [i[1] for i in self.oheap]:
+                    print "[ASTAR]: Adding valid point"
                     self.came_from[neighbor] = current
                     self.gscore[neighbor] = tentative_g_score
                     self.fscore[neighbor] = tentative_g_score + self.heuristic(neighbor, self.goal)
                     heappush(self.oheap, (self.fscore[neighbor], neighbor))
+        print "Astar closed set:", len(self.close_set)
         return False
 
     def is_collision_with_dnfz(self, neighbor):

@@ -5,6 +5,7 @@ from coordinate import Coordinate
 import rospy
 from gcs.msg import DroneInfo, GPS, DronePath, inCollision
 from gcs.srv import safeTakeOff, safeTakeOffResponse
+from utm_parser.srv import get_dnfz
 from node_monitor.msg import *
 from math import sqrt
 import time
@@ -50,6 +51,17 @@ class CollisionDetector:
         rospy.Subscriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
         self.active_drone_paths = dictEmpty()
         self.active_drone_info = dictEmpty()
+        self.get_dnfz_client()
+        
+
+    def get_dnfz_client(self):
+        rospy.wait_for_service('/utm_parser/get_dnfz')
+        self.get_dnfz_handle = rospy.ServiceProxy('/utm_parser/get_dnfz', get_dnfz)
+        dnfz_string = self.get_dnfz_handle()
+        #print dnfz_string.dnfz
+        obj = String
+        obj.data = dnfz_string.dnfz
+        self.on_dynamic_no_fly_zones(obj)
 
     def on_drone_path(self, msg):
         '''
@@ -144,15 +156,16 @@ class CollisionDetector:
         previous_time = None
         for i, val in self.active_drone_info.items():
             if not self.active_drone_paths[i] == 0:
-                print "Checking DNFZ for drone 1"
+                #print "Checking DNFZ for drone 1"
                 previous_pos = Coordinate(GPS_data=self.active_drone_info[i].position)
                 previous_time = self.active_drone_info[i].GPS_timestamp
                 # Are we in a no-fly-zone now?:
                 current_position = Coordinate(GPS_data=val.position)
                 collision, int_id = self.is_collision_at_future_position(current_position, time.time())
                 if collision:
+                    #print "run collision check : ", safety_position.GPS_data
                     safety_position = self.quick_find_position_outside_dnfz(i, int_id)
-                    self.publish_on_ros(i, self.INSIDE_COLLISION, gps_start=safety_position.GPS_data, gps_end=safety_position.GPS_data)
+                    self.publish_on_ros(i, self.INSIDE_COLLISION, gps_start=safety_position.GPS_data, gps_end=safety_position.GPS_data,dnfz_id=int_id)
                     break
 
                 # Is there a no-fly-zone on the goal?:
@@ -161,6 +174,7 @@ class CollisionDetector:
                 goal_position = Coordinate(GPS_data=self.active_drone_paths[i][-1])
                 collision, int_id = self.is_collision_at_future_position(goal_position, eta_goal)
                 if collision:
+                    #print "run collision check : data none"
                     self.publish_on_ros(i, self.GOAL_COLLISION)
 
                 # for 5, 10, 15, ... , 60 seconds into the future:
@@ -172,8 +186,9 @@ class CollisionDetector:
                     future_time = time.time() + j
                     collision, int_id = self.is_collision_at_future_position(position, future_time)
                     if collision:
-                        print("Collision detected in future....")
+                        print("Collision detected in future....after ", j,"sec")
                         self.make_decision_if_collision(int_id, previous_time, future_time, previous_pos, val.drone_id, index)
+                        break
                     previous_pos = position
                     previous_time = future_time
 
@@ -254,7 +269,7 @@ class CollisionDetector:
         elif self.dynamic_no_flight_zones[dnfz_id]["geometry"] == "polygon":
             current_position = geometry.Point(current_position_coord.easting, current_position_coord.northing)
             polygon = self.dynamic_no_flight_zones[dnfz_id]["polygon"]
-            exit_point = polygon.exterior.interpolate(polygon.exterior.project(current_position)).wkt
+            exit_point = polygon.exterior.interpolate(polygon.exterior.project(current_position))
             exit_coord = Coordinate(easting=exit_point.x, northing=exit_point.y)
             ratio_easting, ratio_northing = self.compute_unit_vector(current_position_coord, exit_coord)
             dist = self.pythagoras(current_position_coord, exit_coord) + self.safety_dist_to_dnfz
@@ -299,7 +314,7 @@ class CollisionDetector:
         #print "Json data: ", self.dynamic_no_flight_zones
         #print "Json dnfz data: ",dnfz_id," data: ",self.dynamic_no_flight_zones[dnfz_id]
         if (float(self.dynamic_no_flight_zones[dnfz_id]["valid_to_epoch"]) - coll_time) > self.time_threshold_for_waiting_on_dnfz:
-            print("New path plan is required...")
+            #print("New path plan is required...")
             collision_time = coll_time - time.time()
             i = 1
             while True:
@@ -314,13 +329,14 @@ class CollisionDetector:
             clear_time = float(self.dynamic_no_flight_zones[dnfz_id]["valid_to_epoch"]) + self.time_threshold_for_waiting_on_dnfz
         start_GPS = pos_pre_collision.GPS_data
         end_GPS = pos_post_collision.GPS_data
+        #print "make_decision_if_collision end: ",end_GPS
+        self.publish_on_ros(drone_id,self.FUTURE_COLLISION, previous_mission_index, next_mission_index, start_GPS, end_GPS, clear_time,dnfz_id=dnfz_id)
 
-        self.publish_on_ros(drone_id, previous_mission_index, next_mission_index, start_GPS, end_GPS, clear_time)
-
-    def publish_on_ros(self, drone_id, zone_type, index1=-1, index2=-1, gps_start=None, gps_end=None, valid_to=0):
+    def publish_on_ros(self, drone_id, zone_type, index1=-1, index2=-1, gps_start=None, gps_end=None, valid_to=0,dnfz_id=-1):
         if gps_start is None or gps_end is None:
             gps_start = GPS()
             gps_end = GPS()
+
         msg = inCollision()
         msg.drone_id = drone_id
         msg.zone_type = zone_type
@@ -329,6 +345,7 @@ class CollisionDetector:
         msg.start = gps_start
         msg.end = gps_end
         msg.valid_to = valid_to
+        msg.dnfz_id=dnfz_id
         self.collision_detected_pub.publish(msg)
 
 

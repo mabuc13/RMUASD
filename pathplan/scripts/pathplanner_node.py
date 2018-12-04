@@ -39,31 +39,46 @@ class PathPlanner(object):
         print("[Path planner]: "+"Computing path...")
 
         t0 = time.time()
-
-        astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
+        astar_object = None
+        if dynamic:
+            astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=4)
+        else:
+            astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
+            
         astar_object.set_start_and_goal(self.start, self.goal, start_time)
         #TODO request dynamic no fly zones from utm parser
         path_reversed = astar_object.compute_astar(dynamic, ground_speed) #True equals dynamic no flight zone
 
+        if path_reversed == False:
+            print "[Path planner]: No path found"
+            self.path = []
+        else:
 
-        #path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
-        t1 = time.time()
+            #path_reversed = astar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
+            t1 = time.time()
 
-        print("[Path planner]: "+"Found a path in %s seconds." % (t1 - t0))
+            print("[Path planner]: "+"Found a path in %s seconds." % (t1 - t0))
 
-        self.path = []
-        self.path.append(self.start)
-        for j in reversed(path_reversed):
-            self.path.append(j)
-        self.path.pop(-1)
-        self.path.append(self.goal)
+            self.path = []
+            self.path.append(self.start)
+            print "Path_reversed",path_reversed
+            for j in reversed(path_reversed):
+                self.path.append(j)
+            self.path.pop(-1)
+            self.path.append(self.goal)
 
-        print("[Path planner]: "+"Number of waypoints: " + str(len(self.path)))
-        # Simplify path:
-        ps = PathSimplifier(self.path, step_size=4)
-        ps.delete_with_step_size_safe(threshold=8)
-        self.path = ps.get_simple_path()
-        print("[Path planner]: "+"Number of waypoints after simplifier: " + str(len(self.path)))
+            print("[Path planner]: "+"Number of waypoints: " + str(len(self.path)))
+            # Simplify path:
+            if(len(self.path) > 2):
+                if dynamic:
+                    ps = PathSimplifier(self.path, step_size=2)
+                    ps.delete_with_step_size_safe(threshold=2)
+                else:
+                    ps = PathSimplifier(self.path, step_size=4)
+                    ps.delete_with_step_size_safe(threshold=8)
+
+                self.path = ps.get_simple_path()
+                print("[Path planner]: "+"Number of waypoints after simplifier: " + str(len(self.path)))
 
     def export_kml_path(self, name):
         print("[Path planner]: "+"Exporting")
