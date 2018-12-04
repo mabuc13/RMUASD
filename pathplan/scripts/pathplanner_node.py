@@ -91,14 +91,21 @@ def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the
     map_padding = 2500
     if req.drone_id in path_planner_dict:
         map, old_start = path_planner_dict[req.drone_id]
+
         if (old_start.easting - map_padding > start.easting or old_start.northing - map_padding > start.northing or
                 old_start.easting + map_padding < start.easting or old_start.northing + map_padding < start.northing):
+
             map = make_static_map(start)
             path_planner_dict[req.drone_id] = map, start
     else:
         map = make_static_map(start)
         path_planner_dict[req.drone_id] = map, start
-    map, start = path_planner_dict[req.drone_id]
+
+
+    map, old_start = path_planner_dict[req.drone_id]
+    print("[Path planner]: old start" + old_start.str())
+    print("[Path planner]: new start" + start.str())
+
     planner = PathPlanner(start, theend, map)
     planner.compute_path(req.useDNFZ, 5, req.startTime, map_padding)
     plan = planner.path

@@ -89,9 +89,11 @@ node_monitor::nodeOk utm_parser;
 // ################################ Misulanius ###########################################
 ostream& operator<<(ostream& os, const gcs::GPS& pos)  
 {  
-    os << "Lon(" << pos.longitude << "), Lat(" << pos.latitude << "), Alt(" << pos.altitude << ")";  
+    std::cout << std::fixed;
+    std::cout << std::setprecision(6);
+    os << "GPS(" << pos.latitude << ", " << pos.longitude << "), Alt(" << pos.altitude << ")";  
     return os;  
-} 
+}
 gcs::GPS& operator<< (gcs::GPS& pos, const drone_decon::GPS& newPos){
     pos.altitude = newPos.altitude;
     pos.longitude = newPos.longitude;
@@ -267,6 +269,7 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     }
     bool worked;
     NodeState(node_monitor::heartbeat::nothing,"",0.2);
+    GPSdistance(start,end);
     if(DEBUG) cout << "######################################" << endl << "Calculate Path Plan" << endl << "From: " << start <<endl <<"To: " << end << endl << "#####################################" <<endl;
     do{
         worked = pathPlanClient.call(srv);

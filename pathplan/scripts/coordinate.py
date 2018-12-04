@@ -38,3 +38,8 @@ class Coordinate(object):
 
 	def update_geo_coordinates(self):
 		self.lat, self.lon = self.converter.utm_to_geodetic(self.hemisphere, self.zone, self.easting, self.northing)
+	def str(self,UTMorGPS=True):
+		if(UTMorGPS):
+			return "GPS("+str(self.lat)+", "+str(self.lon)+") alt("+str(self.altitude)+")"
+		else:
+			return "UTM("+str(self.northing)+", "+str(self.easting)+") alt("+str(self.altitude)+")"
