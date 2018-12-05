@@ -184,13 +184,14 @@ class Drone(object):
         self.pending_mission_gps = path
 
     def start_mission(self, loiter=False):        
+        self.loiter = loiter
         self.active_mission_gps = self.pending_mission_gps
         self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
         self.active_mission_len = len(self.active_mission_ml.waypoints)
 
+        self.manual_mission.stop_running()
         self.manual_mission.update_mission(self.active_mission_gps)
         self.new_mission = True
-        self.loiter = loiter
         
         print("New mission")
 
@@ -235,7 +236,7 @@ class Drone(object):
             ml_list.waypoints[-1].param2 = 2        # precision land
             ml_list.waypoints[-1].z = 0
             ml_list.waypoints[-1].autocontinue = 0
-            ml_list.header.stamp = rospy.Time.now()
+        ml_list.header.stamp = rospy.Time.now()
 
         return ml_list
 
