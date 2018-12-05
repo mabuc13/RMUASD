@@ -71,8 +71,8 @@ class PathPlanner(object):
             # Simplify path:
             if(len(self.path) > 2):
                 if dynamic:
-                    ps = PathSimplifier(self.path, step_size=2)
-                    ps.delete_with_step_size_safe(threshold=2)
+                    ps = PathSimplifier(self.path, step_size=10)
+                    ps.delete_with_step_size_safe(threshold=10)
                 else:
                     ps = PathSimplifier(self.path, step_size=4)
                     ps.delete_with_step_size_safe(threshold=8)

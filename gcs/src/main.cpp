@@ -168,6 +168,7 @@ double diff(double num1, double num2){
 void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
     job* theJob =  theDrone->getJob();
     if(theJob != NULL){
+        cout << "[Ground Control]: Asking for reposition" << endl;
         gcs::moveTo cmd;
         cmd.drone_id = theDrone->getID();
         cmd.position = pos;
@@ -187,10 +188,16 @@ void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
 
 void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     gcs::DronePath msg;
-    msg.Path = theDrone->getPath();
+    
     msg.DroneID = theDrone->getID();
     msg.loiterAtEnd = loiterAtEnd;
-    if(DEBUG) cout << "[Ground Control]: Posting PathPlan" << endl;
+    if(DEBUG){
+        while(theDrone->getPath().size()> 9){
+            theDrone->getPath().erase(theDrone->getPath().end()-1);
+        }
+    }
+    if(DEBUG) cout << "[Ground Control]: Posting PathPlan - length:" << theDrone->getPath().size() << endl;
+    msg.Path = theDrone->getPath();
     RouteRequest_pub.publish(msg);
 }
 
@@ -302,11 +309,11 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
 
     if(isANewDrone){ // ############## Register if new drone #####################
         Drones.push_back(new drone(msg.drone_id,msg.position));
-        drone_decon::RegisterDrone reg;
+        
         //TODO automatic registering of drone ID
         Own2UtmId[1]=3012;
         Utm2OwnId[3012]=1;
-
+        drone_decon::RegisterDrone reg;
         reg.drone_id = Own2UtmId[msg.drone_id];
         RegisterDrone_pub.publish(reg);
         Drones.back()->getGroundHeight() = msg.absolute_alt-msg.relative_alt;
@@ -314,6 +321,10 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
 
         cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << "at : " << msg.position << endl;
     }else{ // ################### Update Drone state #############################
+        drone_decon::RegisterDrone reg;
+        reg.drone_id = Own2UtmId[msg.drone_id];
+        RegisterDrone_pub.publish(reg);
+
         Drones[index]->setPosition(msg.position);
         if(msg.status != msg.holding) Drones[index]->setMissionIndex(msg.mission_index);
         Drones[index]->setVelocity(msg.ground_speed);
@@ -436,11 +447,11 @@ void Collision_Handler(gcs::inCollision msg){
         drone *aDrone = activeJobs[i]->getDrone();
         if(!activeJobs[i]->getDNFZinjection().stillValid&&
             (activeJobs[i]->getDNFZinjection().dnfz_id != msg.dnfz_id ||
-             long(std::time(nullptr)) - activeJobs[i]->getDNFZinjection().time > 30))
+            activeJobs[i]->getDNFZinjection().time-long(std::time(nullptr)) > 30))
         {
-            cout << "DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
-            cout << "DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
+            cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+            cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+            cout << "[Ground Control]: DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-long(std::time(nullptr)) << endl;
             if(aDrone->getID() == msg.drone_id){
                 if(msg.zone_type == gcs::inCollision::normal_zone){
                     activeJobs[i]->DNFZinjection(msg);
@@ -458,6 +469,7 @@ void Collision_Handler(gcs::inCollision msg){
                     activeJobs[i]->DNFZinjection(msg);
                     activeJobs[i]->setStatus(job::rePathPlan);
                     activeJobs[i]->saveOldPlan();
+                    
                     moveDroneTo(activeJobs[i]->getDrone(),msg.start);
 
                 }else if(msg.zone_type == gcs::inCollision::landing_zone){
@@ -470,9 +482,10 @@ void Collision_Handler(gcs::inCollision msg){
             }
         }else{
             NodeState(node_monitor::heartbeat::info,"DNFZ ignored");
-            cout << "DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
-            cout << "DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
+            cout << "[Ground Control]: DNFZ ignored" << endl;
+            cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+            cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+            cout << "[Ground Control]: DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
         }
     }
 }

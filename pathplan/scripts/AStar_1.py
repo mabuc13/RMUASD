@@ -67,7 +67,7 @@ class AStar:
         self.string_to_dnfz(dnfz_string)
 
         self.safety_extra_time = 0
-        self.safety_dist_to_dnfz = 0
+        self.safety_dist_to_dnfz = 5
 
     def string_to_dnfz(self, string):
 

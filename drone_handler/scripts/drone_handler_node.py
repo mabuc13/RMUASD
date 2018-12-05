@@ -81,6 +81,7 @@ class DroneHandler(object):
 
             drone.update_mission(msg.Path)
             drone.start_mission(msg.loiterAtEnd)
+            print("PATH LENGTH: ", len(msg.Path))
         
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
