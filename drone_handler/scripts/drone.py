@@ -198,7 +198,7 @@ class Drone(object):
     def gps_to_mavlink(self, gps_list):
         sequence_number = 1
 
-        ml_list = mavlink_lora_mission_lists()
+        ml_list = mavlink_lora_mission_list()
 
         for itr, waypoint in enumerate(gps_list):
             current = 0
