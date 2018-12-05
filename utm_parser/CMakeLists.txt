@@ -12,7 +12,7 @@ find_package(catkin REQUIRED
   message_generation
   std_msgs
   gcs
-  
+  drone_decon
 )
 
 ## System dependencies are found with CMake's conventions

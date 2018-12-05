@@ -5,7 +5,6 @@
 #include <vector>
 #include <string>
 #include <gcs/GPS.h>
-#include <gcs/UTMDrone.h>
 #include <gcs/inCollision.h>
 
 #include <UTM.hpp>

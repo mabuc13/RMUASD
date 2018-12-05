@@ -25,8 +25,6 @@
 #include <gcs/gps2distance.h>
 #include <gcs/inCollision.h>
 #include <gcs/safeTakeOff.h>
-#include <gcs/UTMDroneList.h>
-#include <gcs/UTMDrone.h>
 #include <gcs/moveTo.h>
 #include <node_monitor/heartbeat.h>
 #include <node_monitor/nodeOkList.h>
