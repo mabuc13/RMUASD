@@ -69,15 +69,19 @@ class PathPlanner(object):
 
             print("[Path planner]: "+"Number of waypoints: " + str(len(self.path)))
             # Simplify path:
-            if(len(self.path) > 2):
-                if dynamic:
-                    ps = PathSimplifier(self.path, step_size=2)
-                    ps.delete_with_step_size_safe(threshold=2)
-                else:
-                    ps = PathSimplifier(self.path, step_size=4)
-                    ps.delete_with_step_size_safe(threshold=8)
 
-                self.path = ps.get_simple_path()
+            if(len(self.path) > 2):
+                self.rmuast_simplifier.loadPath(self.path)
+                self.rmuast_simplifier.simplifyByDistance(1)
+                self.path = self.rmuast_simplifier.getSimpleCoordinates()
+                # if dynamic:
+                #     ps = PathSimplifier(self.path, step_size=2)
+                #     ps.delete_with_step_size_safe(threshold=2)
+                # else:
+                #     ps = PathSimplifier(self.path, step_size=4)
+                #     ps.delete_with_step_size_safe(threshold=8)
+
+                # self.path = ps.get_simple_path()
                 print("[Path planner]: "+"Number of waypoints after simplifier: " + str(len(self.path)))
 
     def export_kml_path(self, name):
