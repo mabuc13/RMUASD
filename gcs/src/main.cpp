@@ -215,12 +215,9 @@ is_safe_for_takeoff safeTakeOff(drone* my_drone){
 
     is_safe_for_takeoff response;
     if (worked){
-        if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << srv.response.is_save_to_take_off << endl;
+        if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << int(srv.response.is_save_to_take_off) << endl;
         response.takeoff_is_safe = srv.response.is_save_to_take_off;
         response.time_til_safe_take_off = srv.response.time_to_clear;
-        if(heartbeat_msg.text == "SafeTakeOffCheack Failed"){
-            NodeState(node_monitor::heartbeat::nothing,"");
-        }
     }else{
         cout << "[Ground Control]: " << "SafeTakeOffcheack failed"<< endl;
         NodeState(node_monitor::heartbeat::critical_error,"SafeTakeOffCheack Failed");
@@ -276,8 +273,8 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     if (worked){
     // cout << "[Ground Control]: " << "PathPlanDone" << endl;
     }else{
-        cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
-        NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding",0.1);
+        ROS_ERROR("[Ground Control]: PathPlanFailed no contact");
+        NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding");
     }
     
     if(srv.response.path.size() < 2 || !worked){
@@ -309,6 +306,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         //TODO automatic registering of drone ID
         Own2UtmId[1]=3012;
         Utm2OwnId[3012]=1;
+
         reg.drone_id = Own2UtmId[msg.drone_id];
         RegisterDrone_pub.publish(reg);
         Drones.back()->getGroundHeight() = msg.absolute_alt-msg.relative_alt;
@@ -446,6 +444,7 @@ void Collision_Handler(gcs::inCollision msg){
             if(aDrone->getID() == msg.drone_id){
                 if(msg.zone_type == gcs::inCollision::normal_zone){
                     activeJobs[i]->DNFZinjection(msg);
+                    activeJobs[i]->getDNFZinjection().to = activeJobs[i]->getGoal()->getPosition();
                     activeJobs[i]->setStatus(job::rePathPlan);
                     activeJobs[i]->saveOldPlan();
 
@@ -631,12 +630,17 @@ int main(int argc, char** argv){
         if(jobQ.size() != 0){
             for(size_t i = 0; i < Drones.size();i++){
                 if(Drones[i]->isAvailable()){
-                    activeJobs.push_back(jobQ.front());
-                    jobQ.pop_front();
-                    Drones[i]->setJob(activeJobs.back());
-                    Drones[i]->setAvailable(false);
-                    Drones[i]->getJob()->setStatus(job::wait4pathplan);
-                    webMsg(Drones[i]->getJob()->getQuestHandler(),"request=pathplaning");
+                    if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())<15){
+                        NodeState(node_monitor::heartbeat::warning,"Goal is right next to drone, no drone will be sent");
+                        webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=you already have a drone");
+                    }else{
+                        activeJobs.push_back(jobQ.front());
+                        jobQ.pop_front();
+                        Drones[i]->setJob(activeJobs.back());
+                        Drones[i]->setAvailable(false);
+                        Drones[i]->getJob()->setStatus(job::wait4pathplan);
+                        webMsg(Drones[i]->getJob()->getQuestHandler(),"request=pathplaning");
+                    }
                 }
             }
         }

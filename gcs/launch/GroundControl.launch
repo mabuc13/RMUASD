@@ -7,5 +7,5 @@
  <include file="$(find gcs)/launch/prog.launch"/>
  <include file="$(find node_monitor)/launch/prog.launch" />
  <include file="$(find utm_parser)/launch/prog.launch" />
- 
+ <include file="$(find drone_decon)/launch/prog.launch" />
 </launch>
