@@ -41,13 +41,6 @@ class KalmanFilter(object):
 
         self.last_timestamp = time.time()
 
-        # Members for delaying drawing feature
-        # self.correctionCount = 0
-        # self.startDelay = startDelay
-        # self.valid = False
-
-        # self.velocityThreshold = velocityThresh
-
         # Error matrices from Agus lecture
         measurementNoise    = 0.1
         modelNoise          = 0.1
@@ -77,21 +70,19 @@ class KalmanFilter(object):
         # print("dt: {}".format(dt))
 
         x, P = self.predict()
-        x0 = self.x_hat_plus
 
         # If there is no new measurement, then we can only make a prediction
         if type(y) != type(None):
-            # make the noise matrix match the size of the measurement            
-            if y.shape[0] == 2:
-                self.R = self.R2
-            else:
-                self.R = self.R4
 
+            # make the noise matrix match the size of the measurement            
             if y_type == Measurement.POS:
+                self.R = self.R2
                 self.H = self.H_pos
             elif y_type == Measurement.VEL:
+                self.R = self.R2
                 self.H = self.H_vel
             else:
+                self.R = self.R4
                 self.H = self.H_both
 
             x, P = self.correct(y)
