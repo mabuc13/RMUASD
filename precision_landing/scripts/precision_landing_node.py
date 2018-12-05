@@ -129,10 +129,12 @@ class PrecisionLanding(object):
         (x,y,z) = (msg.y,msg.x,-msg.z)
 
         self.local_position_landing = Point(x,y,z)
-        self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y-y, self.landing_coords.z-z])
-        self.landing_target = self.local_position_ned + self.relative_target
+
+        # print(x,y,z)
 
         if not self.use_kalman: 
+            self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y-y, self.landing_coords.z-z])
+            self.landing_target = self.local_position_ned + self.relative_target
             msg = telemetry_landing_target(
                 landing_target=Point(
                     self.landing_target[0],
@@ -241,14 +243,14 @@ class PrecisionLanding(object):
             self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y-y, self.landing_coords.z-z])
             self.landing_target = self.local_position_ned + self.relative_target
 
-            msg = telemetry_landing_target(
-                landing_target=Point(
-                    self.landing_target[0],
-                    self.landing_target[1],
-                    self.landing_target[2]
-                )
-            )
-            self.landing_target_pub.publish(msg)
+            # msg = telemetry_landing_target(
+            #     landing_target=Point(
+            #         self.landing_target[0],
+            #         self.landing_target[1],
+            #         self.landing_target[2]
+            #     )
+            # )
+            # self.landing_target_pub.publish(msg)
             # print(x,y,z)
 
         # print(self.state[0,0], self.state[1,0])
@@ -275,6 +277,15 @@ class PrecisionLanding(object):
                         )
                     )
                     self.landing_target_pub.publish(msg)
+        else:
+            msg = telemetry_landing_target(
+                landing_target=Point(
+                    self.landing_target[0],
+                    self.landing_target[1],
+                    self.landing_target[2]
+                )
+            )
+            self.landing_target_pub.publish(msg)
 
 
         # print(self.local_position_landing.x, self.local_position_landing.y)
