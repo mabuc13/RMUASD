@@ -210,6 +210,7 @@ class CollisionDetector:
                                 previous_time = future_time
                             except Exception as e:
                                 print e
+                                print "this place"
                             
 
     def make_polygon(self, json_obj):
@@ -339,7 +340,7 @@ class CollisionDetector:
             i = 1
             while True:
                 collision_time += i
-                pos_post_collision, next_mission_index = self.calc_future_position(drone_id, i)
+                pos_post_collision, next_mission_index = self.calc_future_position(drone_id, collision_time)
                 collision, int_id = self.is_collision_at_future_position(pos_post_collision, collision_time)
                 if not collision:
                     break

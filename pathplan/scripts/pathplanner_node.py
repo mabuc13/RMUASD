@@ -88,6 +88,7 @@ class PathPlanner(object):
         print("[Path planner]: "+"Exporting")
         # width: defines the line width, use e.g. 0.1 - 1.0
         kml = kmlclass()
+        name = "../"+name
         kml.begin(name+'.kml', 'Example', 'Example on the use of kmlclass', 0.1)
         # color: use 'red' or 'green' or 'blue' or 'cyan' or 'yellow' or 'grey'
         # altitude: use 'absolute' or 'relativeToGround'
@@ -99,10 +100,10 @@ class PathPlanner(object):
 
 
 path_planner_dict = {}
-
+plannum = 0
 def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the requested message
 
-    global path_planner_dict
+    global path_planner_dict,plannum
     start = Coordinate(GPS_data=req.start)
     theend = Coordinate(GPS_data=req.end)
     map_padding = 2500
@@ -125,7 +126,10 @@ def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the
     planner = PathPlanner(start, theend, map)
     planner.compute_path(req.useDNFZ, req.velocity, req.startTime, map_padding)
     plan = planner.path
-    planner.export_kml_path("dynamic_path")
+
+    planner.export_kml_path("Path"+str(plannum))
+    plannum = plannum +1
+    
     GPSPlan = []
     for point in plan:
         GPSPlan.append(point.GPS_data)
