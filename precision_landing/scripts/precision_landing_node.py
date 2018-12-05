@@ -132,14 +132,17 @@ class PrecisionLanding(object):
         self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y-y, self.landing_coords.z-z])
         self.landing_target = self.local_position_ned + self.relative_target
 
-        msg = telemetry_landing_target(
-            landing_target=Point(
-                self.landing_target[0],
-                self.landing_target[1],
-                self.landing_target[2]
+        if not self.use_kalman: 
+            msg = telemetry_landing_target(
+                landing_target=Point(
+                    self.landing_target[0],
+                    self.landing_target[1],
+                    self.landing_target[2]
+                )
             )
-        )
-        self.landing_target_pub.publish(msg)
+            self.landing_target_pub.publish(msg)
+
+        # print(x,y,z)
 
 
     def on_mission_info(self, msg):
@@ -186,29 +189,30 @@ class PrecisionLanding(object):
         self.sub_mode = msg.sub_mode
 
     def get_landing_target(self):
-        try:
-            #data = self.bus.read_i2c_block_data(TAG_ADDRESS, LANDING_TARGET_REF, LANDING_TARGET_SIZE)
-            # Compensating for other old xyz coordinates
-            #(y,x,z) = struct.unpack('<fff',bytearray(data))
-            (y,x,z) = (self.arduinoX,self.arduinoY,self.arduinoZ)
-            #print(x,y,z)
-            # Make sure that no nans are accepted as values
-            if isnan(x) or isnan(y) or isnan(z):
-                return False
+        # try:
+        #     #data = self.bus.read_i2c_block_data(TAG_ADDRESS, LANDING_TARGET_REF, LANDING_TARGET_SIZE)
+        #     # Compensating for other old xyz coordinates
+        #     #(y,x,z) = struct.unpack('<fff',bytearray(data))
+        #     (y,x,z) = (self.arduinoX,self.arduinoY,self.arduinoZ)
+        #     #print(x,y,z)
+        #     # Make sure that no nans are accepted as values
+        #     if isnan(x) or isnan(y) or isnan(z):
+        #         return False
 
-            # if isnan(z):
-            #     z = 0.0
+        #     # if isnan(z):
+        #     #     z = 0.0
 
-            sensor_data = precland_sensor_data(x, y, z)
+        #     sensor_data = precland_sensor_data(x, y, z)
 
-            self.sensor_data_pub.publish(sensor_data)
-            self.local_position_landing = Point(x, y, -z)
-            self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-(-z)])
-            self.landing_target = self.local_position_ned + self.relative_target
-            return True
-        except Exception as e:
-            rospy.logwarn(e)
-            return False
+        #     self.sensor_data_pub.publish(sensor_data)
+        #     self.local_position_landing = Point(x, y, -z)
+        #     self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-(-z)])
+        #     self.landing_target = self.local_position_ned + self.relative_target
+        #     return True
+        # except Exception as e:
+        #     rospy.logwarn(e)
+        #     return False
+        pass
 
     def update_kalman(self):
         if self.new_vel_reading:
@@ -234,8 +238,18 @@ class PrecisionLanding(object):
 
         if self.use_kalman:
             (x,y,z) = (self.state[0,0], self.state[1,0], self.local_position_landing.z)
-            self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-(-z)])
+            self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y-y, self.landing_coords.z-z])
             self.landing_target = self.local_position_ned + self.relative_target
+
+            msg = telemetry_landing_target(
+                landing_target=Point(
+                    self.landing_target[0],
+                    self.landing_target[1],
+                    self.landing_target[2]
+                )
+            )
+            self.landing_target_pub.publish(msg)
+            # print(x,y,z)
 
         # print(self.state[0,0], self.state[1,0])
 
