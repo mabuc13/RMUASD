@@ -193,7 +193,7 @@ void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     msg.loiterAtEnd = loiterAtEnd;
     if(DEBUG){
         while(theDrone->getPath().size()> 9){
-            theDrone->getPath().erase(theDrone->getPath().end()-1);
+            theDrone->getPath().erase(theDrone->getPath().end()-2);
         }
     }
     if(DEBUG) cout << "[Ground Control]: Posting PathPlan - length:" << theDrone->getPath().size() << endl;
@@ -447,11 +447,11 @@ void Collision_Handler(gcs::inCollision msg){
         drone *aDrone = activeJobs[i]->getDrone();
         if(!activeJobs[i]->getDNFZinjection().stillValid&&
             (activeJobs[i]->getDNFZinjection().dnfz_id != msg.dnfz_id ||
-            activeJobs[i]->getDNFZinjection().time-long(std::time(nullptr)) > 30))
+            long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time > 30))
         {
             cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
             cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "[Ground Control]: DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-long(std::time(nullptr)) << endl;
+            cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
             if(aDrone->getID() == msg.drone_id){
                 if(msg.zone_type == gcs::inCollision::normal_zone){
                     activeJobs[i]->DNFZinjection(msg);
@@ -485,7 +485,7 @@ void Collision_Handler(gcs::inCollision msg){
             cout << "[Ground Control]: DNFZ ignored" << endl;
             cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
             cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "[Ground Control]: DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
+            cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
         }
     }
 }
@@ -755,13 +755,13 @@ int main(int argc, char** argv){
 
                             size_t items = path.size();
                             items+= currentPath.size()-mission_index;
-                            items+= oldPath.size()-d.index_to;
+                            //items+= oldPath.size()-d.index_to;
 
                             newPath.reserve(items);
                             if( mission_index < d.index_from)
                                 newPath.insert(newPath.end(),currentPath.begin()+mission_index,currentPath.begin()+d.index_from);
                             newPath.insert(newPath.end(),path.begin(),path.end());
-                            newPath.insert(newPath.end(),oldPath.begin()+d.index_to,oldPath.end());
+                            //newPath.insert(newPath.end(),oldPath.begin()+d.index_to,oldPath.end());
 
                             activeJobs[i]->getDrone()->setPath(newPath);
                             uploadFlightPlan(activeJobs[i]->getDrone());

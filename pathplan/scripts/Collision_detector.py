@@ -210,6 +210,7 @@ class CollisionDetector:
                                 previous_time = future_time
                             except Exception as e:
                                 print e
+                                print "this place"
                             
 
     def make_polygon(self, json_obj):
