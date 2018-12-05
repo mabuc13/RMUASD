@@ -139,14 +139,3 @@ class KalmanFilter(object):
         self.P_plus     = (np.eye(4) - self.K @ self.H) @ self.P_min
 
         return self.x_hat_plus, self.P_plus
-
-    def getState(self):
-        return self.x_hat_plus
-
-    def getPosition(self):
-        return np.array([self.x_hat_plus[0,0], self.x_hat_plus[1,0]])
-
-    def getAbsVelocity(self):
-        v = np.array([self.x_hat_plus[2, 0], self.x_hat_plus[3, 0]])
-        v = norm(v)
-        return v
