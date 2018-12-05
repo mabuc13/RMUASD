@@ -7,6 +7,7 @@ import time
 import struct
 from datetime import datetime
 import drone
+import manual_mission
 
 from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String, Time
@@ -133,9 +134,13 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.active_mission_idx        = msg.active_waypoint_idx
-            drone.active_mission_len        = msg.active_mission_len
-            # drone.active_sub_waypoint       = msg.current_item
+            if drone.manual_mission.fsm_state == manual_mission.State.IDLE:
+                drone.active_mission_idx = msg.active_waypoint_idx
+                drone.active_mission_len = msg.active_mission_len
+                # drone.active_sub_waypoint       = msg.current_item
+            else:
+                drone.active_mission_idx = drone.manual_mission.mission_index     
+                drone.active_mission_len = len(drone.manual_mission.mission)  
 
 
     def on_drone_attitude(self, msg):

@@ -198,7 +198,7 @@ class Drone(object):
     def gps_to_mavlink(self, gps_list):
         sequence_number = 1
 
-        ml_list = mavlink_lora_mission_list()
+        ml_list = mavlink_lora_mission_lists()
 
         for itr, waypoint in enumerate(gps_list):
             current = 0
@@ -251,7 +251,10 @@ class Drone(object):
 
         if self.active_mission_len > 0:
             try:
-                self.active_waypoint_gps = self.active_mission_gps[self.active_mission_idx]
+                if self.manual_mission.fsm_state == manual_mission.State.IDLE:
+                    self.active_waypoint_gps = self.active_mission_gps[self.active_mission_idx]
+                else:
+                    self.active_waypoint_gps = self.manual_mission.mission[self.manual_mission.mission_idx]
             except IndexError as err:
                 rospy.logwarn(err)
                 rospy.logwarn("Can't assign active waypoint. Mission is not up to date yet.")
