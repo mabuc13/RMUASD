@@ -152,16 +152,18 @@ class Telemetry(object):
         self.command_handler.on_mavlink_msg(msg)
 
         if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
-            (custom_mode, mav_type, autopilot, base_mode, mav_state, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
-            
-            # custom_mode_bytes = custom_mode.to_bytes(4,byteorder='big')
-            # (sub_mode, main_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode_bytes))             
-            sub_mode = custom_mode >> 24
-            main_mode = (custom_mode >> 16) & 0xFF
-
             # filter out heartbeats from GCS
+
+            print(len(msg.payload))
             try:
                 if msg.sys_id != 255:
+                    (custom_mode, mav_type, autopilot, base_mode, mav_state, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
+                    
+                    # custom_mode_bytes = custom_mode.to_bytes(4,byteorder='big')
+                    # (sub_mode, main_mode, _, _) = struct.unpack('<BBBB',bytearray(custom_mode_bytes))             
+                    sub_mode = custom_mode >> 24
+                    main_mode = (custom_mode >> 16) & 0xFF
+
                     heartbeat_msg = telemetry_heartbeat_status(
                         system_id=msg.sys_id,
                         component_id=msg.comp_id,
