@@ -635,8 +635,6 @@ int main(int argc, char** argv){
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
-        heartbeat_msg.header.stamp = ros::Time::now();
-        Heartbeat_pub.publish(heartbeat_msg);
         NodeState(node_monitor::heartbeat::nothing,"");
 
         // ############ Find Available drones for queued Jobs ############

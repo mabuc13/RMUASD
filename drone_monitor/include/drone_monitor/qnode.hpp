@@ -50,7 +50,7 @@ struct aDrone{
 	bool armed;
 	int status;
 	double SOC;
-	string time;
+	double GPStime;
 	double uptime;
 	vector<double> RPY;
 	double heading;
@@ -107,7 +107,7 @@ Q_SIGNALS:
 	void sig_status(int status);
 
 	void sig_battery(double SOC);
-	void sig_time(QString time);
+	void sig_time(long GPStime);
 	void sig_uptime(double sec);
 
 	void sig_RPY(double R,double P,double Y);
