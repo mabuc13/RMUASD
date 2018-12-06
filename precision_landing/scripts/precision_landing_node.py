@@ -145,8 +145,8 @@ class PrecisionLanding(object):
                 self.landing_target[2]
             )
         )
-
-        # print(x,y,z)
+        
+        print(self.relative_target)
 
 
     def on_mission_info(self, msg):
