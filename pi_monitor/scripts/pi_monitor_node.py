@@ -6,6 +6,7 @@ import wiringpi as wp
 from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import * # pylint: disable=W0614
 from geometry_msgs.msg import Point
+from precision_landing.msg import precland_sensor_data
 from node_monitor.msg import heartbeat
 
 # defines
@@ -35,6 +36,7 @@ class PiMonitor(object):
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
         rospy.Subscriber("/telemetry/set_landing_target", telemetry_landing_target, self.on_landing_target)
         rospy.Subscriber("/telemetry/imu_data_ned", telemetry_imu_ned, self.on_imu_data)
+        rospy.Subscriber("/landing/arduino_pos", precland_sensor_data, self.on_sensor_data)
 
         rospy.Subscriber("/mavlink_pos", mavlink_lora_pos, self.on_drone_pos)
         rospy.Subscriber("/mavlink_attitude", mavlink_lora_attitude, self.on_drone_attitude)
@@ -42,6 +44,10 @@ class PiMonitor(object):
 
     def on_imu_data(self, msg):
         pass
+
+    def on_sensor_data(self, msg):
+        wp.digitalWrite(GREEN, self.green_status)
+        self.green_status ^= 1
 
     def on_heartbeat_status(self, msg):
         wp.digitalWrite(RED, self.red_status)
@@ -56,8 +62,9 @@ class PiMonitor(object):
         self.blue_status ^= 1
 
     def on_drone_attitude(self, msg):
-        wp.digitalWrite(GREEN, self.green_status)
-        self.green_status ^= 1
+        # wp.digitalWrite(GREEN, self.green_status)
+        # self.green_status ^= 1
+        pass
 
     def on_drone_status(self, msg):
         wp.digitalWrite(BLUE, self.blue_status)
