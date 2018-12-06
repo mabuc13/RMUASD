@@ -196,11 +196,6 @@ class Telemetry(object):
             except Exception as e:
                 print(e)
 
-        elif msg.msg_id == MAVLINK_MSG_ID_SYSTEM_TIME:
-            (time_unix_usec, time_boot_ms) = struct.unpack('<QI', msg.payload)
-
-            print(time_unix_usec, time_boot_ms)
-
         elif msg.msg_id == MAVLINK_MSG_ID_POSITION_TARGET_GLOBAL_INT:
             (time_boot_ms, lat_int, lon_int, alt, vx, vy, vz, afx, afy, afz, yaw, yaw_rate, type_mask, coordinate_frame) = struct.unpack('<IiifffffffffHB', msg.payload)
 
