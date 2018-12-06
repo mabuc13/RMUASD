@@ -153,8 +153,6 @@ class Telemetry(object):
 
         if msg.msg_id == MAVLINK_MSG_ID_HEARTBEAT:
             # filter out heartbeats from GCS
-
-            print(len(msg.payload))
             try:
                 if msg.sys_id != 255:
                     (custom_mode, mav_type, autopilot, base_mode, mav_state, mavlink_version) = struct.unpack('<IBBBBB', msg.payload)	
