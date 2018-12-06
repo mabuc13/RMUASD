@@ -644,6 +644,9 @@ int main(int argc, char** argv){
                     if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())<15){
                         NodeState(node_monitor::heartbeat::warning,"Goal is right next to drone, no drone will be sent");
                         webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=you already have a drone");
+                    }else if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())>500){ 
+                        NodeState(node_monitor::heartbeat::warning,"Goal is too far away from drone");
+                        webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=goal too far away");
                     }else{
                         activeJobs.push_back(jobQ.front());
                         jobQ.pop_front();
