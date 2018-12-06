@@ -92,7 +92,7 @@ Revision
 /* needed because we are not including the official mavlink headers */
 
 #define MAVLINK_MSG_ID_HEARTBEAT 0
-#define MAVLINK_MSG_ID_HEARTBEAT_LEN 8
+#define MAVLINK_MSG_ID_HEARTBEAT_LEN 9
 
 #define MAVLINK_MSG_ID_SYS_STATUS 1
 #define MAVLINK_MSG_ID_SYS_STATUS_LEN 31

@@ -934,6 +934,10 @@ void ml_queue_msg_heartbeat(void)
 	/* system_status type 4 = active */
 	buf[ML_POS_PAYLOAD + 7] = 4;
 
+	/* mavlink version - garbage*/
+	buf[ML_POS_PAYLOAD + 8] = 1;
+
+
 	/* queue message */
     ml_queue_msg(buf);
 }
