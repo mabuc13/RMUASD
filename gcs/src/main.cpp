@@ -423,6 +423,10 @@ void WebInfo_Handler(std_msgs::String msg_in){
                             if(goalDock == NULL){
                                 feedback+= ",return=failed,error=Lab not found";
                                 break;
+                            }else if(GPSdistance(Drones[i]->getPosition(),goalDock->getPosition())>500){ 
+                                NodeState(node_monitor::heartbeat::warning,"Goal is too far away from drone");
+                                webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=goal too far away");
+                                break;
                             }
                         }
 
