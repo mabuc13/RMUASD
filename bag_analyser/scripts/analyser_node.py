@@ -12,7 +12,7 @@ import kalman
 import kalman3
 from utm import utmconv
 from math import isnan
-from filterpy.stats import plot_covariance_ellipse, plot_3d_covariance
+# from filterpy.stats import plot_covariance_ellipse, plot_3d_covariance
 
 from telemetry.msg import * # pylint: disable=W0614
 from mavlink_lora.msg import * # pylint: disable=W0614
