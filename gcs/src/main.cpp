@@ -435,6 +435,8 @@ void WebInfo_Handler(std_msgs::String msg_in){
                         feedback+=",return=succes,request=waiting4pathplan";
                         break;
                     }
+                }else{
+                    webMsg(activeJobs[i]->getQuestHandler(),"return=drone not arrived yet");
                 }
             }
         }
@@ -587,7 +589,7 @@ void initialize(void){
     safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/collision_detector/safeTakeOff");
 
     sleep(2);
-    /*
+    
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
     cout << "[Ground Control]: webServer Username: " << srv.request.username <<endl;
@@ -622,7 +624,6 @@ void initialize(void){
     }else{
         cout << "[Ground Control]: ignoring IP service" << endl;
     }
-    */
 }
 
 
@@ -732,6 +733,7 @@ int main(int argc, char** argv){
             
             }else if(status == job::done){  // ############# Delete Finnished Jobs ######################
                 delete activeJobs[i];
+                webMsg(activeJobs[i]->getQuestHandler(),"return=done");
                 activeJobs.erase(activeJobs.begin()+i);
                 i--;
             }else if(status == job::ongoing){ // ########### Send out INFO on Drone ETA ######################

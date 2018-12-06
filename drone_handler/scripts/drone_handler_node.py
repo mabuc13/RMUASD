@@ -171,8 +171,8 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.gps_timestamp = msg.time_usec
-            drone.up_time = msg.time_boot_usec / 1e6
+            drone.gps_timestamp = int(msg.time_usec / 1e6)
+            drone.up_time = int(msg.time_boot_usec / 1e6)
             drone.latitude = msg.lat
             drone.longitude = msg.lon
             drone.absolute_alt = msg.alt
