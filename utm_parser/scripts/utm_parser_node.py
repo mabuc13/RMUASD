@@ -232,7 +232,7 @@ class utm_parser(object):
         # dnfz = self.get_dynamic_nfz()
         # message = json.dumps(dnfz)
         #message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon","valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223","int_id": "20"}]'
-        message = '[{"valid_from_epoch": "1543839122", "name": "AArslev - Field 1", "geometry": "circle","valid_to_epoch": "1545649886", "coordinates": "10.464394,55.310445,10","int_id": "21"}]'
+        message = '[{"valid_from_epoch": "1543839122", "name": "AArslev - Field 1", "geometry": "circle","valid_to_epoch": "1545649886", "coordinates": "10.46426,55.31043,10","int_id": "21"}]'
         
         return message
 
