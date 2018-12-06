@@ -800,46 +800,7 @@ int main(int argc, char** argv){
                 activeJobs[i]->setStatus(job::ready4flightContinuation);
             }
         }
-
-        // ############### Drone deconfliction ################
-        /*for(size_t i = 0; i < activeJobs.size();i++){
-            if(activeJobs[i]->getStatus() == job::ongoing){
-                ID_t ID = Own2UtmId[activeJobs[i]->getDrone()->getID()];
-                simpleDrone ourDrone = OtherDrones[ID];
-                vector<UTM> ourDronePath = ourDrone.getPath(simpleDroneDeconflict::maxSearchTime);
-
-                for (auto it = OtherDrones.begin(); it != OtherDrones.end(); it++ )
-                { // first = key, second = data
-                    if(it->first != ID){ // Make Sure it is not our Drone
-                        simpleDroneDeconflict deCon(ourDrone,it->second,ourDronePath);
-                        if(deCon.isSameHeight()){
-                            if(deCon.isWithinSeachArea()){
-                                //TODO assert that both Drones are in same UTM zone
-                                
-
-                                
-                                
-                                if(it->second.getPriority() == ourDrone.getPriority()){
-                                    //Deconflict SAME Priority
-
-
-
-                                }else if(it->second.getPriority() > ourDrone.getPriority()){
-                                    //If Drone Has Lower Priority
-                                }else{
-                                    //If Drone Has Higher Priority
-                                }
-
-
-                            }
-                            //if(it->second.getPriority()==)
-                        }
-                    }
-                }
-            }
-        }*/
-
-        
+      
 
 
         // #################### Job state pub ########################
