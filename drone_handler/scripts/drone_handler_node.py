@@ -7,6 +7,7 @@ import time
 import struct
 from datetime import datetime
 import drone
+import manual_mission
 
 from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String, Time
@@ -47,6 +48,7 @@ class DroneHandler(object):
         self.heartbeat_info_pub = rospy.Publisher("/drone_handler/heartbeat/info", Time, queue_size=0)
 
         rospy.Subscriber("/gcs/forwardPath", DronePath, self.on_drone_path)
+        rospy.Subscriber("/gcs/moveTo", moveTo, self.on_move)
         rospy.Subscriber("/telemetry/heartbeat_status", telemetry_heartbeat_status, self.on_heartbeat_status)
         rospy.Subscriber("/telemetry/mav_mode", telemetry_mav_mode, self.on_mav_mode)
         rospy.Subscriber("/telemetry/statustext", telemetry_statustext, self.on_statustext)
@@ -64,6 +66,11 @@ class DroneHandler(object):
 
         self.rate = rospy.Rate(update_interval)
 
+    def on_move(self, msg):
+        if msg.drone_id in self.drones:
+            drone = self.drones[msg.drone_id]
+            drone.on_move(msg)
+
     def on_cmd_fail(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
@@ -74,7 +81,8 @@ class DroneHandler(object):
             drone = self.drones[msg.DroneID]
 
             drone.update_mission(msg.Path)
-            drone.start_mission()
+            drone.start_mission(msg.loiterAtEnd)
+            print("PATH LENGTH: ", len(msg.Path))
         
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
@@ -127,9 +135,13 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.active_mission_idx        = msg.active_waypoint_idx
-            drone.active_sub_mission_len    = msg.active_mission_len
-            drone.active_sub_waypoint       = msg.current_item
+            if drone.manual_mission.fsm_state == manual_mission.State.IDLE:
+                drone.active_mission_idx = msg.active_waypoint_idx
+                drone.active_mission_len = msg.active_mission_len
+                # drone.active_sub_waypoint       = msg.current_item
+            else:
+                drone.active_mission_idx = drone.manual_mission.mission_idx     
+                drone.active_mission_len = len(drone.manual_mission.mission)  
 
 
     def on_drone_attitude(self, msg):
@@ -158,8 +170,9 @@ class DroneHandler(object):
     def on_drone_pos(self, msg):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
-            drone.gps_timestamp = msg.time_usec
-            drone.up_time = msg.time_boot_usec / 1e6
+
+            drone.gps_timestamp = int(msg.time_usec / 1e6)
+            drone.up_time = int(msg.time_boot_usec / 1e6)
             drone.latitude = msg.lat
             drone.longitude = msg.lon
             drone.absolute_alt = msg.alt
@@ -193,6 +206,7 @@ class DroneHandler(object):
                 next_waypoint=drone.active_waypoint_gps,
                 armed=drone.armed,
                 ground_speed=drone.ground_speed,
+                ground_speed_setpoint=5,
                 heading=drone.heading,
                 battery_voltage=drone.battery_voltage,
                 battery_SOC=drone.battery_SOC,

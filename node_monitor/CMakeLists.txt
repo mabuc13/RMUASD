@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
   message_generation
   std_msgs
   mavlink_lora
+  drone_decon
 )
 
 ## System dependencies are found with CMake's conventions

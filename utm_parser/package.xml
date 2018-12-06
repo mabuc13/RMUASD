@@ -15,6 +15,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <buildtool_depend>message_generation</buildtool_depend>
   <build_depend>gcs</build_depend>
+  <build_depend>drone_decon</build_depend>
   <build_depend>std_msgs</build_depend>
   
   <export>

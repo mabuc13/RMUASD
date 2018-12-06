@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+# Based on:
+# Author: Christian Careaga (christian.careaga7@gmail.com)
+# A* Pathfinding in Python (2.7)
+# Please give credit if used
 
 from heapq import *
 from math import sqrt
@@ -8,6 +12,7 @@ import rospy
 import time
 import json
 import string
+from std_msgs.msg import String
 from shapely import geometry
 from collections import namedtuple
 #from utm_parser.srv import *
@@ -48,7 +53,7 @@ class AStar:
         self.init_map()
 
         self.dynamic_no_flight_zones = {}
-        rospy.Substriber("/utm/dynamic_no_fly_zones", string, self.on_dynamic_no_fly_zones)
+        rospy.Subscriber("/utm/dynamic_no_fly_zones", String, self.on_dynamic_no_fly_zones)
 
         self.safety_extra_time = 10
         self.safety_dist_to_dnfz = 10
@@ -102,10 +107,11 @@ class AStar:
     def clear_dicts_and_lists(self):
         self.close_set = set()
         self.came_from = {}
-        self.gscore = {self.start: 0}
-        self.fscore = {self.start: self.heuristic(self.start, self.goal)}
+        start_set = (self.start.easting, self.start.northing)
+        self.gscore = {start_set: 0}
+        self.fscore = {start_set: self.heuristic(self.start, self.goal)}
         self.oheap = []
-        heappush(self.oheap, (self.fscore[self.start], self.start))
+        heappush(self.oheap, (self.fscore[start_set], start_set))
 
     def set_start_and_goal(self, start, goal, start_time=0):
         temp_start = Coordinate(GPS_data=start)
@@ -117,6 +123,51 @@ class AStar:
         self.step_multiplier = int(s)
         self.neighbors = [(0, 1 * s), (0, -1 * s), (1 * s, 0), (-1 * s, 0),
                           (1 * s, 1 * s), (1 * s, -1 * s), (-1 * s, 1 * s), (-1 * s, -1 * s)]
+
+    def compute_astar(self, dynamic=False, ground_speed=5):
+        self.clear_dicts_and_lists()
+        while self.oheap:
+            current = heappop(self.oheap)[1]
+
+            if self.goal_dist_thresh >= self.heuristic(current, self.goal):
+                data = []
+                while current in self.came_from:
+                    coord = Coordinate(easting=current.easting, northing=current.northing)
+                    data.append(coord)
+                    current = self.came_from[current]
+                return data
+
+            current_set = (current.easting, current.northing)
+            self.close_set.add(current_set)
+            for i, j in self.neighbors:
+                if dynamic:
+                    new_time = current.time + (self.heuristic(current, TimeCoord(easting=current.easting+i,
+                                                                                 northing=current.northing+j))/ground_speed)
+                    neighbor = TimeCoord(easting=current.easting + i, northing=current.northing + j, time=new_time)
+                else:
+                    neighbor = TimeCoord(easting=current.easting + i, northing=current.northing + j)
+
+                tentative_g_score = self.gscore[current_set] + self.heuristic(current, neighbor)
+
+                neighbor_transform = (int((neighbor.easting - self.lower_left.easting) / self.map_res),
+                                      int((neighbor.northing - self.lower_left.northing) / self.map_res))
+
+                if self.map_image[neighbor_transform[1]][neighbor_transform[0]] != 0:
+                    continue
+
+                if dynamic and self.is_collision_with_dnfz(neighbor):
+                    continue
+
+                neighbor_set = (neighbor.easting, neighbor.northing)
+                if neighbor_set in self.close_set and tentative_g_score >= self.gscore.get(neighbor_set, 0):
+                    continue
+
+                if tentative_g_score < self.gscore.get(neighbor_set, 0) or neighbor_set not in [i[1] for i in self.oheap]:
+                    self.came_from[neighbor_set] = current_set
+                    self.gscore[neighbor_set] = tentative_g_score
+                    self.fscore[neighbor_set] = tentative_g_score + self.heuristic(neighbor, self.goal)
+                    heappush(self.oheap, (self.fscore[neighbor_set], neighbor_set))
+        return False
 
     def compute_static_astar(self):
         self.clear_dicts_and_lists()

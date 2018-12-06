@@ -5,6 +5,7 @@ import sys
 import rospy
 import time
 import rosnode
+from drone_decon.msg import *
 from node_monitor.msg import *
 from mavlink_lora.msg import mavlink_lora_status
 import threading
@@ -34,6 +35,7 @@ class NodeMonitor(object):
         #subscriber
         rospy.Subscriber("/node_monitor/input/Heartbeat", heartbeat, self.handler_heartbeat)
         rospy.Subscriber("/mavlink_status",mavlink_lora_status,self.handler_mavlink_lora_heartbeat)
+        rospy.Subscriber("/drone_decon/Heartbeat",heartbeatDecon,self.handler_heartbeat_decon)
 
         self.Heartbeat_pub = rospy.Publisher('/node_monitor/Heartbeat', heartbeat, queue_size = 10)
         self.NodeSates_pub = rospy.Publisher('/node_monitor/node_list',nodeOkList,queue_size= 10)
@@ -48,7 +50,7 @@ class NodeMonitor(object):
     def first_send(self):
         msg = nodeOkList()
         
-        Nodelist = ['gcs','node_monitor','drone_handler','telemetry','utm_parser','mavlink','pathplan','internet','remot3']
+        Nodelist = ['gcs','node_monitor','drone_handler','telemetry','utm_parser','mavlink','pathplan','internet','remot3','collision_detector','drone_decon']
         Nodelist.sort()
         for text in Nodelist:
             tmp = nodeOk()
@@ -61,10 +63,18 @@ class NodeMonitor(object):
             self.NodeSates_pub.publish(msg)
             self.rate.sleep()
 
+    def handler_heartbeat_decon(self,msg):
+        newMsg = heartbeat()
+        newMsg.header = msg.header
+        newMsg.rate = msg.rate
+        newMsg.text = msg.text
+        newMsg.severity = msg.severity
+        self.handler_heartbeat(newMsg)
+
     def handler_mavlink_lora_heartbeat(self,msg):
         newMsg = heartbeat()
         newMsg.header = msg.header
-        newMsg.rate = 5
+        newMsg.rate = 2
         newMsg.header.frame_id = "mavlink"
         self.handler_heartbeat(newMsg)
 

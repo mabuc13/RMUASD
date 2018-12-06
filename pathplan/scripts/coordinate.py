@@ -4,10 +4,10 @@ from gcs.msg import GPS
 
 class Coordinate(object):
 	def __init__(self, lat=0, lon=0, northing=0, easting=0, GPS_data=0):
-		self.lat = lat
-		self.lon = lon
-		self.northing = northing
-		self.easting = easting
+		self.lat = float(lat)
+		self.lon = float(lon)
+		self.northing = float(northing)
+		self.easting = float(easting)
 		self.altitude = 30
 		self.GPS_data = GPS_data
 		if self.GPS_data != 0:
@@ -32,11 +32,14 @@ class Coordinate(object):
 			self.GPS_data.longitude = self.lon
 			self.GPS_data.altitude = self.altitude
 
-
 	def update_UTM_coordinates(self):
 		self.hemisphere, self.zone, self.letter, self.easting, self.northing = self.converter.geodetic_to_utm(self.lat,
 																											  self.lon)
 
-
 	def update_geo_coordinates(self):
 		self.lat, self.lon = self.converter.utm_to_geodetic(self.hemisphere, self.zone, self.easting, self.northing)
+	def str(self,UTMorGPS=True):
+		if(UTMorGPS):
+			return "GPS("+str(self.lat)+", "+str(self.lon)+") alt("+str(self.altitude)+")"
+		else:
+			return "UTM("+str(self.northing)+", "+str(self.easting)+") alt("+str(self.altitude)+")"

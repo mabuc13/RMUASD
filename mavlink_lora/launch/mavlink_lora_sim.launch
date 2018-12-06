@@ -1,0 +1,14 @@
+<!-- launch file -->
+
+<launch>
+
+	<!-- node pkg="rosbag" name="rosbag_record" type="record" args="-a"/ -->
+
+	<node pkg="mavlink_lora" type="mavlink_lora_node" name="mavlink_lora" respawn="true" output="screen">
+		<param name="serial_device" value="/tmp/ttyMAVLINK"/>
+		<!--param name="serial_device" value="/dev/ttyUSB0"/ -->
+		<!-- <param name="serial_device" value="/dev/ttyACM0"/> -->
+		<param name="serial_baudrate" value="57600"/>
+	</node>
+
+</launch>

@@ -58,7 +58,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     QObject::connect(&qnode, SIGNAL(sig_armed(bool)), this, SLOT(set_armed(bool)));
     QObject::connect(&qnode, SIGNAL(sig_status(int)), this, SLOT(set_status(int)));
     QObject::connect(&qnode, SIGNAL(sig_battery(double)), this, SLOT(set_battery(double)));
-    QObject::connect(&qnode, SIGNAL(sig_time(QString)), this, SLOT(set_time(QString)));
+    QObject::connect(&qnode, SIGNAL(sig_time(long)), this, SLOT(set_time(long)));
     QObject::connect(&qnode, SIGNAL(sig_uptime(double)), this, SLOT(set_uptime(double)));
     QObject::connect(&qnode, SIGNAL(sig_RPY(double,double,double)), this, SLOT(set_RPY(double,double,double)));
     QObject::connect(&qnode, SIGNAL(sig_heading(double)), this, SLOT(set_heading(double)));
@@ -196,13 +196,15 @@ void MainWindow::set_battery(double SOC){
     ui.label_battery->setText(text);
 
 }
-void MainWindow::set_time(QString time){
-    ui.label_time->setText(time);
+void MainWindow::set_time(long GPStime){
+    QString text = QString::number(GPStime);
+    text.push_back(QString("s"));
+    ui.label_time->setText(text);
 }
 void MainWindow::set_uptime(double sec){
     QString text;
     QLocale obj;
-    text.push_back(obj.toString(sec,'f',2));
+    text.push_back(obj.toString(sec,'f',0));
     text.push_back(QString("s"));
     ui.label_uptime->setText(text);
 }
