@@ -168,6 +168,7 @@ double diff(double num1, double num2){
 void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
     job* theJob =  theDrone->getJob();
     if(theJob != NULL){
+        cout << "[Ground Control]: Asking for reposition" << endl;
         gcs::moveTo cmd;
         cmd.drone_id = theDrone->getID();
         cmd.position = pos;
@@ -187,10 +188,16 @@ void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
 
 void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     gcs::DronePath msg;
-    msg.Path = theDrone->getPath();
+    
     msg.DroneID = theDrone->getID();
     msg.loiterAtEnd = loiterAtEnd;
-    if(DEBUG) cout << "[Ground Control]: Posting PathPlan" << endl;
+    if(DEBUG){
+        while(theDrone->getPath().size()> 9){
+            theDrone->getPath().erase(theDrone->getPath().end()-2);
+        }
+    }
+    if(DEBUG) cout << "[Ground Control]: Posting PathPlan - length:" << theDrone->getPath().size() << endl;
+    msg.Path = theDrone->getPath();
     RouteRequest_pub.publish(msg);
 }
 
@@ -215,12 +222,13 @@ is_safe_for_takeoff safeTakeOff(drone* my_drone){
 
     is_safe_for_takeoff response;
     if (worked){
+<<<<<<< HEAD
         if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << int(srv.response.is_save_to_take_off) << " time to clear " << int(srv.response.time_to_clear) << " current epoch time " <<  std::time(nullptr) << endl;
+=======
+        if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << int(srv.response.is_save_to_take_off) << endl;
+>>>>>>> ec9a23cedcc6a0a1d6967c09fa114ac2a3e9ba75
         response.takeoff_is_safe = srv.response.is_save_to_take_off;
         response.time_til_safe_take_off = srv.response.time_to_clear;
-        if(heartbeat_msg.text == "SafeTakeOffCheack Failed"){
-            NodeState(node_monitor::heartbeat::nothing,"");
-        }
     }else{
         cout << "[Ground Control]: " << "SafeTakeOffcheack failed"<< endl;
         NodeState(node_monitor::heartbeat::critical_error,"SafeTakeOffCheack Failed");
@@ -276,8 +284,8 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     if (worked){
     // cout << "[Ground Control]: " << "PathPlanDone" << endl;
     }else{
-        cout << "[Ground Control]: " << "PathPlanFailed"<< endl;
-        NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding",0.1);
+        ROS_ERROR("[Ground Control]: PathPlanFailed no contact");
+        NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding");
     }
     
     if(srv.response.path.size() < 2 || !worked){
@@ -305,10 +313,11 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
 
     if(isANewDrone){ // ############## Register if new drone #####################
         Drones.push_back(new drone(msg.drone_id,msg.position));
-        drone_decon::RegisterDrone reg;
+        
         //TODO automatic registering of drone ID
         Own2UtmId[1]=3012;
         Utm2OwnId[3012]=1;
+        drone_decon::RegisterDrone reg;
         reg.drone_id = Own2UtmId[msg.drone_id];
         RegisterDrone_pub.publish(reg);
         Drones.back()->getGroundHeight() = msg.absolute_alt-msg.relative_alt;
@@ -316,6 +325,10 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
 
         cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << "at : " << msg.position << endl;
     }else{ // ################### Update Drone state #############################
+        drone_decon::RegisterDrone reg;
+        reg.drone_id = Own2UtmId[msg.drone_id];
+        RegisterDrone_pub.publish(reg);
+
         Drones[index]->setPosition(msg.position);
         if(msg.status != msg.holding) Drones[index]->setMissionIndex(msg.mission_index);
         Drones[index]->setVelocity(msg.ground_speed);
@@ -414,6 +427,10 @@ void WebInfo_Handler(std_msgs::String msg_in){
                             if(goalDock == NULL){
                                 feedback+= ",return=failed,error=Lab not found";
                                 break;
+                            }else if(GPSdistance(Drones[i]->getPosition(),goalDock->getPosition())>500){ 
+                                NodeState(node_monitor::heartbeat::warning,"Goal is too far away from drone");
+                                webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=goal too far away");
+                                break;
                             }
                         }
 
@@ -422,6 +439,8 @@ void WebInfo_Handler(std_msgs::String msg_in){
                         feedback+=",return=succes,request=waiting4pathplan";
                         break;
                     }
+                }else{
+                    webMsg(activeJobs[i]->getQuestHandler(),"return=drone not arrived yet");
                 }
             }
         }
@@ -438,14 +457,15 @@ void Collision_Handler(gcs::inCollision msg){
         drone *aDrone = activeJobs[i]->getDrone();
         if(!activeJobs[i]->getDNFZinjection().stillValid&&
             (activeJobs[i]->getDNFZinjection().dnfz_id != msg.dnfz_id ||
-             long(std::time(nullptr)) - activeJobs[i]->getDNFZinjection().time > 30))
+            long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time > 30))
         {
-            cout << "DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
-            cout << "DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
+            cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+            cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+            cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
             if(aDrone->getID() == msg.drone_id){
                 if(msg.zone_type == gcs::inCollision::normal_zone){
                     activeJobs[i]->DNFZinjection(msg);
+                    activeJobs[i]->getDNFZinjection().to = activeJobs[i]->getGoal()->getPosition();
                     activeJobs[i]->setStatus(job::rePathPlan);
                     activeJobs[i]->saveOldPlan();
 
@@ -459,6 +479,7 @@ void Collision_Handler(gcs::inCollision msg){
                     activeJobs[i]->DNFZinjection(msg);
                     activeJobs[i]->setStatus(job::rePathPlan);
                     activeJobs[i]->saveOldPlan();
+                    
                     moveDroneTo(activeJobs[i]->getDrone(),msg.start);
 
                 }else if(msg.zone_type == gcs::inCollision::landing_zone){
@@ -471,9 +492,10 @@ void Collision_Handler(gcs::inCollision msg){
             }
         }else{
             NodeState(node_monitor::heartbeat::info,"DNFZ ignored");
-            cout << "DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
-            cout << "DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "DNFZ time diff: " <<  activeJobs[i]->getDNFZinjection().time-std::time(nullptr) << endl;
+            cout << "[Ground Control]: DNFZ ignored" << endl;
+            cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+            cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+            cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
         }
     }
 }
@@ -571,7 +593,7 @@ void initialize(void){
     safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/collision_detector/safeTakeOff");
 
     sleep(2);
-    /*
+    
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
     cout << "[Ground Control]: webServer Username: " << srv.request.username <<endl;
@@ -606,7 +628,6 @@ void initialize(void){
     }else{
         cout << "[Ground Control]: ignoring IP service" << endl;
     }
-    */
 }
 
 
@@ -623,20 +644,26 @@ int main(int argc, char** argv){
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
-        heartbeat_msg.header.stamp = ros::Time::now();
-        Heartbeat_pub.publish(heartbeat_msg);
         NodeState(node_monitor::heartbeat::nothing,"");
 
         // ############ Find Available drones for queued Jobs ############
         if(jobQ.size() != 0){
             for(size_t i = 0; i < Drones.size();i++){
                 if(Drones[i]->isAvailable()){
-                    activeJobs.push_back(jobQ.front());
-                    jobQ.pop_front();
-                    Drones[i]->setJob(activeJobs.back());
-                    Drones[i]->setAvailable(false);
-                    Drones[i]->getJob()->setStatus(job::wait4pathplan);
-                    webMsg(Drones[i]->getJob()->getQuestHandler(),"request=pathplaning");
+                    if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())<15){
+                        NodeState(node_monitor::heartbeat::warning,"Goal is right next to drone, no drone will be sent");
+                        webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=you already have a drone");
+                    }else if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())>500){ 
+                        NodeState(node_monitor::heartbeat::warning,"Goal is too far away from drone");
+                        webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=goal too far away");
+                    }else{
+                        activeJobs.push_back(jobQ.front());
+                        jobQ.pop_front();
+                        Drones[i]->setJob(activeJobs.back());
+                        Drones[i]->setAvailable(false);
+                        Drones[i]->getJob()->setStatus(job::wait4pathplan);
+                        webMsg(Drones[i]->getJob()->getQuestHandler(),"request=pathplaning");
+                    }
                 }
             }
         }
@@ -710,6 +737,7 @@ int main(int argc, char** argv){
             
             }else if(status == job::done){  // ############# Delete Finnished Jobs ######################
                 delete activeJobs[i];
+                webMsg(activeJobs[i]->getQuestHandler(),"return=done");
                 activeJobs.erase(activeJobs.begin()+i);
                 i--;
             }else if(status == job::ongoing){ // ########### Send out INFO on Drone ETA ######################
@@ -738,13 +766,13 @@ int main(int argc, char** argv){
 
                             size_t items = path.size();
                             items+= currentPath.size()-mission_index;
-                            items+= oldPath.size()-d.index_to;
+                            //items+= oldPath.size()-d.index_to;
 
                             newPath.reserve(items);
                             if( mission_index < d.index_from)
                                 newPath.insert(newPath.end(),currentPath.begin()+mission_index,currentPath.begin()+d.index_from);
                             newPath.insert(newPath.end(),path.begin(),path.end());
-                            newPath.insert(newPath.end(),oldPath.begin()+d.index_to,oldPath.end());
+                            //newPath.insert(newPath.end(),oldPath.begin()+d.index_to,oldPath.end());
 
                             activeJobs[i]->getDrone()->setPath(newPath);
                             uploadFlightPlan(activeJobs[i]->getDrone());
@@ -785,46 +813,7 @@ int main(int argc, char** argv){
                 activeJobs[i]->setStatus(job::ready4flightContinuation);
             }
         }
-
-        // ############### Drone deconfliction ################
-        /*for(size_t i = 0; i < activeJobs.size();i++){
-            if(activeJobs[i]->getStatus() == job::ongoing){
-                ID_t ID = Own2UtmId[activeJobs[i]->getDrone()->getID()];
-                simpleDrone ourDrone = OtherDrones[ID];
-                vector<UTM> ourDronePath = ourDrone.getPath(simpleDroneDeconflict::maxSearchTime);
-
-                for (auto it = OtherDrones.begin(); it != OtherDrones.end(); it++ )
-                { // first = key, second = data
-                    if(it->first != ID){ // Make Sure it is not our Drone
-                        simpleDroneDeconflict deCon(ourDrone,it->second,ourDronePath);
-                        if(deCon.isSameHeight()){
-                            if(deCon.isWithinSeachArea()){
-                                //TODO assert that both Drones are in same UTM zone
-                                
-
-                                
-                                
-                                if(it->second.getPriority() == ourDrone.getPriority()){
-                                    //Deconflict SAME Priority
-
-
-
-                                }else if(it->second.getPriority() > ourDrone.getPriority()){
-                                    //If Drone Has Lower Priority
-                                }else{
-                                    //If Drone Has Higher Priority
-                                }
-
-
-                            }
-                            //if(it->second.getPriority()==)
-                        }
-                    }
-                }
-            }
-        }*/
-
-        
+      
 
 
         // #################### Job state pub ########################

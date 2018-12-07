@@ -7,6 +7,7 @@ import time
 import struct
 from datetime import datetime
 import drone
+import manual_mission
 
 from gcs.msg import * # pylint: disable=W0614
 from std_msgs.msg import Int8, String, Time
@@ -81,6 +82,7 @@ class DroneHandler(object):
 
             drone.update_mission(msg.Path)
             drone.start_mission(msg.loiterAtEnd)
+            print("PATH LENGTH: ", len(msg.Path))
         
     def on_heartbeat_status(self, msg):
         if msg.system_id in self.drones:
@@ -133,9 +135,13 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.active_mission_idx        = msg.active_waypoint_idx
-            drone.active_mission_len        = msg.active_mission_len
-            # drone.active_sub_waypoint       = msg.current_item
+            if drone.manual_mission.fsm_state == manual_mission.State.IDLE:
+                drone.active_mission_idx = msg.active_waypoint_idx
+                drone.active_mission_len = msg.active_mission_len
+                # drone.active_sub_waypoint       = msg.current_item
+            else:
+                drone.active_mission_idx = drone.manual_mission.mission_idx     
+                drone.active_mission_len = len(drone.manual_mission.mission)  
 
 
     def on_drone_attitude(self, msg):
@@ -165,8 +171,8 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
-            drone.gps_timestamp = msg.time_usec
-            drone.up_time = msg.time_boot_usec / 1e6
+            drone.gps_timestamp = int(msg.time_usec / 1e6)
+            drone.up_time = int(msg.time_boot_usec / 1e6)
             drone.latitude = msg.lat
             drone.longitude = msg.lon
             drone.absolute_alt = msg.alt
