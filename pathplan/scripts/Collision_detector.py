@@ -115,7 +115,7 @@ class CollisionDetector:
 
     def on_safe_takeoff(self, req):
         safe_bool, time_left = self.is_clear_to_take_of(req.drone_id, req.takeoff_position)
-        return safeTakeOffResponse(safe_bool, time_left)
+        return safeTakeOffResponse(int(safe_bool), time_left)
 
     def is_clear_to_take_of(self, drone_id, position):
         start_position = Coordinate(lon=position.longitude,
@@ -126,18 +126,18 @@ class CollisionDetector:
             if dnfz["geometry"] == "circle":
                 coord = dnfz["coordinates"]
                 coord = coord.split(',')
-                dist = self.pythagoras(start_position, Coordinate(lon=coord[0], lat=coord[1]))
+                dist = self.pythagoras(start_position, Coordinate(lon=coord[1], lat=coord[0]))
                 if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < current_time < (int(dnfz["valid_to_epoch"]) +
                                                                                          self.safety_extra_time):
                     if dist <= (float(coord[2]) + self.safety_dist_to_dnfz):
-                        return False, dnfz["valid_to_epoch"]
+                        return False, int(dnfz["valid_to_epoch"])
             elif dnfz["geometry"] == "polygon":
                 dist = dnfz["polygon"].distance(geometry.Point(start_position.easting, start_position.northing))
                 if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < current_time < (int(dnfz["valid_to_epoch"]) +
                                                                                          self.safety_extra_time):
                     if dist <= self.safety_dist_to_dnfz:
-                        return False, dnfz["valid_to_epoch"]
-        return True, None
+                        return False, int(dnfz["valid_to_epoch"])
+        return True, time.time()
 
     def eta_at_goal(self, drone_id):
         '''

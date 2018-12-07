@@ -57,6 +57,7 @@ class Drone(object):
         self.cmd_try_again = False
         self.speed_ack = False
         self.loiter = False
+        self.active = False
 
         self.pending_mission_gps = []
         self.active_waypoint_gps = GPS()

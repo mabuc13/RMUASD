@@ -72,7 +72,7 @@ class PathPlanner(object):
 
             if(len(self.path) > 2):
                 self.rmuast_simplifier.loadPath(self.path)
-                self.rmuast_simplifier.simplifyByDistance(1)
+                self.rmuast_simplifier.simplifyByDistance(3)
                 self.path = self.rmuast_simplifier.getSimpleCoordinates()
                 # if dynamic:
                 #     ps = PathSimplifier(self.path, step_size=2)

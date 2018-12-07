@@ -171,6 +171,9 @@ class DroneHandler(object):
         if msg.system_id in self.drones:
             drone = self.drones[msg.system_id]
 
+            if not drone.active:
+                drone.active = True
+
             drone.gps_timestamp = int(msg.time_usec / 1e6)
             drone.up_time = int(msg.time_boot_usec / 1e6)
             drone.latitude = msg.lat
@@ -197,62 +200,62 @@ class DroneHandler(object):
         # TODO iterate over all drones
         drone = self.drones[1]
 
-        # i keep getting intermittent errors from last_heard not being the correct type
-        # TODO figure out where they come from
-        try:
-            need2know = DroneInfo(
-                drone_id=drone.id,
-                position=GPS(drone.latitude, drone.longitude, drone.relative_alt),
-                next_waypoint=drone.active_waypoint_gps,
-                armed=drone.armed,
-                ground_speed=drone.ground_speed,
-                ground_speed_setpoint=5,
-                heading=drone.heading,
-                battery_voltage=drone.battery_voltage,
-                battery_SOC=drone.battery_SOC,
-                relative_alt=drone.relative_alt,
-                absolute_alt=drone.absolute_alt,
-                GPS_timestamp=drone.gps_timestamp,
-                status=drone.gcs_status,
-                mission_index=drone.active_mission_idx,
-                mission_length=drone.active_mission_len
-            )
+        if drone.active:
 
-            nice2know = NiceInfo(
-                drone_id=drone.id,
-                drone_handler_state=str(drone.fsm_state),
-                last_heard=drone.last_heard, 
-                up_time=int(drone.up_time),
-                RPY=[drone.roll, drone.pitch, drone.yaw],
-                main_flightmode=drone.main_mode,
-                sub_flightmode=drone.sub_mode,
-                msg_sent_gcs=drone.msg_sent_gcs,
-                msg_received_gcs=drone.msg_received_gcs,
-                msg_dropped_gcs=drone.msg_dropped_gcs,
-                msg_dropped_uas=drone.msg_dropped_uas,
-                active_waypoint_idx=drone.active_mission_idx,
-                active_mission_len=drone.active_mission_len,
-                armed=drone.armed,
-                manual_input=drone.manual_input,
-                hil_simulation=drone.hil_simulation,
-                stabilized_mode=drone.stabilized_mode,
-                guided_mode=drone.guided_mode,
-                auto_mode=drone.auto_mode,
-                test_mode=drone.test_mode,
-                custom_mode=drone.custom_mode,
-                autopilot=drone.autopilot,
-                mav_state=drone.state,
-                mav_type=drone.type,
-                climb_rate=drone.climb_rate,
-                throttle=drone.throttle,
-                cpu_load=drone.cpu_load,
-                home=drone.home_position
-            )
+            try:
+                need2know = DroneInfo(
+                    drone_id=drone.id,
+                    position=GPS(drone.latitude, drone.longitude, drone.relative_alt),
+                    next_waypoint=drone.active_waypoint_gps,
+                    armed=drone.armed,
+                    ground_speed=drone.ground_speed,
+                    ground_speed_setpoint=5,
+                    heading=drone.heading,
+                    battery_voltage=drone.battery_voltage,
+                    battery_SOC=drone.battery_SOC,
+                    relative_alt=drone.relative_alt,
+                    absolute_alt=drone.absolute_alt,
+                    GPS_timestamp=drone.gps_timestamp,
+                    status=drone.gcs_status,
+                    mission_index=drone.active_mission_idx,
+                    mission_length=drone.active_mission_len
+                )
 
-            self.drone_info_pub.publish(need2know)
-            self.nice_info_pub.publish(nice2know)
-        except Exception as e:
-            print(e)
+                nice2know = NiceInfo(
+                    drone_id=drone.id,
+                    drone_handler_state=str(drone.fsm_state),
+                    last_heard=drone.last_heard, 
+                    up_time=int(drone.up_time),
+                    RPY=[drone.roll, drone.pitch, drone.yaw],
+                    main_flightmode=drone.main_mode,
+                    sub_flightmode=drone.sub_mode,
+                    msg_sent_gcs=drone.msg_sent_gcs,
+                    msg_received_gcs=drone.msg_received_gcs,
+                    msg_dropped_gcs=drone.msg_dropped_gcs,
+                    msg_dropped_uas=drone.msg_dropped_uas,
+                    active_waypoint_idx=drone.active_mission_idx,
+                    active_mission_len=drone.active_mission_len,
+                    armed=drone.armed,
+                    manual_input=drone.manual_input,
+                    hil_simulation=drone.hil_simulation,
+                    stabilized_mode=drone.stabilized_mode,
+                    guided_mode=drone.guided_mode,
+                    auto_mode=drone.auto_mode,
+                    test_mode=drone.test_mode,
+                    custom_mode=drone.custom_mode,
+                    autopilot=drone.autopilot,
+                    mav_state=drone.state,
+                    mav_type=drone.type,
+                    climb_rate=drone.climb_rate,
+                    throttle=drone.throttle,
+                    cpu_load=drone.cpu_load,
+                    home=drone.home_position
+                )
+
+                self.drone_info_pub.publish(need2know)
+                self.nice_info_pub.publish(nice2know)
+            except Exception as e:
+                print(e)
 
 
     def mission_request(self, srv):
