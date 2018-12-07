@@ -56,7 +56,7 @@ public Q_SLOTS:
 	void set_status(int status);
 
 	void set_battery(double SOC);
-	void set_time(QString time);
+	void set_time(long GPStime);
 	void set_uptime(double sec);
 
 	void set_RPY(double R, double P, double Y);

@@ -36,7 +36,7 @@ class State(Enum):
     PAUSED = 9
     LANDING = 10
     SET_SPEED = 11
-    REPOSITIOM = 12
+    REPOSITION = 12
 
 PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
 PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
@@ -56,6 +56,7 @@ class Drone(object):
         self.upload_failed = False
         self.cmd_try_again = False
         self.speed_ack = False
+        self.loiter = False
 
         self.pending_mission_gps = []
         self.active_waypoint_gps = GPS()
@@ -64,13 +65,15 @@ class Drone(object):
         self.active_mission_len = 0
         self.active_mission_idx = 0             # index for the complete plan
 
+        self.holding_waypoint = GPS()
+
         # the drone starts on the ground ( land means ground for now. Change later ) TODO
         self.gcs_status = DroneInfo.Land
 
         # from mission info
-        self.active_sub_waypoint_idx = 0
-        self.active_sub_mission_len = 0
-        self.active_sub_waypoint = mavlink_lora_mission_item_int()
+        # self.active_sub_waypoint_idx = 0
+        # self.active_sub_mission_len = 0
+        # self.active_sub_waypoint = mavlink_lora_mission_item_int()
 
         # from heartbeat status
         self.main_mode = ""
@@ -141,6 +144,27 @@ class Drone(object):
         # class that handles the missions manually while an upload is in progress
         self.manual_mission = manual_mission.ManualMission(target_sys=self.id, target_comp=0, reposition_handle=self.reposition)
 
+    def on_move(self, msg):
+        # reset manual mission
+        # reposition
+        # change state to reposition
+
+        self.manual_mission.stop_running()
+        self.manual_mission.reset()
+
+        request = GotoWaypointRequest(
+            relative_alt=True,
+            ground_speed=MISSION_SPEED,
+            latitude=msg.position.latitude,
+            longitude=msg.position.longitude,
+            altitude=msg.position.altitude
+        )
+
+        self.reposition(request)
+        
+        self.holding_waypoint = msg.position
+        self.fsm_state = State.REPOSITION
+
     def on_mission_ack(self, msg):
         if msg.result_text == "MAV_MISSION_ACCEPTED":
             self.upload_done = True
@@ -159,11 +183,13 @@ class Drone(object):
     def update_mission(self, path):
         self.pending_mission_gps = path
 
-    def start_mission(self):        
+    def start_mission(self, loiter=False):        
+        self.loiter = loiter
         self.active_mission_gps = self.pending_mission_gps
         self.active_mission_ml = self.gps_to_mavlink(self.pending_mission_gps)
         self.active_mission_len = len(self.active_mission_ml.waypoints)
 
+        self.manual_mission.stop_running()
         self.manual_mission.update_mission(self.active_mission_gps)
         self.new_mission = True
         
@@ -173,26 +199,6 @@ class Drone(object):
         sequence_number = 1
 
         ml_list = mavlink_lora_mission_list()
-
-        # # insert speed command as first item
-        # speed_cmd = mavlink_lora_mission_item_int(
-        #         param1=1,                       # speed type - ground speed
-        #         param2=MISSION_SPEED,           # speed - m/s
-        #         param3=-1,                      # throttle
-        #         param4=1,                       # absolute speed
-        #         x=0,
-        #         y=0,
-        #         z=0,
-        #         seq=0,
-        #         command=MAV_CMD_DO_CHANGE_SPEED,
-        #         current=1,
-        #         autocontinue=1,
-        #         target_system=self.id,
-        #         target_component=0,
-        #         frame=MAV_FRAME_MISSION
-        # )
-
-        # ml_list.waypoints.append(speed_cmd)
 
         for itr, waypoint in enumerate(gps_list):
             current = 0
@@ -218,12 +224,18 @@ class Drone(object):
             sequence_number += 1
             ml_list.waypoints.append(mission_item)
 
-        # set last waypoint to a landing command
-        ml_list.waypoints[-1].command = MAV_CMD_NAV_LAND
-        ml_list.waypoints[-1].param1 = 0        # abort alt
-        ml_list.waypoints[-1].param2 = 2        # precision land
-        ml_list.waypoints[-1].z = 0
-        ml_list.waypoints[-1].autocontinue = 0
+        if self.loiter:
+            # set last waypoint to a loiter command
+            ml_list.waypoints[-1].command = MAV_CMD_NAV_LOITER_UNLIM
+            ml_list.waypoints[-1].param2 = 0 
+            ml_list.waypoints[-1].autocontinue = 0
+        else:
+            # set last waypoint to a landing command
+            ml_list.waypoints[-1].command = MAV_CMD_NAV_LAND
+            ml_list.waypoints[-1].param1 = 0        # abort alt
+            ml_list.waypoints[-1].param2 = 2        # precision land
+            ml_list.waypoints[-1].z = 0
+            ml_list.waypoints[-1].autocontinue = 0
         ml_list.header.stamp = rospy.Time.now()
 
         return ml_list
@@ -238,7 +250,14 @@ class Drone(object):
     def run(self):
 
         if self.active_mission_len > 0:
-            self.active_waypoint_gps = self.active_mission_gps[self.active_mission_idx]
+            try:
+                if self.manual_mission.fsm_state == manual_mission.State.IDLE:
+                    self.active_waypoint_gps = self.active_mission_gps[self.active_mission_idx]
+                else:
+                    self.active_waypoint_gps = self.manual_mission.mission[self.manual_mission.mission_idx]
+            except IndexError as err:
+                rospy.logwarn(err)
+                rospy.logwarn("Can't assign active waypoint. Mission is not up to date yet.")
 
         if self.main_mode in PAUSE_LIST_MAIN or self.sub_mode in PAUSE_LIST_SUB:
             # print("Setting paused!")
@@ -324,6 +343,7 @@ class Drone(object):
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.SET_MISSION:
             if self.sub_mode == "Mission":
+                self.gcs_status = DroneInfo.Run
                 request = ChangeSpeedRequest(MISSION_SPEED)
                 response = self.change_speed(request)
                 if response.success:
@@ -355,9 +375,34 @@ class Drone(object):
             # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
                 self.fsm_state = State.REQUESTING_UPLOAD
 
-            if self.active_mission_idx == self.active_mission_len - 1 and self.relative_alt < 20:
-                self.fsm_state = State.LANDING
+            if self.active_mission_idx == self.active_mission_len - 1: 
+                if self.relative_alt < 20:
+                    self.fsm_state = State.LANDING
+                elif self.loiter and self.ground_speed < 0.5:
+                    self.gcs_status = DroneInfo.holding
 
+        # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.REPOSITION:
+
+            if self.new_mission:
+                self.manual_mission.start_running()
+                self.new_mission = False
+                # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
+                self.fsm_state = State.REQUESTING_UPLOAD
+
+            else:
+                if self.cmd_try_again:
+                    request = GotoWaypointRequest(
+                        relative_alt=True,
+                        ground_speed=MISSION_SPEED,
+                        latitude=self.holding_waypoint.position.latitude,
+                        longitude=self.holding_waypoint.position.longitude,
+                        altitude=self.holding_waypoint.position.altitude
+                    )
+
+                    response = self.reposition(request)
+                    if response.success:
+                        self.cmd_try_again = False
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.LANDING:
             if self.state == "Standby":

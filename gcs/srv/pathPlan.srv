@@ -1,6 +1,10 @@
 #input
+uint8 drone_id
 GPS start
 GPS end
+uint64 startTime
+bool useDNFZ
+float64 velocity
 
 ---
 # output

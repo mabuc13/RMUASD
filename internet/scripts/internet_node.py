@@ -78,16 +78,18 @@ class ROSserver(object):
         data.decode()
         data = str(data)
         data = data[2:len(data)-1]
-        with self.printLock:
-            print("[Internet node]: "+"Data recived: "+data)
-        self.pub.publish(data)
+        if not (self.valueOf(data,'succes')=='1' and self.valueOf(data,'name') =='server'):
+            with self.printLock:
+                print("[Internet node]: "+"Data recived: "+data) 
+            self.pub.publish(data)
     def valueOf(self,msg,value):
         text = msg.split(',')
         ret = 'NULL'
         for t in text:
-                if value in t:
-                  ret = t.split('=')
-                  ret = ret[1]
+            t.replace(" ","")
+            if value in t:
+                ret = t.split('=')
+                ret = ret[1]
         return ret
 
 node = ROSserver()

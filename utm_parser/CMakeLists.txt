@@ -12,7 +12,7 @@ find_package(catkin REQUIRED
   message_generation
   std_msgs
   gcs
-  
+  drone_decon
 )
 
 ## System dependencies are found with CMake's conventions
@@ -60,6 +60,7 @@ add_service_files(
    FILES
    get_snfz.srv
    post_drone_info.srv
+   get_dnfz.srv
 )
 
 ## Generate actions in the 'action' folder
