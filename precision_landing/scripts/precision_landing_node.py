@@ -30,7 +30,7 @@ LANDING_TARGET_REF = 0
 LANDING_TARGET_SIZE = 12
 
 # parameters
-update_interval = 30
+update_interval = 15
 
 # def rotation_matrix(sigma):
 #     """
@@ -138,6 +138,7 @@ class PrecisionLanding(object):
 
         self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y-y, self.landing_coords.z-z])
         self.landing_target = self.local_position_ned + self.relative_target
+
         self.unfiltered_msg = telemetry_landing_target(
             landing_target=Point(
                 self.landing_target[0],
@@ -145,8 +146,19 @@ class PrecisionLanding(object):
                 self.landing_target[2]
             )
         )
+
+        # activate landing target
+        if self.sub_mode == "Mission":
+            if self.mission_len > 0:
+                if self.mission_idx == self.mission_len - 1:
+                    # if self.new_pos_reading:
+                    #     self.new_pos_reading = False
+                    self.landing_target_pub.publish(self.unfiltered_msg)
+        else:
+            self.landing_target_pub.publish(self.unfiltered_msg)
+            pass
         
-        print(self.relative_target)
+        # print(self.relative_target)
 
 
     def on_mission_info(self, msg):
@@ -168,55 +180,8 @@ class PrecisionLanding(object):
         self.az = msg.az
 
     def on_heartbeat_status(self, msg):
-        # save the data when switching out of position mode
-        # if self.main_mode == RECORDING_FLIGHT_MODE and msg.main_mode != RECORDING_FLIGHT_MODE:
-        #     now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        #     savename1 = self.data_path + now + "_filtered_data.csv"
-        #     savename2 = self.data_path + now + "_local_data.csv"
-
-        #     # copy data array to prevent other callbacks from screwing things up
-        #     # temp = copy.copy(self.data)
-
-        #     # temp[:,0:2] -= rmsd.centroid(temp[:,0:2])
-        #     # temp[:,2:4] -= rmsd.centroid(temp[:,2:4])
-
-        #     # B = np.dot(temp[:,0:2], rotation_matrix(90))
-
-        #     # self.rotation_matrix = rmsd.kabsch(temp[:,0:2], B)
-        #     # rospy.logwarn(self.rotation_matrix)
-        #     np.savetxt(savename1, self.filtered_data, delimiter=',')
-        #     self.filtered_data = np.empty((0,2), float)
-        #     np.savetxt(savename2, self.local_data, delimiter=',')
-        #     self.local_data = np.empty((0,3), float)
-
         self.main_mode = msg.main_mode
         self.sub_mode = msg.sub_mode
-
-    def get_landing_target(self):
-        # try:
-        #     #data = self.bus.read_i2c_block_data(TAG_ADDRESS, LANDING_TARGET_REF, LANDING_TARGET_SIZE)
-        #     # Compensating for other old xyz coordinates
-        #     #(y,x,z) = struct.unpack('<fff',bytearray(data))
-        #     (y,x,z) = (self.arduinoX,self.arduinoY,self.arduinoZ)
-        #     #print(x,y,z)
-        #     # Make sure that no nans are accepted as values
-        #     if isnan(x) or isnan(y) or isnan(z):
-        #         return False
-
-        #     # if isnan(z):
-        #     #     z = 0.0
-
-        #     sensor_data = precland_sensor_data(x, y, z)
-
-        #     self.sensor_data_pub.publish(sensor_data)
-        #     self.local_position_landing = Point(x, y, -z)
-        #     self.relative_target = np.array([self.landing_coords.x-x, self.landing_coords.y -y, self.landing_coords.z-(-z)])
-        #     self.landing_target = self.local_position_ned + self.relative_target
-        #     return True
-        # except Exception as e:
-        #     rospy.logwarn(e)
-        #     return False
-        pass
 
     def update_kalman(self):
         if self.new_vel_reading:
@@ -271,15 +236,7 @@ class PrecisionLanding(object):
         else:
             msg = self.unfiltered_msg
 
-        # activate landing target
-        if self.sub_mode == "Mission":
-            if self.mission_len > 0:
-                if self.mission_idx == self.mission_len - 1:
-                    # if self.new_pos_reading:
-                    #     self.new_pos_reading = False
-                    self.landing_target_pub.publish(msg)
-        else:
-            self.landing_target_pub.publish(msg)
+
 
 
         # print(self.local_position_landing.x, self.local_position_landing.y)
