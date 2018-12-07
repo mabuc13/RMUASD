@@ -394,6 +394,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
                 if(aJob->terminateJobOnLand() && aJob->getStatus() == job::onhold){
+                    cout << "[Ground Control]: Terminate Job on land is set: " << aJob->terminateJobOnLand() << " - setting job to done" << endl;
                     aJob->setStatus(job::done);
                 }else if(aJob->getStatus() == job::ongoing){
                     if(aJob->getGoal() != aJob->getQuestHandler()){
@@ -511,54 +512,59 @@ void Collision_Handler(gcs::inCollision msg){
     NodeState(node_monitor::heartbeat::info,"DNFZ detected");
     for(size_t i = 0; i < activeJobs.size(); i++){
         drone *aDrone = activeJobs[i]->getDrone();
-        if(!activeJobs[i]->getDNFZinjection().stillValid&&
-            (activeJobs[i]->getDNFZinjection().dnfz_id != msg.dnfz_id ||
-            long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time > 30))
-        {
-            cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
-            cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
-            if(aDrone->getID() == msg.drone_id){
-                if(msg.zone_type == gcs::inCollision::normal_zone){
-                    cout << "[Ground Control]: Handeling Normal DNFZ zone" << endl;
-                    activeJobs[i]->DNFZinjection(msg);
-                    activeJobs[i]->getDNFZinjection().to = activeJobs[i]->getGoal()->getPosition(); 
-                    activeJobs[i]->saveOldPlan();
-                    vector<gcs::GPS> path = aDrone->getPath();
-                    vector<gcs::GPS> newPath(path.begin()+aDrone->getMissionIndex(),path.begin()+msg.plan_index1);
-                    newPath.push_back(msg.start);
-                    aDrone->setPath(newPath);
-                    uploadFlightPlan(aDrone,true);
-                    activeJobs[i]->setStatus(job::rePathPlan);
+        if(aDrone->getID() == msg.drone_id){
+            if(!activeJobs[i]->getDNFZinjection().stillValid&&
+                (activeJobs[i]->getDNFZinjection().dnfz_id != msg.dnfz_id ||
+                long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time > 30))
+            {
+                cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+                cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+                cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
+                if(GPSdistance(aDrone->getPosition(),activeJobs[i]->getGoal()->getPosition())>2){
+                    if(msg.zone_type == gcs::inCollision::normal_zone){
+                        cout << "[Ground Control]: Handeling Normal DNFZ zone" << endl;
+                        activeJobs[i]->DNFZinjection(msg);
+                        activeJobs[i]->getDNFZinjection().to = activeJobs[i]->getGoal()->getPosition(); 
+                        activeJobs[i]->saveOldPlan();
+                        vector<gcs::GPS> path = aDrone->getPath();
+                        vector<gcs::GPS> newPath(path.begin()+aDrone->getMissionIndex(),path.begin()+msg.plan_index1);
+                        newPath.push_back(msg.start);
+                        aDrone->setPath(newPath);
+                        uploadFlightPlan(aDrone,true);
+                        activeJobs[i]->setStatus(job::rePathPlan);
 
-                }else if(msg.zone_type == gcs::inCollision::inside_zone){
-                    cout << "[Ground Control]: Handeling inside DNFZ zone" << endl;
-                    activeJobs[i]->DNFZinjection(msg);
-                    activeJobs[i]->setStatus(job::rePathPlan);
-                    activeJobs[i]->saveOldPlan();
+                    }else if(msg.zone_type == gcs::inCollision::inside_zone){
+                        cout << "[Ground Control]: Handeling inside DNFZ zone" << endl;
+                        activeJobs[i]->DNFZinjection(msg);
+                        activeJobs[i]->setStatus(job::rePathPlan);
+                        activeJobs[i]->saveOldPlan();
 
-                    moveDroneTo(activeJobs[i]->getDrone(),msg.start);
+                        moveDroneTo(activeJobs[i]->getDrone(),msg.start);
 
-                }else if(msg.zone_type == gcs::inCollision::landing_zone){
-                    cout << "[Ground Control]: Handeling landing DNFZ zone" << endl;
-                    moveDroneTo(activeJobs[i]->getDrone(),activeJobs[i]->getDrone()->getPosition());
-                    activeJobs[i]->DNFZinjection(msg);
-                    activeJobs[i]->getDNFZinjection().start = activeJobs[i]->getDrone()->getPosition();
-                    activeJobs[i]->getDNFZinjection().to = findEmergencyLand(activeJobs[i]->getDrone())->getPosition();
-                    activeJobs[i]->terminateJobOnLand() = true;
-                    activeJobs[i]->setStatus(job::rePathPlan);
+                    }else if(msg.zone_type == gcs::inCollision::landing_zone){
+                        cout << "[Ground Control]: Handeling landing DNFZ zone" << endl;
+                        moveDroneTo(activeJobs[i]->getDrone(),activeJobs[i]->getDrone()->getPosition());
+                        activeJobs[i]->DNFZinjection(msg);
+                        activeJobs[i]->getDNFZinjection().start = activeJobs[i]->getDrone()->getPosition();
+                        activeJobs[i]->getDNFZinjection().to = findEmergencyLand(activeJobs[i]->getDrone())->getPosition();
+                        cout << "[Ground Control]: Emergency landing terminate Job on land" << endl;
+                        activeJobs[i]->terminateJobOnLand() = true;
+                        activeJobs[i]->setStatus(job::rePathPlan);
 
-                    //ROS_ERROR("[Ground Control]: can't handle obstructed ladingzone yet");
+                        //ROS_ERROR("[Ground Control]: can't handle obstructed ladingzone yet");
+                    }else{
+                        ROS_ERROR("[Ground Control]: Error unrecognized dnfz type");
+                    }
                 }else{
-                    ROS_ERROR("[Ground Control]: Error unrecognized dnfz type");
+                    cout << "[Ground Control]: Too colse to target DNFZ ignored" << endl;
                 }
+            }else{
+                NodeState(node_monitor::heartbeat::info,"DNFZ ignored");
+                cout << "[Ground Control]: DNFZ ignored" << endl;
+                cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
+                cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
+                cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
             }
-        }else{
-            NodeState(node_monitor::heartbeat::info,"DNFZ ignored");
-            cout << "[Ground Control]: DNFZ ignored" << endl;
-            cout << "[Ground Control]: DNFZ is valid : " << activeJobs[i]->getDNFZinjection().stillValid << endl;
-            cout << "[Ground Control]: DNFZ ID       : " << activeJobs[i]->getDNFZinjection().dnfz_id << " and " << msg.dnfz_id << endl;
-            cout << "[Ground Control]: DNFZ time diff: " <<  long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time << endl;
         }
     }
 }
@@ -883,8 +889,13 @@ int main(int argc, char** argv){
                     activeJobs[i]->setWaitInAirTo(-1);
                     activeJobs[i]->setStatus(activeJobs[i]->getNextStatus());
                     activeJobs[i]->setNextStatus(job::notAssigned);
+                }else if(activeJobs[i]->getStatus() != job::notAssigned){
+                    activeJobs[i]->setStatus(activeJobs[i]->getNextStatus());
+                    activeJobs[i]->setNextStatus(job::notAssigned);
                 }else{
-                    ROS_ERROR("[Ground Control]: No continuation to this waiting state implemented");
+                    ROS_ERROR("[Ground Control]: No continuation to this waiting state implemented, flying to goal");
+                    activeJobs[i]->getDNFZinjection().stillValid = false;
+                    activeJobs[i]->setStatus(job::rePathPlan);
                 }
                 //Check that we can move to next waypoint
             }else if(status == job::notAssigned){
