@@ -141,7 +141,40 @@ class utm_parser(object):
     fisk.longitude = 0
     fisk.latitude = 0
     fisk.altitude  = 9
+    
+     self.post_payload = {
+            'uav_id': 3012,
+            'uav_auth_key': '96ba4387cb37a2cbc5f05de53d5eab0c9583f1e102f8fe10ccab04c361234d6cd8cc47c0db4a46e569f03b61374745ebb433c84fac5f4bdfb8d89d2eb1d1ec0f',
+            'uav_op_status': 22,
+            'pos_cur_lat_dd': 0,
+            'pos_cur_lng_dd': 0,
+            'pos_cur_alt_m': 0,
+            'pos_cur_hdg_deg': 0,
+            'pos_cur_vel_mps': 0,
+            'pos_cur_gps_timestamp': 0,
+            'wp_next_lat_dd': 0,
+            'wp_next_lng_dd': 0,
+            'wp_next_alt_m': 0,
+            'wp_next_hdg_deg': 0,
+            'wp_next_vel_mps': 0,
+            'wp_next_eta_epoch': 0,
+            'uav_bat_soc': 0
+        }
     """
+    def dummy_drone_handler(self):
+        if self.path_flag:
+            if len(self.path) > 2:
+                dummy_payload = self.standard_post_payload
+                location = self.path[2]
+
+                dummy_payload["pos_cur_lat_dd"] = location.latitude#  location["latitude"]
+                dummy_payload["pos_cur_lng_dd"] = location.longitude#location["longitude"]
+                altitude = self.post_payload['pos_cur_alt_m']
+                dummy_payload["pos_cur_alt_dd"] = altitude
+                dummy_payload["uav_id"] = 912
+                dummy_payload["uav_auth_key"] = "0e11361b4d697c583bedc868dc54be10ab54f51c74976da0e22cfc94013a32289322343330f67f4bc31f05d7b9250a512239f6b98ae364e807b14229daf94da3"
+
+                self.push_drone_data(dummy_payload)
 
     def update_type(self, msg):
         self.standard_post_payload["uav_op_status"] = int(msg.value)
@@ -224,14 +257,14 @@ class utm_parser(object):
             data = self.load_json_file("on_top")
             data[0]['coordinates'] = str(self.post_payload['pos_cur_lat_dd']) + "," + str(self.post_payload['pos_cur_lng_dd']) + ',20'
             data[0]['valid_from_epoch'] = str(int(time.time()))
-            data[0]['valid_to_epoch'] = str(int(time.time() + 25))
+            data[0]['valid_to_epoch'] = str(int(time.time() + 30))
             message = json.dumps(data)
-            print "Added one dummy"
-            print data[0]['coordinates']
+            print "[UTM parser] Added one dummy, at time: ", time.time()
+            print message
             return message
         # dnfz = self.get_dynamic_nfz()
         # message = json.dumps(dnfz)
-        message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon","valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223","int_id": "20"}]'
+        message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon","valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223","int_id": "0"}]'
         return message
 
     def get_snfz_handler(self, req):
@@ -888,6 +921,8 @@ def main():
         par.heartbeat_pub.publish(par.heart_msg)
         if par.scenario == 0:
             par.check_dynamic_data()
+        if par.scenario == 5:
+            par.dummy_drone_handler()
         par.get_drone_data()
 
 if __name__ == "__main__":

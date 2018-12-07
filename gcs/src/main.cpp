@@ -215,7 +215,7 @@ is_safe_for_takeoff safeTakeOff(drone* my_drone){
 
     is_safe_for_takeoff response;
     if (worked){
-        if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << srv.response.is_save_to_take_off << endl;
+        if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << int(srv.response.is_save_to_take_off) << " time to clear " << int(srv.response.time_to_clear) << " current epoch time " <<  std::time(nullptr) << endl;
         response.takeoff_is_safe = srv.response.is_save_to_take_off;
         response.time_til_safe_take_off = srv.response.time_to_clear;
         if(heartbeat_msg.text == "SafeTakeOffCheack Failed"){
