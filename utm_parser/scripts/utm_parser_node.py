@@ -241,9 +241,9 @@ class utm_parser(object):
     def get_dnfz_handler(self, req):
 
         if self.scenario == 0:
-            message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon","valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223","int_id": "20"}]'
-            #message = '[{"valid_from_epoch": "1543839122", "name": "AArslev - Field 1", "geometry": "circle","valid_to_epoch": "1545649886", "coordinates": "10.464080,55.310930,3","int_id": "21"}]'
-        
+            dnfz = self.get_dynamic_nfz()
+            message = json.dumps(dnfz)
+
             return message
         if self.scenario == 1:
             data = self.load_json_file("blocking")
@@ -266,8 +266,10 @@ class utm_parser(object):
         # dnfz = self.get_dynamic_nfz()
         # message = json.dumps(dnfz)
         #
-        dnfz = self.get_dynamic_nfz()
-        message = json.dumps(dnfz)
+
+        message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon","valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223","int_id": "20"}]'
+        #message = '[{"valid_from_epoch": "1543839122", "name": "AArslev - Field 1", "geometry": "circle","valid_to_epoch": "1545649886", "coordinates": "10.464080,55.310930,3","int_id": "21"}]'
+    
         return message
 
     def get_snfz_handler(self, req):
