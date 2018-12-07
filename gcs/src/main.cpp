@@ -85,12 +85,12 @@ node_monitor::nodeOk utm_parser;
 
 
 // ################################ Misulanius ###########################################
-ostream& operator<<(ostream& os, const gcs::GPS& pos)  
-{  
+ostream& operator<<(ostream& os, const gcs::GPS& pos)
+{
     std::cout << std::fixed;
     std::cout << std::setprecision(6);
-    os << "GPS(" << pos.latitude << ", " << pos.longitude << "), Alt(" << pos.altitude << ")";  
-    return os;  
+    os << "GPS(" << pos.latitude << ", " << pos.longitude << "), Alt(" << pos.altitude << ")";
+    return os;
 }
 gcs::GPS& operator<< (gcs::GPS& pos, const drone_decon::GPS& newPos){
     pos.altitude = newPos.altitude;
@@ -180,7 +180,7 @@ void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
             theJob->setStatus(job::waitInAir);
             theJob->setNextStatus(job::resumeFlight);
         }
-        
+
     }else{
         ROS_ERROR("[Ground Control]: can't reposition a drone without a job");
     }
@@ -188,7 +188,7 @@ void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
 
 void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     gcs::DronePath msg;
-    
+
     msg.DroneID = theDrone->getID();
     msg.loiterAtEnd = loiterAtEnd;
     if(DEBUG){
@@ -222,11 +222,7 @@ is_safe_for_takeoff safeTakeOff(drone* my_drone){
 
     is_safe_for_takeoff response;
     if (worked){
-<<<<<<< HEAD
         if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << int(srv.response.is_save_to_take_off) << " time to clear " << int(srv.response.time_to_clear) << " current epoch time " <<  std::time(nullptr) << endl;
-=======
-        if(DEBUG) cout << "[Ground Control]: " << "SafeTake off is " << int(srv.response.is_save_to_take_off) << endl;
->>>>>>> ec9a23cedcc6a0a1d6967c09fa114ac2a3e9ba75
         response.takeoff_is_safe = srv.response.is_save_to_take_off;
         response.time_til_safe_take_off = srv.response.time_to_clear;
     }else{
@@ -261,7 +257,7 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     srv.request.start = start;
     srv.request.end = end;
     srv.request.drone_id = theDrone->getID();
-    
+
     if(theDrone->getJob() != NULL){
         if(theDrone->getJob()->getStatus() == job::wait4pathplan){
             srv.request.useDNFZ = false;
@@ -279,7 +275,7 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     NodeState(node_monitor::heartbeat::nothing,"",0.2);
     GPSdistance(start,end);
     if(DEBUG) cout << "######################################" << endl << "Calculate Path Plan" << endl << "From: " << start <<endl <<"To: " << end << endl << "#####################################" <<endl;
-  
+
     worked = pathPlanClient.call(srv);
     if (worked){
     // cout << "[Ground Control]: " << "PathPlanDone" << endl;
@@ -287,7 +283,7 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
         ROS_ERROR("[Ground Control]: PathPlanFailed no contact");
         NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding");
     }
-    
+
     if(srv.response.path.size() < 2 || !worked){
         ROS_ERROR("[Ground Control]: Unacceptable Path");
         throw string("Unacceptable Path");
@@ -313,7 +309,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
 
     if(isANewDrone){ // ############## Register if new drone #####################
         Drones.push_back(new drone(msg.drone_id,msg.position));
-        
+
         //TODO automatic registering of drone ID
         Own2UtmId[1]=3012;
         Utm2OwnId[3012]=1;
@@ -321,7 +317,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         reg.drone_id = Own2UtmId[msg.drone_id];
         RegisterDrone_pub.publish(reg);
         Drones.back()->getGroundHeight() = msg.absolute_alt-msg.relative_alt;
-        Drones.back()->getFlightHeight() = 32; 
+        Drones.back()->getFlightHeight() = 32;
 
         cout << "[Ground Control]: " << "Drone Registered: " << Drones.back()->getID() << "at : " << msg.position << endl;
     }else{ // ################### Update Drone state #############################
@@ -427,7 +423,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
                             if(goalDock == NULL){
                                 feedback+= ",return=failed,error=Lab not found";
                                 break;
-                            }else if(GPSdistance(Drones[i]->getPosition(),goalDock->getPosition())>500){ 
+                            }else if(GPSdistance(Drones[i]->getPosition(),goalDock->getPosition())>500){
                                 NodeState(node_monitor::heartbeat::warning,"Goal is too far away from drone");
                                 webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=goal too far away");
                                 break;
@@ -479,7 +475,7 @@ void Collision_Handler(gcs::inCollision msg){
                     activeJobs[i]->DNFZinjection(msg);
                     activeJobs[i]->setStatus(job::rePathPlan);
                     activeJobs[i]->saveOldPlan();
-                    
+
                     moveDroneTo(activeJobs[i]->getDrone(),msg.start);
 
                 }else if(msg.zone_type == gcs::inCollision::landing_zone){
@@ -527,7 +523,7 @@ void deconflict_Handler(drone_decon::RedirectDrone msg){
             }else{
                 if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()+1])>5 &&
                     std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()+1].altitude)>3)
-                {   
+                {
                     changed = true;
                     Drones[i]->getPath().insert(Drones[i]->getPath().begin()+Drones[i]->getMissionIndex()+1,pos);
                     for(size_t i2 = Drones[i]->getMissionIndex()+2; i2< Drones[i]->getPath().size(); i2++){
@@ -540,7 +536,7 @@ void deconflict_Handler(drone_decon::RedirectDrone msg){
                     Drones[i]->getJob()->setStatus(job::resumeFlight);
                 }else{
                     ROS_ERROR("[Ground Control]: Drone can't handle drone deconflic if not in ongoing state");
-                }     
+                }
             }
         }
     }
@@ -565,9 +561,9 @@ void initialize(void){
     DroneStatus_sub = nh->subscribe("/drone_handler/DroneInfo",100,DroneStatus_Handler);
     nodeMonitor_sub = nh->subscribe("/node_monitor/node_list",10,nodeMonitor_Handler);
     drone_decon_sub = nh->subscribe("drone_decon/redirect",10,deconflict_Handler);
-    
-    
-    
+
+
+
 
     ifstream myFile(ros::package::getPath("gcs")+"/scripts/Settings/DockingStationsList.txt");
     if(myFile.is_open()){
@@ -593,7 +589,7 @@ void initialize(void){
     safeTakeOffClient = nh->serviceClient<gcs::safeTakeOff>("/collision_detector/safeTakeOff");
 
     sleep(2);
-    
+
     internet::getIp srv;
     srv.request.username = "waarbubble@gmail.com";
     cout << "[Ground Control]: webServer Username: " << srv.request.username <<endl;
@@ -653,7 +649,7 @@ int main(int argc, char** argv){
                     if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())<15){
                         NodeState(node_monitor::heartbeat::warning,"Goal is right next to drone, no drone will be sent");
                         webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=you already have a drone");
-                    }else if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())>500){ 
+                    }else if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())>500){
                         NodeState(node_monitor::heartbeat::warning,"Goal is too far away from drone");
                         webMsg(Drones[i]->getJob()->getQuestHandler(),"request=failed,error=goal too far away");
                     }else{
@@ -687,12 +683,12 @@ int main(int argc, char** argv){
                 }
 
             }else if(status == job::preFlightCheack){ // ### Pre FLight Cheacks ##################
-                
+
                 if(DO_PREFLIGHT_CHECK){
                     bool allOkay = true;
 
                     // ######### Cheack that UTM is running ################
-                    if( !(utm_parser.ok == node_monitor::nodeOk::fine && 
+                    if( !(utm_parser.ok == node_monitor::nodeOk::fine &&
                         (utm_parser.nodeState == node_monitor::heartbeat::info ||
                         utm_parser.nodeState == node_monitor::heartbeat::nothing)))
                     {
@@ -719,7 +715,7 @@ int main(int argc, char** argv){
                     uploadFlightPlan(activeJobs[i]->getDrone());
                     activeJobs[i]->setStatus(job::ready4takeOff);
                     webMsg(activeJobs[i]->getQuestHandler(),"request=ready4takeoff");
-                } 
+                }
                 if(!activeJobs[i]->getGoal()->isLab()){
                     gcs::DroneSingleValue msg;
                     msg.value = 22;
@@ -732,9 +728,9 @@ int main(int argc, char** argv){
                     msg.text = "Flying back with blood";
                     msg.drone_id = activeJobs[i]->getDrone()->getID();
                     Transport_pub.publish(msg);
-                }   
-            
-            
+                }
+
+
             }else if(status == job::done){  // ############# Delete Finnished Jobs ######################
                 delete activeJobs[i];
                 webMsg(activeJobs[i]->getQuestHandler(),"return=done");
@@ -776,7 +772,7 @@ int main(int argc, char** argv){
 
                             activeJobs[i]->getDrone()->setPath(newPath);
                             uploadFlightPlan(activeJobs[i]->getDrone());
-                            activeJobs[i]->setStatus(job::ready4flightContinuation); 
+                            activeJobs[i]->setStatus(job::ready4flightContinuation);
 
                         }else{
                             activeJobs[i]->setStatus(job::waitInAir);
@@ -789,7 +785,7 @@ int main(int argc, char** argv){
                         std::vector<gcs::GPS> path = pathPlan(activeJobs[i]->getDrone()->getPosition(), activeJobs[i]->getGoal()->getPosition(),activeJobs[i]->getDrone());
                         activeJobs[i]->getDrone()->setPath(path);
                         uploadFlightPlan(activeJobs[i]->getDrone());
-                        activeJobs[i]->setStatus(job::ready4flightContinuation);         
+                        activeJobs[i]->setStatus(job::ready4flightContinuation);
                     }
                 }catch( string msg){
                     NodeState(node_monitor::heartbeat::critical_error,msg);
@@ -813,7 +809,7 @@ int main(int argc, char** argv){
                 activeJobs[i]->setStatus(job::ready4flightContinuation);
             }
         }
-      
+
 
 
         // #################### Job state pub ########################
