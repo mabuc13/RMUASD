@@ -36,15 +36,17 @@ struct oldPlan{
 
 class dock{
 public:
-  dock(string name,double latitude, double longitude, double altitude, bool isLab);
+  dock(string name,double latitude, double longitude, double altitude, bool isLab, bool isEM=false);
   gcs::GPS getPosition(void);
   string getName(void);
   bool isLab(void);
+  bool isEM(void);
 
 private:
   gcs::GPS position;
   string name;
   bool isALab;
+  bool isAEM;
 
 };
 
@@ -69,7 +71,7 @@ public:
   void setWaitInAirTo(long waitTo);
   void DNFZinjection(gcs::inCollision msg);
   void DNFZinjection(DNFZinject msg);
-
+  bool& terminateJobOnLand();
   void saveOldPlan();
 
   static const uint8 ready4flightContinuation = 12;
@@ -97,6 +99,8 @@ private:
   DNFZinject injection;
   oldPlan TheOldPlan;
   long waitInAirTill;
+
+  bool terminateOnLand;
 
 };
 

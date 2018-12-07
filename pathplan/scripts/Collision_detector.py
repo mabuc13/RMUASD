@@ -62,7 +62,7 @@ class CollisionDetector:
         rospy.wait_for_service('/utm_parser/get_dnfz')
         self.get_dnfz_handle = rospy.ServiceProxy('/utm_parser/get_dnfz', get_dnfz)
         dnfz_string = self.get_dnfz_handle()
-        print dnfz_string.dnfz
+        #print dnfz_string.dnfz
         obj = String
         obj.data = dnfz_string.dnfz
         self.on_dynamic_no_fly_zones(obj)

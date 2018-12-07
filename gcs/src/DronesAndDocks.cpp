@@ -5,8 +5,8 @@
 #include <cmath> 
 
 //################## Dock ###################
-dock::dock(string name,double latitude, double longitude, double altitude, bool isLab):
-  name(name),isALab(isLab){
+dock::dock(string name,double latitude, double longitude, double altitude, bool isLab, bool isEM):
+  name(name),isALab(isLab),isAEM(isEM){
   position.longitude = longitude;
   position.latitude = latitude;
   position.altitude = altitude;
@@ -19,6 +19,9 @@ string dock::getName(void){
 }
 bool dock::isLab(void){
   return isALab;
+}
+bool dock::isEM(void){
+    return this->isAEM;
 }
 
 
@@ -123,6 +126,9 @@ void job::saveOldPlan(){
 
 oldPlan job::getOldPlan(){
     return this->TheOldPlan;
+}
+bool& job::terminateJobOnLand(){
+    return this->terminateOnLand;
 }
 
 //################### Drone ####################

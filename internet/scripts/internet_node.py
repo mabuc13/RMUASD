@@ -15,6 +15,10 @@ def signal_handler(signal,somthing):
     node.s.close()
     sys.exit(0)
 
+
+
+heart_msg = None
+
 class ROSserver(object):
     def __init__(self):
         rospy.init_node('InternetNode')
@@ -40,7 +44,7 @@ class ROSserver(object):
                 print("[Internet node]: "+str(e))
     def toInternet(self,data):     # Read msg heading for the internet and check if New IP address is specifyd
         with self.printLock:
-            # print("[Internet node]: "+data.data)
+            #print("[Internet node]: "+data.data)
             pass
         data=str(data.data)
         data.replace(" ","")
@@ -78,10 +82,19 @@ class ROSserver(object):
         data.decode()
         data = str(data)
         data = data[2:len(data)-1]
-        if not (self.valueOf(data,'succes')=='1' and self.valueOf(data,'name') =='server'):
+        global heart_msg
+        if (not (self.valueOf(data,'name') =='Server')) and len(data) > 5:
             with self.printLock:
                 print("[Internet node]: "+"Data recived: "+data) 
             self.pub.publish(data)
+        elif self.valueOf(data,'name') =='Server' and not heart_msg == None:
+            if self.valueOf(data,'succes')=='1':
+                heart_msg.severity = heartbeat.nothing
+                heart_msg.text = ""
+            elif self.valueOf(data,'succes')=='0':
+                heart_msg.severity = heartbeat.warning
+                heart_msg.text = self.valueOf(data,'msg')
+
     def valueOf(self,msg,value):
         text = msg.split(',')
         ret = 'NULL'
@@ -126,11 +139,12 @@ def reciver(void):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
+    heart_msg = heartbeat()
     start_new_thread(sender,(1,))
     start_new_thread(reciver,(1,))
 
     heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
-    heart_msg = heartbeat()
+    
     heart_msg.header.frame_id = 'internet'
     heart_msg.rate = 1
 
