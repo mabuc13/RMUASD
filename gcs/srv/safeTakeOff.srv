@@ -4,4 +4,4 @@ GPS takeoff_position
 ---
 # output
 bool is_save_to_take_off
-uint64 time_to_clear
+int64 time_to_clear
