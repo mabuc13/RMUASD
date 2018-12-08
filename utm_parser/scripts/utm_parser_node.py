@@ -117,6 +117,7 @@ class utm_parser(object):
         #ROS STUFF
         self.get_snfz_service = rospy.Service("/utm_parser/get_snfz", get_snfz, self.get_snfz_handler, buff_size=10)
         self.get_dnfz_service = rospy.Service("/utm_parser/get_dnfz", get_dnfz, self.get_dnfz_handler, buff_size=10)
+        self.is_coord_free_service = rospy.Service("/utm_parser/is_coord_free", is_coord_free, self.check_coord_service, buff_size=10 )
         #self.post_drone_service = rospy.Service("/utm_parser/post_drone_info", post_drone_info, self.post_drone_info_handler, buff_size=10) ##SUBSCRIBE
         self.drone_info_sub = rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.post_drone_info_handler)
         self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
@@ -131,6 +132,8 @@ class utm_parser(object):
 
         self.scenario = rospy.get_param("~scenario")
         self.posted = False
+        self.last_posted_dnfz = 0
+
     def shutdownHandler(self):
         # shutdown services
         print("Shutting down")
@@ -160,7 +163,22 @@ class utm_parser(object):
             'wp_next_eta_epoch': 0,
             'uav_bat_soc': 0
         }
+        
+        
     """
+
+    def check_coord_service(self, req):
+        if self.last_posted_dnfz != 0:
+            for zone in self.last_posted_dnfz:
+                if zone["geometry"] == polygon:
+                    geo = zone["coordinates"]
+                    for data in geo:
+                        print '[UTM] data in geo: ', data
+
+                else:
+                    print '[UTM] data in circular object: ', data
+
+
     def dummy_drone_handler(self):
         if self.path_flag:
             if len(self.path) > 2:
@@ -179,6 +197,9 @@ class utm_parser(object):
     def update_type(self, msg):
         self.standard_post_payload["uav_op_status"] = int(msg.value)
         self.post_payload["uav_op_status"] = int(msg.value)
+
+
+
 
     def save_json_file(self):
         # valid from epoch 1543839122
@@ -242,16 +263,19 @@ class utm_parser(object):
 
         if self.scenario == 0:
             dnfz = self.get_dynamic_nfz()
+            self.last_posted_dnfz = dnfz
             message = json.dumps(dnfz)
             return message
         if self.scenario == 1:
             data = self.load_json_file("blocking")
             message = json.dumps(data)
             #print "Loaded dnfz", message
+            self.last_posted_dnfz = data
             return message
         if self.scenario == 3:
             data = self.load_json_file("aarslev")
             message = json.dumps(data)
+            self.last_posted_dnfz = data
             return message
         if self.scenario == 4:
             data = self.load_json_file("on_top")
@@ -259,19 +283,16 @@ class utm_parser(object):
             data[0]['valid_from_epoch'] = str(int(time.time()))
             data[0]['valid_to_epoch'] = str(int(time.time() + 30))
             message = json.dumps(data)
+            self.last_posted_dnfz = data
             print "[UTM parser] Added one dummy, at time: ", time.time()
             print message
-            return message
-        # dnfz = self.get_dynamic_nfz()
-        # message = json.dumps(dnfz)
-<<<<<<< HEAD
-        message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon","valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223","int_id": "0"}]'
-=======
-        #message = '[{"valid_from_epoch": "1543839122", "name": "Modelflyveplads - Field 4", "geometry": "polygon","valid_to_epoch": "1545649886", "coordinates": "10.41534,55.47223 10.41546,55.47155 10.41609,55.47173 10.41601,55.47225 10.41560,55.47241 10.41534,55.47223","int_id": "20"}]'
-        message = '[{"valid_from_epoch": "1543839122", "name": "AArslev - Field 1", "geometry": "circle","valid_to_epoch": "1545649886", "coordinates": "10.46426,55.31043,10","int_id": "21"}]'
-        
->>>>>>> ec9a23cedcc6a0a1d6967c09fa114ac2a3e9ba75
+            return message  
+
+        dnfz = self.get_dynamic_nfz()
+        self.last_posted_dnfz = dnfz
+        message = json.dumps(dnfz)
         return message
+
 
     def get_snfz_handler(self, req):
         if self.debug:
@@ -895,6 +916,7 @@ class utm_parser(object):
                 print colored("Current dnfz: ", 'blue'), current_dnfz
                 print "Latest dnfz: ", self.latest_dynamic_data
             message = json.dumps(current_dnfz)
+            self.last_posted_dnfz = message
             self.dnfz_pub.publish(message)
             self.latest_dynamic_data = current_dnfz
             #self.dnfz_pub.publish(cur_string)
