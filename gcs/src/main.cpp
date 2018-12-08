@@ -393,8 +393,8 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         }else if(msg.status == msg.Land){
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
-                if(aJob->terminateJobOnLand() && aJob->getStatus() == job::onhold){
-                    cout << "[Ground Control]: Terminate Job on land is set: " << aJob->terminateJobOnLand() << " - setting job to done" << endl;
+                if(aJob->getTerminateJobOnLand() && aJob->getStatus() == job::onhold){
+                    cout << "[Ground Control]: Terminate Job on land is set: " << int(aJob->getTerminateJobOnLand()) << " - setting job to done from: " << int(aJob->getStatus()) << endl;
                     aJob->setStatus(job::done);
                 }else if(aJob->getStatus() == job::ongoing){
                     if(aJob->getGoal() != aJob->getQuestHandler()){

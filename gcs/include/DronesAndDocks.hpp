@@ -72,6 +72,7 @@ public:
   void DNFZinjection(gcs::inCollision msg);
   void DNFZinjection(DNFZinject msg);
   bool& terminateJobOnLand();
+  bool getTerminateJobOnLand();
   void saveOldPlan();
 
   static const uint8 ready4flightContinuation = 12;

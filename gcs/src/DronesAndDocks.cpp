@@ -130,7 +130,9 @@ oldPlan job::getOldPlan(){
 bool& job::terminateJobOnLand(){
     return this->terminateOnLand;
 }
-
+bool job::getTerminateJobOnLand(){
+    return this->terminateOnLand;
+}
 //################### Drone ####################
 drone::drone(ID_t ID, gcs::GPS position):
     ID(ID),

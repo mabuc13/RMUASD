@@ -157,7 +157,7 @@ def handle_ETA(req):
     return getEtaResponse(etaT)
 
 def handle_distanceCalculations(req):
-    print("[Path planner]: Calculating distance")
+    #print("[Path planner]: Calculating distance")
     obj = eta()
     distance = obj.distance_between_positions(req.point1,req.point2)
     return gps2distanceResponse(distance)

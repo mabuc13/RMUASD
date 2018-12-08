@@ -227,7 +227,7 @@ class AStar:
                 while current in self.came_from:
                     coord = Coordinate(easting=current[0], northing=current[1])
                     data.append(coord)
-                    print(current)
+                    #print(current)
                     current = self.came_from[current]
                 return data
 
