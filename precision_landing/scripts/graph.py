@@ -38,6 +38,8 @@ class Graph(object):
 
         rospack = rospkg.RosPack()
 
+        self.protection = threading.Lock()
+
 
         rospy.Subscriber("/landing/arduino_pos", precland_sensor_data, self.on_arduino_pos)
         rospy.Subscriber("/telemetry/set_landing_target", telemetry_landing_target, self.on_set_landing_target)
@@ -50,14 +52,14 @@ class Graph(object):
         self.set_landing_target_x = np.array([])
         self.set_landing_target_y = np.array([])
 
-        self.protection = threading.Lock()
+        
 
 
         plt.show(block=False)
 
 
     def on_arduino_pos(self, msg):
-        print(msg)
+        #print(msg)
         (x,y,z) = (msg.y,msg.x,-msg.z)
 
         with self.protection:
@@ -71,17 +73,25 @@ class Graph(object):
 
 
     def on_set_landing_target(self, msg):
-        #(x,y,z) = (msg.x,msg.y,msg.z)
+        (x,y,z) = (msg.landing_target.x,msg.landing_target.y,msg.landing_target.z)
 
         #self.set_landing_target_x.append(x)
         #self.set_landing_target_y.append(y)
+
+        with self.protection:
+            self.set_landing_target_x = np.concatenate([self.set_landing_target_x, [x]])
+            self.set_landing_target_y = np.concatenate([self.set_landing_target_y, [y]])
+
+            if len(self.set_landing_target_x) > 10:
+                self.set_landing_target_x = np.delete(self.set_landing_target_x, 0)
+                self.set_landing_target_y = np.delete(self.set_landing_target_y, 0)
+
 
         pass
 
 
 
     def run(self):
-        print("Hello")
         plt.clf()
         # update coordinate axis, make it sliding:
         try:
@@ -103,6 +113,8 @@ class Graph(object):
         with self.protection:
             colors = cm.rainbow(np.linspace(0, 1, len(self.arduino_pos_x)))
             plt.scatter(self.arduino_pos_x,self.arduino_pos_y, color=colors, marker="x")
+            #plt.scatter(self.set_landing_target_x,self.set_landing_target_y, color="r", marker="o")
+
 
 
         # Plot the Triangle:
