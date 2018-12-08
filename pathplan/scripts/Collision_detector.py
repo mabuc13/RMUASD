@@ -210,7 +210,7 @@ class CollisionDetector:
                                 previous_time = future_time
                             except Exception as e:
                                 print e
-                                print "this place"
+                                print "calc_future_position didn't return anything"
                             
 
     def make_polygon(self, json_obj):
@@ -228,6 +228,7 @@ class CollisionDetector:
         # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
         dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
         self.dynamic_no_flight_zones[json_obj["int_id"]]["polygon"] = dnfz_polygon
+        return dnfz_polygon
 
     def calc_dist_between_mission_points(self, path, drone_id):
         '''
@@ -272,6 +273,7 @@ class CollisionDetector:
                     new_northing = (resulting_dist * (p2.northing - p1.northing) / self.dist_between_mission_points[drone_id][i]) + p1.northing
                     return Coordinate(northing=new_northing, easting=new_easting), i
             #need return here
+            
 
     def quick_find_position_outside_dnfz(self, drone_id, dnfz_id):
         ''' If a DNFZ pops up on top of the drones position, then the drone should get out as fast as possible. '''
@@ -319,7 +321,15 @@ class CollisionDetector:
                         #return False, int_id
                         return True, int_id
             elif dnfz["geometry"] == "polygon":
-                dist = dnfz["polygon"].distance(geometry.Point(p.easting, p.northing))
+                dist = 1e9
+                try:
+                    dist = dnfz["polygon"].distance(geometry.Point(p.easting, p.northing))
+                except Exception as e:
+                    print(e)
+                    print("Polygon key error")
+                    poly = self.make_polygon(dnfz)
+                    dist = poly.distance(geometry.Point(p.easting, p.northing))
+
                 if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < t < (int(dnfz["valid_to_epoch"]) + self.safety_extra_time):
                     if dist <= self.safety_dist_to_dnfz:
                         #return False, int_id

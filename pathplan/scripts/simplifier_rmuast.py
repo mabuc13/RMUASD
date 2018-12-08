@@ -92,11 +92,9 @@ class FlightPlanner(object):
 
     def getSimpleCoordinates(self):
 
-        print("converting")
-        print(self.simplified)
         # coordinates = [xy for xy in self.simplified[:,0:2]]
         coordinates = [Coordinate(easting=xy[0],northing=xy[1]) for xy in self.simplified[:,0:2]]
-        print(coordinates)
+        # print(coordinates)
         # print(type(coordinates))
         # print(len(coordinates))
         return coordinates

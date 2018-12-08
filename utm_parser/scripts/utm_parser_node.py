@@ -51,6 +51,8 @@ class dict_init(dict):
 
 class utm_parser(object):
     def __init__(self):
+        rospy.sleep(2)
+        self.scenario = rospy.get_param("~scenario")
         self.payload = {
             ''
         }
@@ -129,7 +131,6 @@ class utm_parser(object):
 
         self.recent_drone = dict_init()
 
-        self.scenario = rospy.get_param("~scenario")
         self.posted = False
     def shutdownHandler(self):
         # shutdown services
@@ -934,8 +935,8 @@ def main():
         par.heartbeat_pub.publish(par.heart_msg)
         if par.scenario == 0:
             par.check_dynamic_data()
-        if par.scenario == 5:
-            par.dummy_drone_handler()
+        # if par.scenario == 5:
+        #     par.dummy_drone_handler()
         par.get_drone_data()
 
 if __name__ == "__main__":
