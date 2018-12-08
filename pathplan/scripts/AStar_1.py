@@ -92,6 +92,7 @@ class AStar:
 
         string_msg = str(msg.data)
 
+        print(string_msg)
 
         try:
             all_json_objs = json.loads(string_msg)
@@ -104,6 +105,9 @@ class AStar:
                         self.make_polygon(json_obj)
         except ValueError as Err:
             print("Collision Detector: Couldn't convert string from UTM server to json..", Err)
+        except Exception as e:
+            print(e)
+            print("Mystery error from a star")
 
     def make_polygon(self, json_obj):
         coords = json_obj["coordinates"]
@@ -277,7 +281,7 @@ class AStar:
                 dist = self.heuristic(neighbor, (idunno.easting, idunno.northing))
                 if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < neighbor[2] < (
                         int(dnfz["valid_to_epoch"]) + self.safety_extra_time):
-                    if dist <= (coord[2] + self.safety_dist_to_dnfz):
+                    if dist <= (float(coord[2]) + self.safety_dist_to_dnfz):
                         return True
             elif dnfz["geometry"] == "polygon":
                 dist = dnfz["polygon"].distance(geometry.Point(neighbor[0], neighbor[1]))
