@@ -210,7 +210,7 @@ class CollisionDetector:
                                 previous_time = future_time
                             except Exception as e:
                                 print e
-                                print "this place"
+                                print "calc_future_position didn't return anything"
                             
 
     def make_polygon(self, json_obj):
@@ -272,6 +272,7 @@ class CollisionDetector:
                     new_northing = (resulting_dist * (p2.northing - p1.northing) / self.dist_between_mission_points[drone_id][i]) + p1.northing
                     return Coordinate(northing=new_northing, easting=new_easting), i
             #need return here
+            
 
     def quick_find_position_outside_dnfz(self, drone_id, dnfz_id):
         ''' If a DNFZ pops up on top of the drones position, then the drone should get out as fast as possible. '''
