@@ -51,6 +51,12 @@ using namespace std;
 
 #define DEFAULT_FLIGHT_HEIGHT 32
 
+
+#define UTM_EMERGENCY 0
+#define UTM_MEDICAL 3
+#define UTM_TRANSPORTER 21
+#define UTM_GROUNDED 22
+
 // ############################ Clients, Subscribers and Publishers #######################
 ros::Publisher RouteRequest_pub;
 ros::Publisher Reposition_pub;
@@ -89,6 +95,7 @@ std::map<ID_t,ID_t> Utm2OwnId;
 
 node_monitor::nodeOk utm_parser;
 
+const string header = "[Ground Control]: ";
 
 // ################################ Misulanius ###########################################
 ostream& operator<<(ostream& os, const gcs::GPS& pos)
@@ -111,6 +118,14 @@ struct is_safe_for_takeoff{
 };
 
 // ############################ Helper functions ##################################
+void UTMPriority(int priority, drone* aDrone, string description = ""){
+    gcs::DroneSingleValue msg;
+    msg.value = priority;
+    msg.text = description;
+    msg.drone_id = aDrone->getID();
+    Transport_pub.publish(msg);
+}
+
 bool appendDockingStation(string textIn){
     CSVmsg text(textIn);
     if(text.hasValue("name") &&
@@ -194,14 +209,15 @@ void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     msg.loiterAtEnd = loiterAtEnd;
     if(DEBUG){
         while(theDrone->getPath().size()> 9){
-            theDrone->getPath().erase(theDrone->getPath().end()-2);
+            theDrone->getPath().pop_back();
+            msg.loiterAtEnd = true;
         }
+        
     }
-    if(std::abs(theDrone->getFlightHeight()-DEFAULT_FLIGHT_HEIGHT)>0.1){
+    if(std::abs(theDrone->getFlightHeight()-theDrone->getPath().back().altitude)>0.1){
         for(size_t i = 0; i < theDrone->getPath().size();i++){
             theDrone->getPath()[i].altitude=theDrone->getFlightHeight();
         }
-        theDrone->getFlightHeight() = DEFAULT_FLIGHT_HEIGHT;
     }
     if(DEBUG) cout << "[Ground Control]: Posting PathPlan - length:" << theDrone->getPath().size() << endl;
     msg.Path = theDrone->getPath();
@@ -424,7 +440,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
                 if(aJob->getStatus() == job::ongoing){
                     aJob->setStatus(job::waitInAir);
                 }else{
-                    cout << "[Ground Control]: Drone status = hold, job status is: " << aJob->getStatus(); 
+                    cout << "[Ground Control]: Drone status = hold, job status is: " << int(aJob->getStatus()); 
                 }
             }else{
                 ROS_ERROR("[Ground Control]: Drone in Hold without a JOB");
@@ -525,7 +541,7 @@ void Collision_Handler(gcs::inCollision msg){
     NodeState(node_monitor::heartbeat::info,"DNFZ detected");
     for(size_t i = 0; i < activeJobs.size(); i++){
         drone *aDrone = activeJobs[i]->getDrone();
-        if(aDrone->getID() == msg.drone_id){
+        if(aDrone->getID() == msg.drone_id && activeJobs[i]->getStatus()!= job::onhold){
             if(!activeJobs[i]->getDNFZinjection().stillValid&&
                 (activeJobs[i]->getDNFZinjection().dnfz_id != msg.dnfz_id ||
                 long(std::time(nullptr))-activeJobs[i]->getDNFZinjection().time > 30))
@@ -598,6 +614,7 @@ void deconflict_Handler(drone_decon::RedirectDrone msg){
                 if(pos.altitude < 5) pos.altitude = 5;
                 bool changed = false;
                 if(Drones[i]->getPath().size() > Drones[i]->getMissionIndex()+1){
+                    // ###################### NORMAL DRONE_DECON ######################################
                     if(msg.insertBeforeNextWayPoint){
                         if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()])>5 &&
                             std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()].altitude)>1)
@@ -619,6 +636,10 @@ void deconflict_Handler(drone_decon::RedirectDrone msg){
                             }
                         }
                     }
+
+
+
+                    // ########################## IREGULAR DROEN_DECON ####################################
                 }else{
                     ROS_WARN("[Ground Control]: Somthing wrong with pathPlan or mission INDEX in deconflict handler");
                     if(std::abs(pos.altitude-Drones[i]->getPosition().altitude)>1){
@@ -642,9 +663,12 @@ void deconflict_Handler(drone_decon::RedirectDrone msg){
                         ROS_INFO("[Ground Control]: doesen't matter drone is at correct height");
                     }                   
                 }
+
+                // ##################################### Aplying the changes ####################################
                 if(changed){
                     if(Drones[i]->getJob() != NULL){
                         if(Drones[i]->getJob()->getStatus() == job::ongoing){
+                            Drones[i]->getFlightHeight() = pos.altitude;
                             Drones[i]->getJob()->setStatus(job::resumeFlight);
                             cout << "[Ground Control]: drone_deconflict moved drone" << endl;
                         }else{
@@ -781,16 +805,19 @@ int main(int argc, char** argv){
         if(jobQ.size() != 0){
             for(size_t i = 0; i < Drones.size();i++){
                 if(Drones[i]->isAvailable()){
-                    if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())<MIN_FLIGHT_DISTANCE){
+                    cout << header << "Available drone found for job by: " << jobQ.front()->getQuestHandler()->getName() << endl;
+                    double goal2drone =GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition());
+                    if(goal2drone<MIN_FLIGHT_DISTANCE){
                         NodeState(node_monitor::heartbeat::warning,"Goal is right next to drone, no drone will be sent");
                         webMsg(jobQ.front()->getQuestHandler(),"request=failed,error=you already have a drone");
                         jobQ.pop_front();
-                    }else if(GPSdistance(Drones[i]->getPosition(),jobQ.front()->getGoal()->getPosition())>MAX_FLIGHT_DISTANCE){ 
+                    }else if(goal2drone>MAX_FLIGHT_DISTANCE){ 
                         NodeState(node_monitor::heartbeat::warning,"Goal is too far away from drone");
                         webMsg(jobQ.front()->getQuestHandler(),"request=failed,error=goal too far away");
                         //TODO for full system implementation push back job in queue
                         jobQ.pop_front();
                     }else{
+                        cout << header << "Job assigned to drone: " << Drones[i]->getID() << endl;
                         activeJobs.push_back(jobQ.front());
                         jobQ.pop_front();
                         Drones[i]->setJob(activeJobs.back());
@@ -893,6 +920,7 @@ int main(int argc, char** argv){
                     DNFZinject d = activeJobs[i]->getDNFZinjection();
                     if(d.stillValid){
                         if(d.valid_to-time(nullptr)>0){
+                            /*cout << header << "DNFZ re pathplan" << endl;
                             std::vector<gcs::GPS> path = pathPlan(d.start, d.to,activeJobs[i]->getDrone());
                             std::vector<gcs::GPS> newPath;
                             std::vector<gcs::GPS> currentPath = activeJobs[i]->getDrone()->getPath();
@@ -912,8 +940,9 @@ int main(int argc, char** argv){
                             activeJobs[i]->getDrone()->setPath(newPath);
                             uploadFlightPlan(activeJobs[i]->getDrone());
                             activeJobs[i]->setStatus(job::ready4flightContinuation);
-
+                            */
                         }else{
+                            cout << header << "Wait and Resume path" << endl;
                             activeJobs[i]->setStatus(job::waitInAir);
                             activeJobs[i]->setWaitInAirTo(d.valid_to);
                             activeJobs[i]->setNextStatus(job::resumeFlight);
@@ -921,12 +950,36 @@ int main(int argc, char** argv){
                         d.stillValid = false;
                         activeJobs[i]->DNFZinjection(d);
                     }else{
+                        cout << header << "Normal rePathPlan" << endl;
                         std::vector<gcs::GPS> path = pathPlan(activeJobs[i]->getDrone()->getPosition(), activeJobs[i]->getGoal()->getPosition(),activeJobs[i]->getDrone());
+                        if(path.size()> 2){
+                            path.erase(path.begin());
+                        }
                         activeJobs[i]->getDrone()->setPath(path);
                         uploadFlightPlan(activeJobs[i]->getDrone());
                         activeJobs[i]->setStatus(job::ready4flightContinuation);
                     }
                 }catch( string msg){
+
+                    cout << header << "Somthing went wrong in path planing trying aomthing else" << endl;
+                    if(activeJobs[i]->getDNFZinjection().stillValid == false){
+                        if(safePosition(activeJobs[i]->getDrone()->getPosition(),activeJobs[i]->getDrone())){
+                            cout << header << "The drone is planning to goal and having trouble, finding emergancy landing spot" << endl;
+                            dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
+                            cout << header << "Trying to land at: "<< EM->getName();
+                            activeJobs[i]->setGoal(EM);
+                            activeJobs[i]->terminateJobOnLand() = true;
+                        }else{
+                            cout << header << "We are currently inside a DNFZ and the planner can't find a path";
+                            dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
+                            cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
+                            UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
+                            moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
+                        }
+                    }else{
+                        cout <<  header << "Tried a DNFZ repathPlan didn't work, trying to plan to home" << endl;
+                        activeJobs[i]->getDNFZinjection().stillValid = false;
+                    }
                     NodeState(node_monitor::heartbeat::critical_error,msg);
                 }
             }else if(status == job::waitInAir){ // ######### waiting for somthing ############
