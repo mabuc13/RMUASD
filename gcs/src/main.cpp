@@ -49,6 +49,7 @@ using namespace std;
 #define MIN_FLIGHT_DISTANCE 15
 #define MAX_FLIGHT_DISTANCE 500
 
+#define DEFAULT_FLIGHT_HEIGHT 32
 
 // ############################ Clients, Subscribers and Publishers #######################
 ros::Publisher RouteRequest_pub;
@@ -217,6 +218,12 @@ void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
             theDrone->getPath().erase(theDrone->getPath().end()-2);
         }
     }
+    if(std::abs(theDrone->getFlightHeight()-DEFAULT_FLIGHT_HEIGHT)>0.1){
+        for(size_t i = 0; i < theDrone->getPath().size();i++){
+            theDrone->getPath()[i].altitude=theDrone->getFlightHeight();
+        }
+        theDrone->getFlightHeight() = DEFAULT_FLIGHT_HEIGHT;
+    }
     if(DEBUG) cout << "[Ground Control]: Posting PathPlan - length:" << theDrone->getPath().size() << endl;
     msg.Path = theDrone->getPath();
     RouteRequest_pub.publish(msg);
@@ -280,7 +287,7 @@ bool safePosition(gcs::GPS position,drone* my_drone){
     }
     return response;
 }
-int ETA(job* aJob){
+long ETA(job* aJob){
     gcs::getEta srv;
 
     std::vector<gcs::GPS> path = aJob->getDrone()->getPath();
@@ -295,6 +302,7 @@ int ETA(job* aJob){
         //cout << "[Ground Control]: " << "ETA calculated " << srv.response.eta << endl;
     }else{
         cout << "[Ground Control]: " << "ETA failed"<< endl;
+        return 0;
     }
     return srv.response.eta;
 }
@@ -581,7 +589,7 @@ void deconflict_Handler(drone_decon::RedirectDrone msg){
             gcs::GPS pos;
             pos << msg.position;
             pos.altitude-= Drones[i]->getGroundHeight();
-            if(pos.altitude < 5) pos.altitude = 3;
+            if(pos.altitude < 5) pos.altitude = 5;
             bool changed = false;
             if(msg.insertBeforeNextWayPoint){
                 if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()])>5 &&
@@ -607,7 +615,9 @@ void deconflict_Handler(drone_decon::RedirectDrone msg){
             if(changed){
                 if(Drones[i]->getJob()->getStatus() == job::ongoing){
                     Drones[i]->getJob()->setStatus(job::resumeFlight);
+                    cout << "[Ground Control]: drone_deconflict moved drone" << endl;
                 }else{
+                    Drones[i]->getFlightHeight() = pos.altitude;
                     ROS_ERROR("[Ground Control]: Drone can't handle drone deconflic if not in ongoing state");
                 }
             }

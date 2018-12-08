@@ -127,7 +127,7 @@ def handle_getPathPlan(req): #TODO add boolean for dynamic and start time in the
     planner.compute_path(req.useDNFZ, req.velocity, req.startTime, map_padding)
     plan = planner.path
 
-    planner.export_kml_path("Path"+str(plannum))
+    #planner.export_kml_path("Path"+str(plannum))
     plannum = plannum +1
     
     GPSPlan = []

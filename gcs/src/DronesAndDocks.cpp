@@ -26,7 +26,7 @@ bool dock::isEM(void){
 
 
 //################# Job #########################
-job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued){
+job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued),terminateOnLand(false){
     goal = station;
     QuestGiver = station;
     this->injection.index_from = 0;
@@ -208,10 +208,10 @@ int drone::getStatus(){
     return this->status;
 }
 
-int& drone::getGroundHeight(){
+double& drone::getGroundHeight(){
     return this->groundHeight;
 }
 
-int& drone::getFlightHeight(){
+double& drone::getFlightHeight(){
     return this->flightHeight;
 }

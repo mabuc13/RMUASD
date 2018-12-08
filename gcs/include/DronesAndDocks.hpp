@@ -117,8 +117,8 @@ public:
   double getVelocitySetPoint();
   size_t getMissionIndex();
   int getStatus();
-  int& getGroundHeight();
-  int& getFlightHeight();
+  double& getGroundHeight();
+  double& getFlightHeight();
 
 
 
@@ -143,8 +143,8 @@ private:
   double velocitySetPoint;
   size_t pathIndex;
 
-  int groundHeight;
-  int flightHeight;
+  double groundHeight;
+  double flightHeight;
 
 };
 
