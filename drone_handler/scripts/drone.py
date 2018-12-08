@@ -15,6 +15,7 @@ DESIRED_RELATIVE_ALT = 20
 MISSION_SPEED = 5  # m/s
 WP_ACCEPTANCE_RADIUS = 10
 MAX_UPLOAD_RETRIES = 3
+UPLOAD_DELAY = 5
 
 MAV_CMD_NAV_WAYPOINT = 16
 MAV_CMD_NAV_LOITER_UNLIM = 17
@@ -39,6 +40,7 @@ class State(Enum):
     SET_SPEED = 11
     REPOSITION = 12
     CLEARING_MISSION = 13
+    WAITING = 14
 
 PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
 PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
@@ -60,6 +62,7 @@ class Drone(object):
         self.speed_ack = False
         self.loiter = False
         self.active = False
+        self.wait = False
         self.upload_retries = 0
 
         self.mission_id = 0
@@ -253,6 +256,9 @@ class Drone(object):
 
         return ml_list
 
+    def wait_cb(self, event):
+        self.wait = False
+
     def reset(self):
         self.upload_done = False
         self.upload_failed = False
@@ -312,7 +318,9 @@ class Drone(object):
                     self.fsm_state = State.SYNC_WP_IDX
 
             elif self.upload_failed:
-                self.fsm_state = State.REQUESTING_UPLOAD
+                rospy.Timer(rospy.Duration(UPLOAD_DELAY), self.wait_cb, oneshot=True)
+                self.wait = True
+                self.fsm_state = State.WAITING
                 self.upload_failed = False
 
 
@@ -352,7 +360,7 @@ class Drone(object):
                 if response.success:
                     self.fsm_state = State.SET_MISSION
             else:
-                rospy.loginfo("[drone]: Manual idx = {}, Active idx = {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
+                print("[drone]: Manual idx = {}, Active idx = {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
                 self.set_current_mission_pub.publish(Int16(self.manual_mission.mission_idx))
 
         # ------------------------------------------------------------------------------ #
@@ -386,6 +394,7 @@ class Drone(object):
             
             if self.new_mission:
                 self.manual_mission.start_running()
+                self.active_mission_idx = 0
                 self.new_mission = False
             # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
                 self.fsm_state = State.CLEARING_MISSION
@@ -402,6 +411,7 @@ class Drone(object):
 
             if self.new_mission:
                 self.manual_mission.start_running()
+                self.active_mission_idx = 0
                 self.new_mission = False
                 # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
                 self.fsm_state = State.CLEARING_MISSION
@@ -441,3 +451,8 @@ class Drone(object):
                 self.fsm_state = State.FLYING_MISSION
             elif self.state == "Standby" or not self.armed:
                 self.fsm_state = State.GROUNDED
+
+        # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.WAITING:
+            if not self.wait:
+                self.fsm_state = State.REQUESTING_UPLOAD
