@@ -80,6 +80,7 @@ class DroneHandler(object):
         if msg.DroneID in self.drones:
             drone = self.drones[msg.DroneID]
 
+            drone.mission_id = msg.PathID
             drone.update_mission(msg.Path)
             drone.start_mission(msg.loiterAtEnd)
             print("PATH LENGTH: ", len(msg.Path))
@@ -173,8 +174,13 @@ class DroneHandler(object):
 
             if not drone.active:
                 drone.active = True
+            gps_timestamp = int(msg.time_usec / 1e6)
 
-            drone.gps_timestamp = int(msg.time_usec / 1e6)
+            # check if drone sends out boot time instead of epoch time
+            if gps_timestamp < 1e9:
+                gps_timestamp = int(time.time())
+
+            drone.gps_timestamp = gps_timestamp
             drone.up_time = int(msg.time_boot_usec / 1e6)
             drone.latitude = msg.lat
             drone.longitude = msg.lon
@@ -217,6 +223,7 @@ class DroneHandler(object):
                     absolute_alt=drone.absolute_alt,
                     GPS_timestamp=drone.gps_timestamp,
                     status=drone.gcs_status,
+                    path_id=drone.mission_id,
                     mission_index=drone.active_mission_idx,
                     mission_length=drone.active_mission_len
                 )
