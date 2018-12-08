@@ -360,7 +360,7 @@ class Drone(object):
                 if response.success:
                     self.fsm_state = State.SET_MISSION
             else:
-                rospy.loginfo("[drone]: Manual idx = {}, Active idx = {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
+                print("[drone]: Manual idx = {}, Active idx = {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
                 self.set_current_mission_pub.publish(Int16(self.manual_mission.mission_idx))
 
         # ------------------------------------------------------------------------------ #
