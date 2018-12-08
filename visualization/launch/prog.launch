@@ -1,0 +1,3 @@
+<launch>
+   <node name="visualization" pkg="visualization" type="visualization_node.py" output="screen"/>
+</launch>

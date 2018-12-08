@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package>
+  <name>visualization</name>
+  <version>0.0.0</version>
+  <description>Node for path-, snfz, dnfz, currentPosition-visualization</description>
+  <maintainer email="jakon17@student.sdu.dk">Jannis Lukas Konopka</maintainer>
+
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>message_runtime</run_depend>
+  <build_depend>gcs</build_depend>
+  <run_depend>gcs</run_depend>
+  <build_depend>utm_parser</build_depend>
+  <run_depend>utm_parser</run_depend>
+  <build_depend>node_monitor</build_depend>
+  <run_depend>node_monitor</run_depend>
+
+  <export>
+
+  </export>
+</package>
