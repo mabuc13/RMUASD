@@ -51,6 +51,8 @@ class dict_init(dict):
 
 class utm_parser(object):
     def __init__(self):
+        rospy.sleep(2)
+        self.scenario = rospy.get_param("~scenario")
         self.payload = {
             ''
         }
@@ -129,7 +131,6 @@ class utm_parser(object):
 
         self.recent_drone = dict_init()
 
-        self.scenario = rospy.get_param("~scenario")
         self.posted = False
     def shutdownHandler(self):
         # shutdown services
