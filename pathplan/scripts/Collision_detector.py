@@ -228,6 +228,7 @@ class CollisionDetector:
         # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
         dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
         self.dynamic_no_flight_zones[json_obj["int_id"]]["polygon"] = dnfz_polygon
+        return dnfz_polygon
 
     def calc_dist_between_mission_points(self, path, drone_id):
         '''
@@ -320,7 +321,15 @@ class CollisionDetector:
                         #return False, int_id
                         return True, int_id
             elif dnfz["geometry"] == "polygon":
-                dist = dnfz["polygon"].distance(geometry.Point(p.easting, p.northing))
+                dist = 1e9
+                try:
+                    dist = dnfz["polygon"].distance(geometry.Point(p.easting, p.northing))
+                except Exception as e:
+                    print(e)
+                    print("Polygon key error")
+                    poly = self.make_polygon(dnfz)
+                    dist = poly.distance(geometry.Point(p.easting, p.northing))
+
                 if (int(dnfz["valid_from_epoch"]) - self.safety_extra_time) < t < (int(dnfz["valid_to_epoch"]) + self.safety_extra_time):
                     if dist <= self.safety_dist_to_dnfz:
                         #return False, int_id
