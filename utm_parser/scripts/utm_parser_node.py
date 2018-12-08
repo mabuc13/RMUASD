@@ -934,8 +934,8 @@ def main():
         par.heartbeat_pub.publish(par.heart_msg)
         if par.scenario == 0:
             par.check_dynamic_data()
-        if par.scenario == 5:
-            par.dummy_drone_handler()
+        # if par.scenario == 5:
+        #     par.dummy_drone_handler()
         par.get_drone_data()
 
 if __name__ == "__main__":
