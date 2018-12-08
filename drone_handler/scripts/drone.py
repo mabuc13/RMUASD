@@ -2,7 +2,7 @@ from collections import deque
 from mavlink_lora.msg import mavlink_lora_mission_item_int, mavlink_lora_mission_list
 from telemetry.srv import * # pylint: disable=W0614
 from std_srvs.srv import Trigger
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, Empty
 from gcs.msg import GPS, DroneInfo
 import flight_modes
 import rospy
@@ -14,6 +14,7 @@ BUFFER_SIZE = 30
 DESIRED_RELATIVE_ALT = 20
 MISSION_SPEED = 5  # m/s
 WP_ACCEPTANCE_RADIUS = 10
+MAX_UPLOAD_RETRIES = 3
 
 MAV_CMD_NAV_WAYPOINT = 16
 MAV_CMD_NAV_LOITER_UNLIM = 17
@@ -37,6 +38,7 @@ class State(Enum):
     LANDING = 10
     SET_SPEED = 11
     REPOSITION = 12
+    CLEARING_MISSION = 13
 
 PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
 PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
@@ -58,7 +60,9 @@ class Drone(object):
         self.speed_ack = False
         self.loiter = False
         self.active = False
+        self.upload_retries = 0
 
+        self.mission_id = 0
         self.pending_mission_gps = []
         self.active_waypoint_gps = GPS()
         self.active_mission_gps = []
@@ -127,6 +131,7 @@ class Drone(object):
         self.relative_alt = 0
         self.heading = 0
 
+        self.clear_mission_pub = rospy.Publisher("/mavlink_interface/mission/mavlink_clear_all", Empty, queue_size=0)
         self.upload_mission_pub = rospy.Publisher("/telemetry/new_mission", mavlink_lora_mission_list, queue_size=0)
         self.set_current_mission_pub = rospy.Publisher("/telemetry/mission_set_current", Int16, queue_size=10)
 
@@ -169,9 +174,15 @@ class Drone(object):
     def on_mission_ack(self, msg):
         if msg.result_text == "MAV_MISSION_ACCEPTED":
             self.upload_done = True
+            self.upload_retries = 0
         else:
             # restart upload
-            self.upload_failed = True
+            if self.upload_retries < MAX_UPLOAD_RETRIES:
+                self.upload_failed = True
+                self.upload_retries += 1
+            else:
+                # TODO Handle the failure scenario
+                rospy.logwarn("Mission upload failed - giving up.")
 
     def on_command_ack(self, msg):
         if msg.command == MAV_CMD_DO_CHANGE_SPEED and msg.result == 0:
@@ -191,6 +202,7 @@ class Drone(object):
         self.active_mission_len = len(self.active_mission_ml.waypoints)
 
         self.manual_mission.stop_running()
+        self.manual_mission.reset()
         self.manual_mission.update_mission(self.active_mission_gps)
         self.new_mission = True
         
@@ -272,7 +284,8 @@ class Drone(object):
                 self.active_mission_ml = self.gps_to_mavlink(self.active_mission_gps)
 
                 self.new_mission = False
-                self.fsm_state = State.REQUESTING_UPLOAD
+                self.fsm_state = State.CLEARING_MISSION
+                self.clear_mission_pub.publish(Empty())
             
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.REQUESTING_UPLOAD:
@@ -295,7 +308,7 @@ class Drone(object):
 
                 elif self.state == "Active":
                     self.manual_mission.stop_running()
-                    # self.manual_mission.reset()
+                    self.manual_mission.reset()
                     self.fsm_state = State.SYNC_WP_IDX
 
             elif self.upload_failed:
@@ -339,6 +352,7 @@ class Drone(object):
                 if response.success:
                     self.fsm_state = State.SET_MISSION
             else:
+                rospy.loginfo("[drone]: Manual idx = {}, Active idx = {}".format(self.manual_mission.mission_idx, self.active_mission_idx))
                 self.set_current_mission_pub.publish(Int16(self.manual_mission.mission_idx))
 
         # ------------------------------------------------------------------------------ #
@@ -374,7 +388,8 @@ class Drone(object):
                 self.manual_mission.start_running()
                 self.new_mission = False
             # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
-                self.fsm_state = State.REQUESTING_UPLOAD
+                self.fsm_state = State.CLEARING_MISSION
+                self.clear_mission_pub.publish(Empty())
 
             if self.active_mission_idx == self.active_mission_len - 1: 
                 if self.relative_alt < 20:
@@ -389,7 +404,8 @@ class Drone(object):
                 self.manual_mission.start_running()
                 self.new_mission = False
                 # elif self.manual_mission.fsm_state == manual_mission.State.ON_THE_WAY:
-                self.fsm_state = State.REQUESTING_UPLOAD
+                self.fsm_state = State.CLEARING_MISSION
+                self.clear_mission_pub.publish(Empty())
 
             else:
                 if self.cmd_try_again:
@@ -413,6 +429,12 @@ class Drone(object):
                 self.reset()
                 self.manual_mission.reset()
             
+        # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.CLEARING_MISSION:
+            if self.upload_done:
+                self.upload_done = False
+                self.fsm_state = State.REQUESTING_UPLOAD
+
         # ------------------------------------------------------------------------------ #
         elif self.fsm_state == State.PAUSED:
             if self.state == "Active" and self.sub_mode == "Mission":

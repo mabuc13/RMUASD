@@ -80,10 +80,12 @@ class ManualMission(object):
             self.run_timer.shutdown()
             self.reset()
 
+        print("[manual mission]: Starting manual mission.")
         self.run_timer = rospy.Timer(rospy.Duration(1/RUN_FREQ), self.run)
 
     def stop_running(self):
         try:
+            print("[manual mission]: Stopping manual mission.")
             self.run_timer.shutdown()
             self.fsm_state = State.IDLE
         except Exception as e:
@@ -91,13 +93,15 @@ class ManualMission(object):
             rospy.logwarn(e)
 
     def reset(self):
+        print("[manual mission]: Resetting manual mission.")
+
         self.fsm_state = State.IDLE
         self.cmd_try_again = False
         self.done = False
         self.mission_idx = 0
 
     def run(self, event):
-        rospy.loginfo(self.fsm_state)
+        # rospy.loginfo(self.fsm_state)
 
         if self.fsm_state == State.IDLE:
             if self.start:
@@ -110,6 +114,7 @@ class ManualMission(object):
                 response = self.reposition_proxy(request)
 
                 if response.success:
+                    print("[manual mission]: Switching to state {}".format(State.REPOSITION))
                     self.fsm_state = State.REPOSITION
                     self.start = False
 
@@ -117,8 +122,10 @@ class ManualMission(object):
         elif self.fsm_state == State.REPOSITION:
             if self.sub_mode == "Loiter":
                 if self.mission_idx < len(self.mission) - 1:
+                    print("[manual mission]: Switching to state {}".format(State.ON_THE_WAY))
                     self.fsm_state = State.ON_THE_WAY
                 else:
+                    print("[manual mission]: Switching to state {}".format(State.LAST_WAYPOINT))
                     self.fsm_state = State.LAST_WAYPOINT
             
             elif self.cmd_try_again:
@@ -148,6 +155,7 @@ class ManualMission(object):
                 response = self.reposition_proxy(request)
 
                 if response.success:
+                    print("[manual mission]: Switching to state {}".format(State.REPOSITION))
                     self.fsm_state = State.REPOSITION
                     self.mission_idx += 1
 
