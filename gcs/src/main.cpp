@@ -440,7 +440,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
                 if(aJob->getStatus() == job::ongoing){
                     aJob->setStatus(job::waitInAir);
                 }else{
-                    cout << "[Ground Control]: Drone status = hold, job status is: " << int(aJob->getStatus()); 
+                    cout << "[Ground Control]: Drone status = hold, job status is: " << int(aJob->getStatus()) << endl; 
                 }
             }else{
                 ROS_ERROR("[Ground Control]: Drone in Hold without a JOB");
@@ -832,7 +832,28 @@ int main(int argc, char** argv){
         // ############## Active Jobs look through ###################
         for(size_t i = 0; i < activeJobs.size();i++){
             uint8 status = activeJobs[i]->getStatus();
-            if(status==job::wait4pathplan){ // ############# Do path planing for all jobs waiting for new Path plan ################
+            if(status == job::notAssigned){
+                ROS_ERROR("[Ground Control]: somthing unexpected happened and the job is without a valid status");
+            }else if(status == job::noMission){
+
+            }else if(status == job::queued){
+
+            }else if(status == job::ongoing){ // ########### Send out INFO on Drone ETA ######################
+                if( spins >= rate){
+                    spins = 0;
+                     double eta = ETA(activeJobs[i]);
+                     webMsg(activeJobs[i]->getQuestHandler(),
+                            "request=ongoing,ETA="+
+                            std::to_string(eta)
+                            );
+                     gcs::DroneSingleValue msg;
+                     msg.value = eta;
+                     msg.drone_id = activeJobs[i]->getDrone()->getID();
+                     ETA_pub.publish(msg);
+                }
+            }else if(status == job::onhold){
+
+            }else if(status==job::wait4pathplan){ // ############# Do path planing for all jobs waiting for new Path plan ################
                 gcs::GPS start = activeJobs[i]->getDrone()->getPosition();
                 gcs::GPS end = activeJobs[i]->getGoal()->getPosition();
                 // always start and stop above docking stations
@@ -847,6 +868,14 @@ int main(int argc, char** argv){
                     NodeState(node_monitor::heartbeat::critical_error,msg);
                 }
 
+            }else if(status==job::ready4takeOff){
+
+            }else if(status == job::done){  // ############# Delete Finnished Jobs ######################
+                
+                webMsg(activeJobs[i]->getQuestHandler(),"return=done");
+                delete activeJobs[i];
+                activeJobs.erase(activeJobs.begin()+i);
+                i--;
             }else if(status == job::preFlightCheack){ // ### Pre FLight Cheacks ##################
 
                 if(DO_PREFLIGHT_CHECK){
@@ -896,25 +925,6 @@ int main(int argc, char** argv){
                 }
 
 
-            }else if(status == job::done){  // ############# Delete Finnished Jobs ######################
-                
-                webMsg(activeJobs[i]->getQuestHandler(),"return=done");
-                delete activeJobs[i];
-                activeJobs.erase(activeJobs.begin()+i);
-                i--;
-            }else if(status == job::ongoing){ // ########### Send out INFO on Drone ETA ######################
-                if( spins >= rate){
-                    spins = 0;
-                     double eta = ETA(activeJobs[i]);
-                     webMsg(activeJobs[i]->getQuestHandler(),
-                            "request=ongoing,ETA="+
-                            std::to_string(eta)
-                            );
-                     gcs::DroneSingleValue msg;
-                     msg.value = eta;
-                     msg.drone_id = activeJobs[i]->getDrone()->getID();
-                     ETA_pub.publish(msg);
-                }
             }else if(status == job::rePathPlan){ // ######## rePlan route ################
                 try{
                     DNFZinject d = activeJobs[i]->getDNFZinjection();
@@ -996,14 +1006,24 @@ int main(int argc, char** argv){
                     activeJobs[i]->setStatus(job::rePathPlan);
                 }
                 //Check that we can move to next waypoint
-            }else if(status == job::notAssigned){
-                ROS_ERROR("[Ground Control]: somthing unexpected happened and the job is without a valid status");
             }else if(status == job::resumeFlight){
                 //TODO check that we can move to next waypoint
                 drone* theDrone = activeJobs[i]->getDrone();
                 vector<gcs::GPS> path(theDrone->getPath().begin()+theDrone->getMissionIndex(),theDrone->getPath().end());
                 uploadFlightPlan(theDrone);
                 activeJobs[i]->setStatus(job::ready4flightContinuation);
+            }else if(status == job::ready4flightContinuation){
+
+            }else{
+                ROS_ERROR(header.c_str(),"Invalid job status");
+                drone* D = activeJobs[i]->getDrone();
+                if(D->getStatus() == gcs::DroneInfo::Run){
+                    activeJobs[i]->setStatus(job::resumeFlight);
+                }else if(D->getStatus() == gcs::DroneInfo::Land){
+                    activeJobs[i]->setStatus(job::done);
+                }else{
+                    activeJobs[i]->setStatus(job::waitInAir);
+                }
             }
         }
 
