@@ -187,27 +187,6 @@ void NodeState(uint8 severity,string msg,double rate = 0){
 double diff(double num1, double num2){
     return std::abs(num1-num2);
 }
-void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
-    job* theJob =  theDrone->getJob();
-    if(theJob != NULL){
-        cout << "[Ground Control]: Asking for reposition" << endl;
-        gcs::moveTo cmd;
-        cmd.drone_id = theDrone->getID();
-        cmd.position = pos;
-        Reposition_pub.publish(cmd);
-        if(waitTill == -1){
-            theJob->setStatus(job::rePathPlan);
-        }else{
-            theJob->setWaitInAirTo(waitTill);
-            theJob->setStatus(job::waitInAir);
-            theJob->setNextStatus(job::resumeFlight);
-        }
-
-    }else{
-        ROS_ERROR("[Ground Control]: can't reposition a drone without a job");
-    }
-}
-
 void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     gcs::DronePath msg;
 
@@ -228,7 +207,24 @@ void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     msg.Path = theDrone->getPath();
     RouteRequest_pub.publish(msg);
 }
+void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
+    job* theJob =  theDrone->getJob();
+    if(theJob != NULL){
+        cout << "[Ground Control]: Asking for reposition" << endl;
+        theDrone->getPath()={pos};
+        uploadFlightPlan(theDrone,true);
+        if(waitTill == -1){
+            theJob->setStatus(job::rePathPlan);
+        }else{
+            theJob->setWaitInAirTo(waitTill);
+            theJob->setStatus(job::waitInAir);
+            theJob->setNextStatus(job::resumeFlight);
+        }
 
+    }else{
+        ROS_ERROR("[Ground Control]: can't reposition a drone without a job");
+    }
+}
 dock* findDock(string name){
     dock* goalDock = NULL;
     for(size_t i = 0; i < Docks.size(); i++){
@@ -244,12 +240,17 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
     gcs::gps2distance srv;
     srv.request.point1 = point1;
     srv.request.point2 = point2;
-    bool worked = GPSdistanceClient.call(srv);
-    if (worked){
-        if(DEBUG) cout << "[Ground Control]: " << "Distance calculated " << srv.response.distance << endl;
-    }else{
-        cout << "[Ground Control]: " << "Distance Calc failed"<< endl;
-    }
+    bool worked;
+    do{
+        worked = GPSdistanceClient.call(srv);
+        if (worked){
+            if(DEBUG) cout << "[Ground Control]: " << "Distance calculated " << srv.response.distance << endl;
+        }else{
+            cout << "[Ground Control]: " << "Distance Calc failed"<< endl;
+            ROS_FATAL("[Ground Control]: Distance calculation failed - please get service up and running again");
+            NodeState(node_monitor::heartbeat::fatal_error,"Distance calculation failed");
+        }
+    }while(!worked);
     return srv.response.distance;
 }
 is_safe_for_takeoff safeTakeOff(drone* my_drone){
@@ -422,7 +423,11 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
             if(aJob != NULL){
                 if(aJob->getStatus() == job::ongoing){
                     aJob->setStatus(job::waitInAir);
+                }else{
+                    cout << "[Ground Control]: Drone status = hold, job status is: " << aJob->getStatus(); 
                 }
+            }else{
+                ROS_ERROR("[Ground Control]: Drone in Hold without a JOB");
             }
         }
     }
@@ -586,44 +591,74 @@ void nodeMonitor_Handler(node_monitor::nodeOkList msg){
 void deconflict_Handler(drone_decon::RedirectDrone msg){
     for(size_t i = 0; i < Drones.size(); i++){
         if(Utm2OwnId[msg.drone_id]==Drones[i]->getID()){
-            gcs::GPS pos;
-            pos << msg.position;
-            pos.altitude-= Drones[i]->getGroundHeight();
-            if(pos.altitude < 5) pos.altitude = 5;
-            bool changed = false;
-            if(msg.insertBeforeNextWayPoint){
-                if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()])>5 &&
-                    std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()].altitude)>3)
-                {
-                    changed = true;
-                    Drones[i]->getPath().insert(Drones[i]->getPath().begin()+Drones[i]->getMissionIndex(),pos);
-                    for(size_t i2 = Drones[i]->getMissionIndex()+1; i2< Drones[i]->getPath().size(); i2++){
-                        Drones[i]->getPath()[i2].altitude=pos.altitude;
+            if(Drones[i]->getStatus() != gcs::DroneInfo::Land){
+                gcs::GPS pos;
+                pos << msg.position;
+                pos.altitude-= Drones[i]->getGroundHeight();
+                if(pos.altitude < 5) pos.altitude = 5;
+                bool changed = false;
+                if(Drones[i]->getPath().size() > Drones[i]->getMissionIndex()+1){
+                    if(msg.insertBeforeNextWayPoint){
+                        if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()])>5 &&
+                            std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()].altitude)>1)
+                        {
+                            changed = true;
+                            Drones[i]->getPath().insert(Drones[i]->getPath().begin()+Drones[i]->getMissionIndex(),pos);
+                            for(size_t i2 = Drones[i]->getMissionIndex()+1; i2< Drones[i]->getPath().size(); i2++){
+                                Drones[i]->getPath()[i2].altitude=pos.altitude;
+                            }
+                        }
+                    }else{
+                        if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()+1])>5 &&
+                            std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()+1].altitude)>1)
+                        {
+                            changed = true;
+                            Drones[i]->getPath().insert(Drones[i]->getPath().begin()+Drones[i]->getMissionIndex()+1,pos);
+                            for(size_t i2 = Drones[i]->getMissionIndex()+2; i2< Drones[i]->getPath().size(); i2++){
+                                Drones[i]->getPath()[i2].altitude=pos.altitude;
+                            }
+                        }
                     }
-                }
-            }else{
-                if(GPSdistance(pos,Drones[i]->getPath()[Drones[i]->getMissionIndex()+1])>5 &&
-                    std::abs(pos.altitude-Drones[i]->getPath()[Drones[i]->getMissionIndex()+1].altitude)>3)
-                {
-                    changed = true;
-                    Drones[i]->getPath().insert(Drones[i]->getPath().begin()+Drones[i]->getMissionIndex()+1,pos);
-                    for(size_t i2 = Drones[i]->getMissionIndex()+2; i2< Drones[i]->getPath().size(); i2++){
-                        Drones[i]->getPath()[i2].altitude=pos.altitude;
-                    }
-                }
-            }
-            if(changed){
-                if(Drones[i]->getJob()->getStatus() == job::ongoing){
-                    Drones[i]->getJob()->setStatus(job::resumeFlight);
-                    cout << "[Ground Control]: drone_deconflict moved drone" << endl;
                 }else{
-                    Drones[i]->getFlightHeight() = pos.altitude;
-                    ROS_ERROR("[Ground Control]: Drone can't handle drone deconflic if not in ongoing state");
+                    ROS_WARN("[Ground Control]: Somthing wrong with pathPlan or mission INDEX in deconflict handler");
+                    if(std::abs(pos.altitude-Drones[i]->getPosition().altitude)>1){
+                        Drones[i]->getFlightHeight() = pos.altitude;
+                        uint8 jobStatus = Drones[i]->getJob()->getStatus();
+                        if(jobStatus == job::ongoing || jobStatus == job::waitInAir){
+                            ROS_WARN("[Ground Control]: Attemting to move to drone_decon position");
+                            if(safePosition(pos,Drones[i])){
+                                ROS_INFO("[Ground Control]: Moving to position");
+                                moveDroneTo(Drones[i],pos);
+                            }else{
+                                gcs::GPS newPos = Drones[i]->getPosition();
+                                newPos.altitude = pos.altitude;
+                                moveDroneTo(Drones[i],newPos);
+                                ROS_ERROR("[Ground Control]: Move was not safe, adjusting current positions hegit");
+                            }      
+                        }else{
+                            ROS_ERROR("[Ground Control]: Drone is trying to make a new pathplan so a flag to adjust the height has been added");
+                        }
+                    }else{
+                        ROS_INFO("[Ground Control]: doesen't matter drone is at correct height");
+                    }                   
+                }
+                if(changed){
+                    if(Drones[i]->getJob() != NULL){
+                        if(Drones[i]->getJob()->getStatus() == job::ongoing){
+                            Drones[i]->getJob()->setStatus(job::resumeFlight);
+                            cout << "[Ground Control]: drone_deconflict moved drone" << endl;
+                        }else{
+                            Drones[i]->getFlightHeight() = pos.altitude;
+                            ROS_WARN("[Ground Control]: Drone is in the middle of somthing setting flag to change height at next path upload");
+                            //ROS_ERROR("[Ground Control]: Drone can't handle drone deconflic if not in ongoing state");
+                        }
+                    }else{
+                        ROS_ERROR("[Ground Control]: Can't handle drone without JOB");
+                    }
                 }
             }
         }
     }
-
 }
 
 // ################################### Main Program ###########################################
