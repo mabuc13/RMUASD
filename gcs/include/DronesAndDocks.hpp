@@ -119,6 +119,7 @@ public:
   int getStatus();
   double& getGroundHeight();
   double& getFlightHeight();
+  uint8 OS();
 
 
 
@@ -131,6 +132,8 @@ public:
   void setMissionIndex(size_t i);
   void setStatus(int status);
 
+  static const uint8 normal_operation;
+  static const uint8 emergency;
 
 private:
   job* currentJob = (NULL);
@@ -145,6 +148,7 @@ private:
 
   double groundHeight;
   double flightHeight;
+  uint8 operationStatus;
 
 };
 

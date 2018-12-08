@@ -50,7 +50,7 @@ using namespace std;
 #define MAX_FLIGHT_DISTANCE 500
 
 #define DEFAULT_FLIGHT_HEIGHT 32
-
+#define earthRadiusKm 6371.0
 
 #define UTM_EMERGENCY 0
 #define UTM_MEDICAL 3
@@ -116,7 +116,12 @@ struct is_safe_for_takeoff{
     bool takeoff_is_safe;
     uint time_til_safe_take_off;
 };
-
+double deg2rad(double deg) {
+  return (deg * M_PI / 180);
+}
+double rad2deg(double rad) {
+  return (rad * 180 / M_PI);
+}
 // ############################ Helper functions ##################################
 void UTMPriority(int priority, drone* aDrone, string description = ""){
     gcs::DroneSingleValue msg;
@@ -161,7 +166,7 @@ void webMsg(dock* reciver, string msg){
 double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2);
 dock* closestLab(drone* theDrone){ // TODO
     double distance = INFINITY;
-    dock* theLab;
+    dock* theLab = NULL;
     for(size_t i = 0; i < Docks.size(); i++){
         if(Docks[i]->isLab()){
             double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
@@ -253,7 +258,7 @@ dock* findDock(string name){
 }
 // ############################ Service calls ##################################
 double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
-    gcs::gps2distance srv;
+    /*gcs::gps2distance srv;
     srv.request.point1 = point1;
     srv.request.point2 = point2;
     bool worked;
@@ -268,6 +273,18 @@ double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
         }
     }while(!worked);
     return srv.response.distance;
+}
+double GPSdistanceMeters(const gcs::GPS &pos1, const gcs::GPS &pos2) {*/
+    double lat1r, lon1r, lat2r, lon2r, u, v;
+    lat1r = deg2rad(point1.latitude);
+    lon1r = deg2rad(point1.longitude);
+    lat2r = deg2rad(point2.latitude);
+    lon2r = deg2rad(point2.longitude);
+    u = sin((lat2r - lat1r)/2);
+    v = sin((lon2r - lon1r)/2);
+    double dist = 1000*(2.0 * earthRadiusKm * asin(sqrt(u * u + cos(lat1r) * cos(lat2r) * v * v)));
+    if(DEBUG) cout << "[Ground Control]: " << "Distance calculated " << dist << endl;
+    return dist;
 }
 is_safe_for_takeoff safeTakeOff(drone* my_drone){
     gcs::safeTakeOff srv;
@@ -295,11 +312,11 @@ bool safePosition(gcs::GPS position,drone* my_drone){
     bool worked = safeTakeOffClient.call(srv);
     bool response;
     if (worked){
-        if(DEBUG) std::cout << "[Ground Control]: " << "SafeTake off is " << int(srv.response.is_save_to_take_off) << endl;
+        if(DEBUG) std::cout << "[Ground Control]: " << "is point inside DNFZ? : " << int(srv.response.is_save_to_take_off) << endl;
         response = srv.response.is_save_to_take_off;
     }else{
-        cout << "[Ground Control]: " << "SafeTakeOffcheack failed"<< endl;
-        NodeState(node_monitor::heartbeat::critical_error,"SafeTakeOffCheack Failed");
+        cout << "[Ground Control]: " << "Safe point cheack failed"<< endl;
+        NodeState(node_monitor::heartbeat::critical_error,"Safe point cheack failed");
         response= false;
     }
     return response;
@@ -982,9 +999,17 @@ int main(int argc, char** argv){
                         }else{
                             cout << header << "We are currently inside a DNFZ and the planner can't find a path";
                             dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
-                            cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
-                            UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
-                            moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
+                            if(EM == NULL){
+                                cout << header << "Couldn't find Emergency landing spot, moving to closest lab" << endl;
+                                dock* lab = closestLab(activeJobs[i]->getDrone());
+                                UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
+                                moveDroneTo(activeJobs[i]->getDrone(),lab->getPosition());
+                            }else{
+                                cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
+                                UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
+                                moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
+
+                            }
                         }
                     }else{
                         cout <<  header << "Tried a DNFZ repathPlan didn't work, trying to plan to home" << endl;
@@ -997,7 +1022,7 @@ int main(int argc, char** argv){
                     activeJobs[i]->setWaitInAirTo(-1);
                     activeJobs[i]->setStatus(activeJobs[i]->getNextStatus());
                     activeJobs[i]->setNextStatus(job::notAssigned);
-                }else if(activeJobs[i]->getStatus() != job::notAssigned){
+                }else if(activeJobs[i]->getNextStatus() != job::notAssigned){
                     activeJobs[i]->setStatus(activeJobs[i]->getNextStatus());
                     activeJobs[i]->setNextStatus(job::notAssigned);
                 }else{
