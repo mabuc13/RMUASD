@@ -41,7 +41,7 @@ class PathPlanner(object):
         t0 = time.time()
         astar_object = None
         if dynamic:
-            astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=4)
+            astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=2)
         else:
             astar_object = AStar(self.start, self.goal, self.map, map_padding,step_multiplier=8)
 
