@@ -58,8 +58,14 @@ class Visualization(object):
 
         self.coordinate = None
         self.snfzMap = None
-        self.finalMap = None
+        self.final_snfz_map = None
+        self.final_dnfz_map = None
         self.start = None
+        self.final_currentPosition_map = None
+        self.final_path_map = None
+
+        self.total_rows = None
+        self.total_cols = None
 
 
         self.protection = threading.Lock()
@@ -81,13 +87,15 @@ class Visualization(object):
 
     def on_drone_path(self, msg):
         print("New drone Path!")
+        i = 0
         for position in msg.Path:
             path_part_coordinate = Coordinate(GPS_data=msg.position)
 
             (east, north) = self.getPixelCoordinate(path_part_coordinate)
 
             with self.protection:
-                cv2.circle(self.finalMap,(north,east), 20, 0.7)
+                cv2.circle(self.final_path_map,(north, east), 10, 1.0, -1)
+                cv2.putText(self.final_path_map, str("path",i), (north- 50, east+ 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
 
     def getPixelCoordinate(self, coord):
@@ -129,42 +137,8 @@ class Visualization(object):
         # let's see what we have inside 
 
         #self.start.easting self.start.northing
-        print("Start e, n:", self.start.easting, self.start.northing)
-
-        # Update the dynamic no flight zones in the final map!
-        for key,val in self.dynamic_no_flight_zones.items():
-            print(key, "=>", val)
-
-            if val["geometry"] == "polygon":
-                print("draw a polygon")
-
-                # first, draw a point:
-
-                # coord[0] --> easting
-                # coord[1] --> northing
-                print(list(val["polygon"].exterior.coords))
-
-                first = True
-                for coord in list(val["polygon"].exterior.coords):
-
-                    (east, north) = self.getPixelCoordinate(Coordinate(easting=coord[0], northing=coord[1]))
-                    
-                    toAppend = np.array([[north, east]])
-
-                    if first:
-                        pts = np.array(toAppend)
-                        first = False
-                    else:
-                        pts = np.concatenate([pts, toAppend])
-
-                
-                pts = pts.reshape((-1,1,2))
-                print(pts)
-
-                with self.protection:
-                    print(type(self.finalMap))
-                    cv2.polylines(self.finalMap,[pts],True,1.0,10)
-                
+        #print("Start e, n:", self.start.easting, self.start.northing)
+        #print("Start lat, lon", self.start.lat, self.start.lon)
 
     def on_drone_info(self, msg):
         self.coordinate = Coordinate(GPS_data=msg.position)
@@ -182,7 +156,11 @@ class Visualization(object):
         (east, north) = self.getPixelCoordinate(self.coordinate)
 
         with self.protection:
-            cv2.circle(self.finalMap,(north,east), 40, 0.5)
+            pass
+            # draw current position
+            
+            cv2.circle(self.final_currentPosition_map,(north, east), 20, 1.0,-1)
+            cv2.putText(self.final_currentPosition_map, "current position", (north - 100, east + 75), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
         #print(self.coordinate.str(), " :)")
         #print(self.snfzMap)
@@ -192,10 +170,74 @@ class Visualization(object):
         pass
 
     def run(self):        
-        if self.finalMap is not None:
+        if self.final_snfz_map is not None:
+            self.update_dnfz()
             self.show_map()
+            self.final_dnfz_map = np.zeros((self.total_rows, self.total_cols))
+            
             pass
         pass
+
+    def update_dnfz(self):
+         # Update the dynamic no flight zones in the final map!
+
+        currentTime = int(time.time())
+        for key,val in self.dynamic_no_flight_zones.items():
+            #print(key, "=>", val)
+
+            if int(val["valid_from_epoch"]) > currentTime or int(val["valid_to_epoch"]) < currentTime:
+                # then don't plot it
+                print("Discard dnfz - not active right now!")
+                continue
+
+            if val["geometry"] == "polygon":
+                #print("drawing a polygon")
+
+                # first, draw a point:
+
+                # coord[0] --> easting
+                # coord[1] --> northing
+                #print(list(val["polygon"].exterior.coords))
+
+                first = True
+
+                try:
+                    polygon_coordinates = list(val["polygon"].exterior.coords)
+                except:
+                    polygon_coordinates = None
+                    print("Here was an Error!", val)
+
+                if polygon_coordinates is not None:
+                    for coord in polygon_coordinates:
+
+                        (east, north) = self.getPixelCoordinate(Coordinate(easting=coord[0], northing=coord[1]))
+                        
+                        toAppend = np.array([[north, east]])
+
+                        if first:
+                            pts = np.array(toAppend)
+                            print("Polygon here:", pts)
+                            first = False
+                        else:
+                            pts = np.concatenate([pts, toAppend])
+
+                    
+                    pts = pts.reshape((-1,1,2))
+                    #print(pts)
+
+                    with self.protection:
+                        cv2.polylines(self.final_dnfz_map,[pts],True,1.0,10)
+
+            elif val["geometry"] == "circle":
+                #print("drawing a circle")
+                
+                coordinateString = val["coordinates"]
+                coordinateArray = coordinateString.split(',')
+                
+                (east, north) = self.getPixelCoordinate(Coordinate(lon=coordinateArray[0], lat=coordinateArray[1]))
+                print("Circle here:", (north,east))
+                with self.protection:
+                    cv2.circle(self.final_dnfz_map,(north,east), int(coordinateArray[2]), 1.0, 2)
 
 
     def make_static_map(self, start, map_padding=250):
@@ -216,25 +258,27 @@ class Visualization(object):
         print("Updated SNFZ Map!")
         # try to make it visibile :)
         
-        #print(self.snfzMap)
-        print(self.snfzMap.snfz_map[0])
-        print("Length: ", len(self.snfzMap.snfz_map[0].row))
-        print("#######")
-        print(self.snfzMap.snfz_map[0])
-        print(type(self.snfzMap.snfz_map[0]))
-        print("#######")
-        print(type(self.snfzMap)) 
-        print("Done")
+        # print(self.snfzMap)
+        # print(self.snfzMap.snfz_map[0])
+        # print("Length: ", len(self.snfzMap.snfz_map[0].row))
+        # print("#######")
+        # print(self.snfzMap.snfz_map[0])
+        # print(type(self.snfzMap.snfz_map[0]))
+        # print("#######")
+        # print(type(self.snfzMap)) 
+        # print("Done")
 
-        print("Length of the map: ", len(self.snfzMap.snfz_map))
+        #print("Length of the map: ", len(self.snfzMap.snfz_map))
         print("Resolution: ", self.snfzMap.resolution)
         #print("Coordinate_lower_left: ", self.snfzMap.coordinate_lower_left)
         #print("Coordinate_upper_right ", self.snfzMap.coordinate_upper_right)
 
 
-        print("Rows: ", len(self.snfzMap.snfz_map))
-        print("Cols: ", len(self.snfzMap.snfz_map[0].row))
-        drawMap = np.zeros((len(self.snfzMap.snfz_map),len(self.snfzMap.snfz_map[0].row)))
+        self.total_rows = len(self.snfzMap.snfz_map)
+        self.total_cols = len(self.snfzMap.snfz_map[0].row)
+        print("Rows: ", self.total_rows)
+        print("Cols: ", self.total_cols)
+        drawMap = np.zeros((self.total_rows, self.total_cols))
         
         for row in range(len(self.snfzMap.snfz_map)):
             for col in range(len(self.snfzMap.snfz_map[row].row)):
@@ -242,7 +286,10 @@ class Visualization(object):
                 # if int(drawMap[row,col]) is not int(0):
                 #     print(drawMap[row,col])
 
-        self.finalMap = drawMap
+        self.final_snfz_map = drawMap
+        self.final_dnfz_map = np.zeros((self.total_rows, self.total_cols))
+        self.final_currentPosition_map = np.zeros((self.total_rows, self.total_cols))
+        self.final_path_map = np.zeros((self.total_rows, self.total_cols))
 
 
     def make_polygon(self, json_obj):
@@ -265,9 +312,13 @@ class Visualization(object):
 
     def show_map(self):
         with self.protection:
+
+            self.finalMap = self.final_snfz_map + self.final_dnfz_map + self.final_currentPosition_map + self.final_currentPosition_map
+            self.finalMap = np.clip(self.finalMap, 0.0, 1.0)
+
             drawMapResized = cv2.resize(self.finalMap, (1000, 1000)) 
             #print("Updating Map")
-            cv2.imshow("BW Image",drawMapResized)
+            cv2.imshow("Map of SNFZ and DNFZ",drawMapResized)
 
             #cv2.waitKey(1)
             cv2.waitKey(5)
