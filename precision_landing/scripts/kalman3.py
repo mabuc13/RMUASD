@@ -61,6 +61,12 @@ class KalmanFilter(object):
         #                         [pow(dt,3)/2,    0,              dt**2,          0],
         #                         [0,              pow(dt,3)/2,    0,              dt**2]])*dt
 
+    def reset(self):
+        # only reset if covariance matrix has been modified
+        if not np.array_equal(self.P_plus, np.eye(6)):
+            self.P_min  = np.eye(6)
+            self.P_plus = np.eye(6)
+
     def update(self, y=None, y_type=Measurement.POS):
         timestamp = time.time()
         dt = timestamp - self.last_timestamp
@@ -136,14 +142,3 @@ class KalmanFilter(object):
         self.P_plus     = (np.eye(6) - self.K @ self.H) @ self.P_min
 
         return self.x_hat_plus, self.P_plus
-
-    def getState(self):
-        return self.x_hat_plus
-
-    def getPosition(self):
-        return np.array([self.x_hat_plus[0,0], self.x_hat_plus[1,0]])
-
-    def getAbsVelocity(self):
-        v = np.array([self.x_hat_plus[2, 0], self.x_hat_plus[3, 0]])
-        v = norm(v)
-        return v
