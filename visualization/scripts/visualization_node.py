@@ -95,13 +95,13 @@ class Visualization(object):
             (east, north) = self.getPixelCoordinate(path_part_coordinate)
 
             with self.protection:
-                cv2.circle(self.final_path_map,(north, east), 10, 1.0, -1)
-                cv2.putText(self.final_path_map,"path"+str(i), (north- 50, east+ 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
+                cv2.circle(self.final_path_map,(east, north), 10, 1.0, -1)
+                cv2.putText(self.final_path_map,"path"+str(i), (east - 75, north + 75), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
 
     def getPixelCoordinate(self, coord):
         east = int(1500 + (coord.easting-self.start.easting) * 3000./500.)
-        north = int(1500 + (coord.northing-self.start.northing) * 3000./500.)
+        north = int(1500 - (coord.northing-self.start.northing) * 3000./500.)
 
         return (east, north)
 
@@ -139,10 +139,7 @@ class Visualization(object):
         #print("Start e, n:", self.start.easting, self.start.northing)
         #print("Start lat, lon", self.start.lat, self.start.lon)
 
-    def on_drone_info(self, msg):
-        if self.total_rows is not None:
-            self.final_currentPosition_map = np.zeros((self.total_rows, self.total_cols))
-        
+    def on_drone_info(self, msg):        
         self.coordinate = Coordinate(GPS_data=msg.position)
 
 
@@ -159,9 +156,13 @@ class Visualization(object):
 
         with self.protection:
             # draw current position
+            if self.total_rows is not None:
+                self.final_currentPosition_map = np.zeros((self.total_rows, self.total_cols))
+            else:
+                return
             
-            cv2.circle(self.final_currentPosition_map,(north, east), 20, 1.0,-1)
-            cv2.putText(self.final_currentPosition_map, "current position", (north - 500, east + 75), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
+            cv2.circle(self.final_currentPosition_map,(east, north), 20, 1.0,-1)
+            cv2.putText(self.final_currentPosition_map, "current position", (east - 100 , north + 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
         #print(self.coordinate.str(), " :)")
         #print(self.snfzMap)
@@ -189,7 +190,7 @@ class Visualization(object):
 
             if int(val["valid_from_epoch"]) > currentTime or int(val["valid_to_epoch"]) < currentTime:
                 # then don't plot it
-                print("Discard dnfz - not active right now!")
+                #print("Discard dnfz - not active right now!")
                 continue
 
             if val["geometry"] == "polygon":
@@ -214,11 +215,11 @@ class Visualization(object):
 
                     (east, north) = self.getPixelCoordinate(Coordinate(lat=coord[1], lon=coord[0]))
                     
-                    toAppend = np.array([[north, east]])
+                    toAppend = np.array([[east, north]])
 
                     if first:
                         pts = np.array(toAppend)
-                        print("Polygon here:", pts)
+                        #print("Polygon here:", pts)
                         first = False
                     else:
                         pts = np.concatenate([pts, toAppend])
@@ -237,9 +238,9 @@ class Visualization(object):
                 coordinateArray = coordinateString.split(',')
                 
                 (east, north) = self.getPixelCoordinate(Coordinate(lon=coordinateArray[0], lat=coordinateArray[1]))
-                print("Circle here:", (north,east))
+                #print("Circle here:", (east,north))
                 with self.protection:
-                    cv2.circle(self.final_dnfz_map,(north,east), int(coordinateArray[2]), 1.0, 2)
+                    cv2.circle(self.final_dnfz_map,(east, north), int(coordinateArray[2]), 1.0, 2)
 
 
     def make_static_map(self, start, map_padding=250):
@@ -299,7 +300,7 @@ class Visualization(object):
     def show_map(self):
         with self.protection:
 
-            self.finalMap = self.final_snfz_map + self.final_dnfz_map + self.final_currentPosition_map + self.final_currentPosition_map
+            self.finalMap = self.final_snfz_map + self.final_dnfz_map + self.final_currentPosition_map + self.final_path_map
             self.finalMap = np.clip(self.finalMap, 0.0, 1.0)
 
             drawMapResized = cv2.resize(self.finalMap, (1500, 1500)) 
