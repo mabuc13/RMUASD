@@ -993,13 +993,13 @@ class utm_parser(object):
         utm_coords.append(fake_utm_list)
         """
 
-        # fake_geo = [[55.472360, 10.415482, 0], [55.471622, 10.415378, 0], [55.472364, 10.416210, 0],
-        #             [55.471767, 10.416256, 0]]
-        # fake_utm_list = []
-        # for w in fake_geo:
-        #     fake_utm = self.coord_conv.geodetic_to_utm(w[0], w[1])
-        #     fake_utm_list.append(fake_utm)
-        # utm_coords.append(fake_utm_list)
+        fake_geo = [[55.471622, 10.415378, 0], [55.472360, 10.415482, 0],
+                    [55.472364, 10.416210, 0], [55.471767, 10.416256, 0]]
+        fake_utm_list = []
+        for w in fake_geo:
+            fake_utm = self.coord_conv.geodetic_to_utm(w[0], w[1])
+            fake_utm_list.append(fake_utm)
+        utm_coords.append(fake_utm_list)
 
         for i in utm_coords:
             current_zone = []
