@@ -50,6 +50,7 @@ using namespace std;
 #define MAX_FLIGHT_DISTANCE 500
 
 #define DEFAULT_FLIGHT_HEIGHT 32
+#define FORWAD_CHECK_DISTANCE 15
 #define earthRadiusKm 6371.0
 
 #define UTM_EMERGENCY 0
@@ -95,6 +96,7 @@ std::map<ID_t,ID_t> Utm2OwnId;
 
 node_monitor::nodeOk utm_parser;
 
+int pathPlanNum =0;
 const string header = "[Ground Control]: ";
 
 // ################################ Misulanius ###########################################
@@ -122,12 +124,43 @@ double deg2rad(double deg) {
 double rad2deg(double rad) {
   return (rad * 180 / M_PI);
 }
+
+string jobStatusText(int status){
+    string text = "";
+    if(status == job::queued){
+        text = "Queued";
+    }else if(status == job::ongoing){
+        text = "Ongoing";
+    }else if(status == job::onhold){
+        text = "Onhold";
+    }else if(status == job::wait4pathplan){
+        text = "Waiting for pathplan";
+    }else if(status == job::ready4takeOff){
+        text = "Ready for takeoff";
+    }else if(status == job::done){
+        text = "Done";
+    }else if(status == job::preFlightCheack){
+        text = "Waiting for all clear signal";
+    }else if(status == job::rePathPlan){
+        text = "rePlanPath";
+    }if(status == job::waitInAir){
+        text = "Wait in air";
+    }if(status == job::resumeFlight){
+        text = "resumeFlight from old plan";
+    }if(status == job::ready4flightContinuation){
+        text = "ready to continue";
+    }
+    return text;
+}
 // ############################ Helper functions ##################################
 void UTMPriority(int priority, drone* aDrone, string description = ""){
     gcs::DroneSingleValue msg;
     msg.value = priority;
     msg.text = description;
     msg.drone_id = aDrone->getID();
+    if(priority == UTM_EMERGENCY){
+        aDrone->OS()=drone::emergency;
+    }
     Transport_pub.publish(msg);
 }
 
@@ -163,16 +196,18 @@ void webMsg(dock* reciver, string msg){
     WebInfo_pub.publish(msgOut);
     //cout << "[Ground Control]: " << m << endl;
 }
-double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2);
+double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2 ,bool print_dist = true);
 dock* closestLab(drone* theDrone){ // TODO
     double distance = INFINITY;
     dock* theLab = NULL;
-    for(size_t i = 0; i < Docks.size(); i++){
-        if(Docks[i]->isLab()){
-            double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
-            if(d < distance){
-                distance = d;
-                theLab = Docks[i];
+    if(theDrone != NULL){
+        for(size_t i = 0; i < Docks.size(); i++){
+            if(Docks[i]->isLab()){
+                double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
+                if(d < distance){
+                    distance = d;
+                    theLab = Docks[i];
+                }
             }
         }
     }
@@ -183,7 +218,7 @@ dock* findEmergencyLand(drone* theDrone){
     double distance = INFINITY;
     dock* EMLandingPAD;
     for(size_t i = 0; i < Docks.size(); i++){
-        if(Docks[i]->isEM() && safePosition(Docks[i]->getPosition(),theDrone)){
+        if(Docks[i]->isEM() && (safePosition(Docks[i]->getPosition(),theDrone) || theDrone->OS() == drone::emergency)){
             double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
             if(d < distance){
                 distance = d;
@@ -193,6 +228,7 @@ dock* findEmergencyLand(drone* theDrone){
     }
     return EMLandingPAD;
 }
+
 void NodeState(uint8 severity,string msg,double rate = 0){
     double curRate = heartbeat_msg.rate;
     if(rate != 0){
@@ -212,12 +248,12 @@ void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
 
     msg.DroneID = theDrone->getID();
     msg.loiterAtEnd = loiterAtEnd;
+    msg.PathID = pathPlanNum++;
     if(DEBUG){
         while(theDrone->getPath().size()> 9){
             theDrone->getPath().pop_back();
             msg.loiterAtEnd = true;
-        }
-        
+        }   
     }
     if(std::abs(theDrone->getFlightHeight()-theDrone->getPath().back().altitude)>0.1){
         for(size_t i = 0; i < theDrone->getPath().size();i++){
@@ -256,25 +292,17 @@ dock* findDock(string name){
     }
     return goalDock;
 }
-// ############################ Service calls ##################################
-double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2){
-    /*gcs::gps2distance srv;
-    srv.request.point1 = point1;
-    srv.request.point2 = point2;
-    bool worked;
-    do{
-        worked = GPSdistanceClient.call(srv);
-        if (worked){
-            if(DEBUG) cout << "[Ground Control]: " << "Distance calculated " << srv.response.distance << endl;
-        }else{
-            cout << "[Ground Control]: " << "Distance Calc failed"<< endl;
-            ROS_FATAL("[Ground Control]: Distance calculation failed - please get service up and running again");
-            NodeState(node_monitor::heartbeat::fatal_error,"Distance calculation failed");
-        }
-    }while(!worked);
-    return srv.response.distance;
+void landEmergency(drone* theDrone){
+    NodeState(node_monitor::heartbeat::critical_error,"Doing emegency landing");
+    UTMPriority(UTM_EMERGENCY, theDrone);
+    theDrone->getPath()= {theDrone->getPosition()};
+    if(theDrone->getJob() != NULL){
+        theDrone->getJob()->terminateJobOnLand() = true;
+    }
+    uploadFlightPlan(theDrone);
 }
-double GPSdistanceMeters(const gcs::GPS &pos1, const gcs::GPS &pos2) {*/
+// ############################ Service calls ##################################
+double GPSdistance(const gcs::GPS &point1, const gcs::GPS &point2, bool print_dist){
     double lat1r, lon1r, lat2r, lon2r, u, v;
     lat1r = deg2rad(point1.latitude);
     lon1r = deg2rad(point1.longitude);
@@ -283,7 +311,7 @@ double GPSdistanceMeters(const gcs::GPS &pos1, const gcs::GPS &pos2) {*/
     u = sin((lat2r - lat1r)/2);
     v = sin((lon2r - lon1r)/2);
     double dist = 1000*(2.0 * earthRadiusKm * asin(sqrt(u * u + cos(lat1r) * cos(lat2r) * v * v)));
-    if(DEBUG) cout << "[Ground Control]: " << "Distance calculated " << dist << endl;
+    if(print_dist) cout << "[Ground Control]: " << "Distance calculated " << dist << endl;
     return dist;
 }
 is_safe_for_takeoff safeTakeOff(drone* my_drone){
@@ -312,7 +340,7 @@ bool safePosition(gcs::GPS position,drone* my_drone){
     bool worked = safeTakeOffClient.call(srv);
     bool response;
     if (worked){
-        if(DEBUG) std::cout << "[Ground Control]: " << "is point inside DNFZ? : " << int(srv.response.is_save_to_take_off) << endl;
+        //if(DEBUG) std::cout << "[Ground Control]: " << "is point inside DNFZ? : " << !int(srv.response.is_save_to_take_off) << endl;
         response = srv.response.is_save_to_take_off;
     }else{
         cout << "[Ground Control]: " << "Safe point cheack failed"<< endl;
@@ -348,7 +376,7 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     srv.request.drone_id = theDrone->getID();
 
     if(theDrone->getJob() != NULL){
-        if(theDrone->getJob()->getStatus() == job::wait4pathplan){
+        if(theDrone->getJob()->getStatus() == job::wait4pathplan || theDrone->OS() != drone::normal_operation){
             srv.request.useDNFZ = false;
             srv.request.velocity = theDrone->getVelocitySetPoint(); // TODO get the set value from somewhere
             srv.request.startTime = std::time(nullptr)+15; //TODO is 15 the right wait amount?
@@ -373,9 +401,12 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
         NodeState(node_monitor::heartbeat::critical_error,"PathPlanner Not Responding");
     }
 
-    if(srv.response.path.size() < 2 || !worked){
+    if((srv.response.path.size() < 2 && theDrone->getJob()->getStatus() == job::wait4pathplan) || !worked || srv.response.path.size() < 1 ){
         ROS_ERROR("[Ground Control]: Unacceptable Path");
         throw string("Unacceptable Path");
+    }
+    if(theDrone->OS() == drone::emergency_plan_with_fallback){
+        theDrone->OS() == drone::normal_operation;
     }
     return srv.response.path;
 }
@@ -415,11 +446,23 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
         RegisterDrone_pub.publish(reg);
 
         Drones[index]->setPosition(msg.position);
-        if(msg.status != msg.holding) Drones[index]->setMissionIndex(msg.mission_index);
+        Drones[index]->setMissionIndex(msg.mission_index);
         Drones[index]->setVelocity(msg.ground_speed);
         Drones[index]->setVelocitySetPoint(msg.ground_speed_setpoint);
         Drones[index]->setStatus(msg.status);
+        Drones[index]->setHeading(msg.heading);
         if(msg.status == msg.Run){
+            if(Drones[index]->getJob() != NULL){
+                if(Drones[index]->getJob()->getStatus()==job::ongoing){
+                    if(!safePosition(Drones[index]->forwardPosition(FORWAD_CHECK_DISTANCE),Drones[index])){
+                        cout << "Forward position is inside NFZ" << endl;
+                        if(GPSdistance(Drones[index]->getPosition(),Drones[index]->getPath()[msg.mission_index])>FORWAD_CHECK_DISTANCE){
+                            moveDroneTo(Drones[index],Drones[index]->getPosition());
+                            Drones[index]->getJob()->setStatus(job::rePathPlan);
+                        }
+                    }
+                }
+            }
             job* aJob = Drones[index]->getJob();
             if(aJob != NULL){
                 if(aJob->getStatus() == job::ready4takeOff ||
@@ -457,7 +500,7 @@ void DroneStatus_Handler(gcs::DroneInfo msg){
                 if(aJob->getStatus() == job::ongoing){
                     aJob->setStatus(job::waitInAir);
                 }else{
-                    cout << "[Ground Control]: Drone status = hold, job status is: " << int(aJob->getStatus()) << endl; 
+                    cout << "[Ground Control]: Drone status = hold, job status is: " << jobStatusText(int(aJob->getStatus())) << endl; 
                 }
             }else{
                 ROS_ERROR("[Ground Control]: Drone in Hold without a JOB");
@@ -495,11 +538,12 @@ void WebInfo_Handler(std_msgs::String msg_in){
             }
             if(DEBUG) cout << "[Ground Control]: " << "request end" << endl;
         }else if(msg.hasValue("return")){  // ##########  RETURN ###############
-            job* theJob;
+            bool foundJob = false;
             for(size_t i = 0; i < activeJobs.size();i++){
                 if(activeJobs[i]->getStatus() == job::onhold){
                     if(activeJobs[i]->getQuestHandler()->getName() == msg.getValue("name")){
                         dock* goalDock = NULL;
+                        foundJob = true;
                         string dockName = msg.getValue("return");
                         if(dockName.size() <1){ // if no return addresse find nearest lab
                             goalDock = closestLab(activeJobs[i]->getDrone());
@@ -522,7 +566,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
                                 break;
                             }
                         }
-
+                        
                         activeJobs[i]->setGoal(goalDock);
                         activeJobs[i]->setStatus(job::wait4pathplan);
                         feedback+=",return=succes,request=waiting4pathplan";
@@ -532,15 +576,19 @@ void WebInfo_Handler(std_msgs::String msg_in){
                     webMsg(activeJobs[i]->getQuestHandler(),"return=drone not arrived yet");
                 }
             }
-            dock* aDock = findDock(msg.getValue("name"));
-            if(aDock!=NULL){
-                for(size_t i = 0; i < Drones.size(); i++){
-                    if(Drones[i]->isAvailable() && Drones[i]->getStatus() == gcs::DroneInfo::Land){
-                        if(GPSdistance(Drones[i]->getPosition(),aDock->getPosition())<15){
-                            Drones[i]->setAvailable(false);
-                            job* aJob = new job(aDock);
-                            aJob->setStatus(job::onhold);
-                            WebInfo_Handler(msg_in);
+            if(!foundJob){
+                dock* aDock = findDock(msg.getValue("name"));
+                if(aDock!=NULL){
+                    for(size_t i = 0; i < Drones.size(); i++){
+                        if(Drones[i]->isAvailable() && Drones[i]->getStatus() == gcs::DroneInfo::Land){
+                            if(GPSdistance(Drones[i]->getPosition(),aDock->getPosition())<15){
+                                Drones[i]->setAvailable(false);
+                                job* aJob = new job(aDock);
+                                aJob->setStatus(job::onhold);
+                                aJob->setDrone(Drones[i]);
+                                activeJobs.push_back(aJob);
+                                WebInfo_Handler(msg_in);
+                            }
                         }
                     }
                 }
@@ -887,8 +935,7 @@ int main(int argc, char** argv){
 
             }else if(status==job::ready4takeOff){
 
-            }else if(status == job::done){  // ############# Delete Finnished Jobs ######################
-                
+            }else if(status == job::done){  // ############# Delete Finnished Jobs ######################           
                 webMsg(activeJobs[i]->getQuestHandler(),"return=done");
                 delete activeJobs[i];
                 activeJobs.erase(activeJobs.begin()+i);
@@ -987,7 +1034,7 @@ int main(int argc, char** argv){
                         activeJobs[i]->setStatus(job::ready4flightContinuation);
                     }
                 }catch( string msg){
-
+                    NodeState(node_monitor::heartbeat::critical_error,msg);
                     cout << header << "Somthing went wrong in path planing trying aomthing else" << endl;
                     if(activeJobs[i]->getDNFZinjection().stillValid == false){
                         if(safePosition(activeJobs[i]->getDrone()->getPosition(),activeJobs[i]->getDrone())){
@@ -998,30 +1045,46 @@ int main(int argc, char** argv){
                                 activeJobs[i]->setGoal(EM);
                                 activeJobs[i]->terminateJobOnLand() = true;
                             }else{
-                                cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
                                 UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
-                                moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
+                                dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
+                                if(EM == NULL){
+                                    ROS_ERROR("Couldn't find solution to missing path plan landing right here");
+                                    landEmergency(activeJobs[i]->getDrone());
+                                }else{
+                                    cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
+                                    moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
+                                }
                             }
                         }else{
-                            cout << header << "We are currently inside a DNFZ and the planner can't find a path";
-                            dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
-                            if(EM == NULL){
-                                cout << header << "Couldn't find Emergency landing spot, moving to closest lab" << endl;
-                                dock* lab = closestLab(activeJobs[i]->getDrone());
-                                UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
-                                moveDroneTo(activeJobs[i]->getDrone(),lab->getPosition());
+                            cout << header << "We are currently inside a DNFZ and the planner can't find a path" << endl;
+                            if(activeJobs[i]->getDrone()->OS() == drone::normal_operation){
+                                cout << header << "Elevating drone to ignore DNFZ for next pathPlan" << endl;
+                                activeJobs[i]->getDrone()->OS() = drone::emergency_plan_with_fallback;
                             }else{
-                                cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
-                                UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
-                                moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
+                                dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
+                                if(EM == NULL){
+                                    cout << header << "Couldn't find Emergency landing spot, moving to closest lab" << endl;
+                                    dock* lab = closestLab(activeJobs[i]->getDrone());
+                                    if(lab != NULL){
+                                        UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
+                                        moveDroneTo(activeJobs[i]->getDrone(),lab->getPosition());
+                                    }else{
+                                        UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
+                                    }
+                                }else{
+                                    cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
+                                    UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
+                                    moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
 
+                                }
                             }
+                            
                         }
                     }else{
                         cout <<  header << "Tried a DNFZ repathPlan didn't work, trying to plan to home" << endl;
                         activeJobs[i]->getDNFZinjection().stillValid = false;
                     }
-                    NodeState(node_monitor::heartbeat::critical_error,msg);
+                    
                 }
             }else if(status == job::waitInAir){ // ######### waiting for somthing ############
                 if(activeJobs[i]->getWaitTime() != -1 && std::time(nullptr) > activeJobs[i]->getWaitTime()){
@@ -1066,29 +1129,7 @@ int main(int argc, char** argv){
             msg.drone_id = Drones[i]->getID();
             if(Drones[i]->getJob() != NULL){
                 msg.value = Drones[i]->getJob()->getStatus();
-                if(msg.value == job::queued){
-                    msg.text = "Queued";
-                }else if(msg.value == job::ongoing){
-                    msg.text = "Ongoing";
-                }else if(msg.value == job::onhold){
-                    msg.text = "Onhold";
-                }else if(msg.value == job::wait4pathplan){
-                    msg.text = "Waiting for pathplan";
-                }else if(msg.value == job::ready4takeOff){
-                    msg.text = "Ready for takeoff";
-                }else if(msg.value == job::done){
-                    msg.text = "Done";
-                }else if(msg.value == job::preFlightCheack){
-                    msg.text = "Waiting for all clear signal";
-                }else if(msg.value == job::rePathPlan){
-                    msg.text = "rePlanPath";
-                }if(msg.value == job::waitInAir){
-                    msg.text = "Wait in air";
-                }if(msg.value == job::resumeFlight){
-                    msg.text = "resumeFlight from old plan";
-                }if(msg.value == job::ready4flightContinuation){
-                    msg.text = "ready to continue";
-                }
+                msg.text = jobStatusText(msg.value);
             }else{
                 msg.value = job::noMission;
                 msg.text = "No Job assigned";

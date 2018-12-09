@@ -104,12 +104,12 @@ class CollisionDetector:
         try:
             all_json_objs = json.loads(str(msg.data))
             for json_obj in all_json_objs:
-                if json_obj["int_id"] in self.dynamic_no_flight_zones:
+                '''if json_obj["int_id"] in self.dynamic_no_flight_zones:
                     self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
-                else:
-                    self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
-                    if json_obj["geometry"] == "polygon":
-                        self.make_polygon(json_obj)
+                else:'''
+                self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
+                if json_obj["geometry"] == "polygon":
+                    self.make_polygon(json_obj)
         except ValueError:
             print("Collision Detector: Couldn't convert string from UTM server to json..")
 
@@ -215,6 +215,7 @@ class CollisionDetector:
 
     def make_polygon(self, json_obj):
         coords = json_obj["coordinates"]
+        coords = coords.replace("  "," ")
         coords = coords.split(" ")
         i = 0
         for a in coords:
@@ -222,8 +223,9 @@ class CollisionDetector:
             i += 1
         list_of_points = []
         for point in coords:
-            temp_coord = Coordinate(lat=float(point[1]), lon=float(point[0]))
-            list_of_points.append(geometry.Point(temp_coord.easting, temp_coord.northing))
+            if not (len(point)<2):
+                temp_coord = Coordinate(lat=float(point[1]), lon=float(point[0]))
+                list_of_points.append(geometry.Point(temp_coord.easting, temp_coord.northing))
         # Taken from:
         # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
         dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
@@ -262,7 +264,7 @@ class CollisionDetector:
             new_northing = (dist_to_travel * (next_position.northing - current_position.northing) / accumulated_mission_dist) + current_position.northing
             return Coordinate(northing=new_northing, easting=new_easting), self.active_drone_info[drone_id].mission_index
         else:
-            for i in range(self.active_drone_info[drone_id].mission_index, self.active_drone_info[drone_id].mission_length):
+            for i in range(self.active_drone_info[drone_id].mission_index + 1, self.active_drone_info[drone_id].mission_length):
                 accumulated_mission_dist += self.dist_between_mission_points[drone_id][i]
                 if accumulated_mission_dist > dist_to_travel:
                     # future position is before next mission point
@@ -272,8 +274,7 @@ class CollisionDetector:
                     new_easting = (resulting_dist * (p2.easting - p1.easting) / self.dist_between_mission_points[drone_id][i]) + p1.easting
                     new_northing = (resulting_dist * (p2.northing - p1.northing) / self.dist_between_mission_points[drone_id][i]) + p1.northing
                     return Coordinate(northing=new_northing, easting=new_easting), i
-            #need return here
-            
+            return Coordinate(GPS_data=self.active_drone_paths[drone_id][-1]), self.active_drone_info[drone_id].mission_length - 1
 
     def quick_find_position_outside_dnfz(self, drone_id, dnfz_id):
         ''' If a DNFZ pops up on top of the drones position, then the drone should get out as fast as possible. '''

@@ -190,8 +190,8 @@ class DroneHandler(object):
             drone.heading = msg.heading
             # timestamp = datetime.utcfromtimestamp(msg.time_usec / 1e6).strftime('%Y-%m-%d %H:%M:%S')
             # print(timestamp)
+            drone.calc_remaining_distance()
             drone.manual_mission.update_position(msg)
-            # drone.last_heard = msg.header.stamp
 
     def on_mission_ack(self, msg):
         if msg.drone_id in self.drones:
