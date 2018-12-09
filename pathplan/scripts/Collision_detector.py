@@ -264,7 +264,7 @@ class CollisionDetector:
             new_northing = (dist_to_travel * (next_position.northing - current_position.northing) / accumulated_mission_dist) + current_position.northing
             return Coordinate(northing=new_northing, easting=new_easting), self.active_drone_info[drone_id].mission_index
         else:
-            for i in range(self.active_drone_info[drone_id].mission_index, self.active_drone_info[drone_id].mission_length):
+            for i in range(self.active_drone_info[drone_id].mission_index + 1, self.active_drone_info[drone_id].mission_length):
                 accumulated_mission_dist += self.dist_between_mission_points[drone_id][i]
                 if accumulated_mission_dist > dist_to_travel:
                     # future position is before next mission point
@@ -274,8 +274,7 @@ class CollisionDetector:
                     new_easting = (resulting_dist * (p2.easting - p1.easting) / self.dist_between_mission_points[drone_id][i]) + p1.easting
                     new_northing = (resulting_dist * (p2.northing - p1.northing) / self.dist_between_mission_points[drone_id][i]) + p1.northing
                     return Coordinate(northing=new_northing, easting=new_easting), i
-            #need return here
-            
+            return Coordinate(GPS_data=self.active_drone_paths[drone_id][-1]), self.active_drone_info[drone_id].mission_length - 1
 
     def quick_find_position_outside_dnfz(self, drone_id, dnfz_id):
         ''' If a DNFZ pops up on top of the drones position, then the drone should get out as fast as possible. '''

@@ -89,7 +89,6 @@ class AStar:
         Use "int_id" in the string as key in the dict of dnfz
         '''
         string_msg = str(msg.data)
-        # print(string_msg)
         try:
             all_json_objs = json.loads(string_msg)
             for json_obj in all_json_objs:
@@ -260,7 +259,7 @@ class AStar:
                     self.gscore[neighbor] = tentative_g_score
                     self.fscore[neighbor] = tentative_g_score + self.heuristic(neighbor, self.goal)
                     heappush(self.oheap, (self.fscore[neighbor], neighbor))
-            if time.time() - t0 >= 15:
+            if (time.time() - t0) >= 15:
                 return False
         #print "Astar closed set:", len(self.close_set)
         return False
