@@ -92,7 +92,7 @@ class AStar:
 
         string_msg = str(msg.data)
 
-        print(string_msg)
+        # print(string_msg)
 
         try:
             all_json_objs = json.loads(string_msg)
