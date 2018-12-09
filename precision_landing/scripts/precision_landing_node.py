@@ -23,7 +23,7 @@ from precision_landing.msg import precland_sensor_data
 # defines
 RECORDING_FLIGHT_MODE = "Altitude Control"
 TAG_ADDRESS = 13
-USE_KALMAN = False
+USE_KALMAN = True
 
 LANDING_TARGET_REF = 0
 
@@ -41,12 +41,14 @@ class PrecisionLanding(object):
         #self.bus = SMBus(1)
         self.utmconv = utmconv()
         self.recording = False
+        self.landing = False
 
         self.main_mode = ""
         self.sub_mode = ""
         self.lat = 0
         self.lon = 0
         self.alt = 0
+        self.rel_alt = 0
         self.mission_idx = 0
         self.mission_len = 0
         self.new_imu_reading = False
@@ -104,11 +106,13 @@ class PrecisionLanding(object):
 
         self.sensor_data_pub    = rospy.Publisher("/landing/sensor_data", precland_sensor_data, queue_size=0)
         self.landing_target_pub = rospy.Publisher("/telemetry/set_landing_target", telemetry_landing_target, queue_size=0)
+        self.kalman_pub         = rospy.Publisher("/landing/kalman_pos", precland_sensor_data, queue_size=0)
 
     def on_drone_pos(self, msg):
         self.lat = msg.lat
         self.lon = msg.lon
         self.alt = msg.alt
+        self.rel_alt = msg.relative_alt
 
     def on_arduino_pos(self, msg):
         self.new_pos_reading = True
@@ -129,21 +133,9 @@ class PrecisionLanding(object):
                 self.landing_target[2]
             )
         )
-
-        #activate landing target
-        # if self.sub_mode == "Mission":
-        #     if self.mission_len > 0:
-        #         if self.mission_idx == self.mission_len - 1:
-        #             if self.new_pos_reading:
-        #                 self.new_pos_reading = False
-        #             self.landing_target_pub.publish(self.unfiltered_msg)
-        # else:
-
         if not self.use_kalman:  
-            self.landing_target_pub.publish(self.unfiltered_msg)
-
-        
-        # print(self.relative_target)
+            if self.rel_alt < 20:
+                self.landing_target_pub.publish(self.unfiltered_msg)
 
 
     def on_mission_info(self, msg):
@@ -207,34 +199,17 @@ class PrecisionLanding(object):
         )
 
         if self.use_kalman:
-            if self.sub_mode == "Mission":
-                if self.mission_len > 0:
-                    if self.mission_idx == self.mission_len - 1:
-                        self.landing_target_pub.publish(self.filtered_msg)
-        # print(self.state[0,0], self.state[1,0])
+            kalman_msg = precland_sensor_data(y,x,-z)
+            self.kalman_pub.publish(kalman_msg)
+            self.landing_target_pub.publish(self.filtered_msg)
 
     def run(self):
-        # if self.main_mode == RECORDING_FLIGHT_MODE:
-        #     self.recording = True
-        # else:
-        #     self.recording = False
-
-        self.update_kalman()
-
-        # if self.use_kalman:
-        #     msg = self.filtered_msg
-        # else:
-        #     msg = self.unfiltered_msg
-
-
-
-
-        # print(self.local_position_landing.x, self.local_position_landing.y)
-
-        # if self.recording:
-        #     self.local_data = np.append(self.local_data, np.array([[self.local_position_landing.x, self.local_position_landing.y, self.local_position_landing.z]]), axis=0)
-        #     self.filtered_pos = np.array([[ self.state[0,0], self.state[1,0] ]])
-        #     self.filtered_data = np.append(self.filtered_data, self.filtered_pos, axis=0)
+        # update the kalman filter at low altitudes
+        # but make sure the covariance is not modified when not
+        if self.rel_alt < 20:
+            self.update_kalman()
+        else:
+            self.kalman.reset()
 
 
     def shutdownHandler(self):

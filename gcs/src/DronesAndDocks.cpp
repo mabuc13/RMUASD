@@ -78,7 +78,7 @@ bool dock::isEM(void){
 
 
 //################# Job #########################
-job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued),terminateOnLand(false){
+job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued),terminateOnLand(false),last_PathPlan(0){
     goal = station;
     QuestGiver = station;
     this->injection.index_from = 0;
@@ -98,6 +98,7 @@ job::job(const job &ajob):worker(NULL){
     this->TheOldPlan = ajob.TheOldPlan;
     this->waitInAirTill = ajob.waitInAirTill;
     this->nextStatus = ajob.nextStatus;
+    this->last_PathPlan = ajob.last_PathPlan;
     this->setDrone(ajob.worker);
 }
 job::~job(){
@@ -190,7 +191,8 @@ drone::drone(ID_t ID, gcs::GPS position):
     ID(ID),
     position(position),
     isFree(true),
-    currentJob(NULL)
+    currentJob(NULL),
+    operationStatus(drone::normal_operation)
 {}
 ID_t drone::getID(void){
     return this->ID;
@@ -268,7 +270,7 @@ double& drone::getFlightHeight(){
     return this->flightHeight;
 }
 
-uint8& drone::OS(){
+uint8 drone::OS(){
     return this->operationStatus;
 }
 
@@ -278,6 +280,14 @@ void drone::setHeading(double heading){
 
 gcs::GPS drone::forwardPosition(double meters){
     UTM pos = GPS2UTM(this->position);
-    pos+= heading2direction(this->heading)*meters;
+    UTM next = GPS2UTM(this->getPath()[this->pathIndex]);
+    direction dir;
+    dir.east = next.east-pos.east;
+    dir.north = next.north-pos.north;
+    pos+= heading2direction(this->heading)*(meters/UTMdistance(pos,next));
     return UTM2GPS(pos);
+}
+
+void drone::setOS(uint8 os){
+    this->operationStatus = os;
 }

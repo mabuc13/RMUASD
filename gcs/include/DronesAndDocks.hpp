@@ -102,7 +102,7 @@ public:
   static const uint8 noMission = 1;
   static const uint8 notAssigned = 0;
 
-
+  time_t last_PathPlan;
 private:
   dock* goal= NULL;
   dock* QuestGiver = (NULL);
@@ -132,7 +132,8 @@ public:
   int getStatus();
   double& getGroundHeight();
   double& getFlightHeight();
-  uint8& OS();
+  uint8 OS();
+  void setOS(uint8 os);
   gcs::GPS forwardPosition(double meters);
 
 
@@ -150,6 +151,7 @@ public:
   static const uint8 normal_operation = 1;
   static const uint8 emergency_plan_with_fallback = 2;
   static const uint8 emergency = 3;
+  static const uint8 emergency_leave = 4;
 
 private:
   job* currentJob = (NULL);

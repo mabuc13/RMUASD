@@ -68,6 +68,7 @@ add_service_files(
    getEta.srv
    gps2distance.srv
    safeTakeOff.srv
+   is_coord_free.srv
 )
 
 ## Generate actions in the 'action' folder
