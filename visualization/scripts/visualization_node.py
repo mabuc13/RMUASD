@@ -86,16 +86,17 @@ class Visualization(object):
 
 
     def on_drone_path(self, msg):
+        self.final_path_map = np.zeros((self.total_rows, self.total_cols))
         print("New drone Path!")
         i = 0
         for position in msg.Path:
-            path_part_coordinate = Coordinate(GPS_data=msg.position)
+            path_part_coordinate = Coordinate(GPS_data=position)
 
             (east, north) = self.getPixelCoordinate(path_part_coordinate)
 
             with self.protection:
                 cv2.circle(self.final_path_map,(north, east), 10, 1.0, -1)
-                cv2.putText(self.final_path_map, str("path",i), (north- 50, east+ 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
+                cv2.putText(self.final_path_map,"path"+str(i), (north- 50, east+ 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
 
     def getPixelCoordinate(self, coord):
@@ -139,6 +140,9 @@ class Visualization(object):
         #print("Start lat, lon", self.start.lat, self.start.lon)
 
     def on_drone_info(self, msg):
+        if self.total_rows is not None:
+            self.final_currentPosition_map = np.zeros((self.total_rows, self.total_cols))
+        
         self.coordinate = Coordinate(GPS_data=msg.position)
 
 
@@ -154,7 +158,6 @@ class Visualization(object):
         (east, north) = self.getPixelCoordinate(self.coordinate)
 
         with self.protection:
-            pass
             # draw current position
             
             cv2.circle(self.final_currentPosition_map,(north, east), 20, 1.0,-1)
@@ -172,6 +175,7 @@ class Visualization(object):
             self.update_dnfz()
             self.show_map()
             self.final_dnfz_map = np.zeros((self.total_rows, self.total_cols))
+            
             
             pass
         pass
