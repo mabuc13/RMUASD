@@ -264,7 +264,7 @@ class Drone(object):
             ml_list.waypoints[-1].command = MAV_CMD_NAV_LAND
             ml_list.waypoints[-1].param1 = 0        # abort alt
             ml_list.waypoints[-1].param2 = 2        # precision land
-            ml_list.waypoints[-1].z = -10
+            ml_list.waypoints[-1].z = 0
             ml_list.waypoints[-1].autocontinue = 0
         ml_list.header.stamp = rospy.Time.now()
 

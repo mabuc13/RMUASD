@@ -25,6 +25,7 @@ import cv2
 import numpy as np
 import rospkg
 from gcs.msg import *
+from gcs.srv import is_coord_free
 from drone_decon.msg import *
 from node_monitor.msg import heartbeat
 from std_msgs.msg import String

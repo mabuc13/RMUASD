@@ -150,6 +150,7 @@ public:
   static const uint8 normal_operation = 1;
   static const uint8 emergency_plan_with_fallback = 2;
   static const uint8 emergency = 3;
+  static const uint8 emergency_leave = 4;
 
 private:
   job* currentJob = (NULL);
