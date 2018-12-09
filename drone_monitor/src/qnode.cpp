@@ -93,6 +93,14 @@ void QNode::run() {
         }else{
             state = node_monitor::nodeOk::fine;
         }
+        //std::cout << "before Last Heard from: " << std::time(NULL)- this->_Drones[1].last_heard_from << endl;
+        if(std::time(NULL)-this->_Drones[1].last_heard_from>8){
+            Q_EMIT sig_nodeState("Drone1",node_monitor::heartbeat::nothing,node_monitor::nodeOk::none_responsive);
+        }else if(std::time(NULL)-this->_Drones[1].last_heard_from>4){
+            Q_EMIT sig_nodeState("Drone1",node_monitor::heartbeat::nothing,node_monitor::nodeOk::late);
+        }else{
+            Q_EMIT sig_nodeState("Drone1",node_monitor::heartbeat::nothing,node_monitor::nodeOk::fine);
+        }
         if(last_state!= state){
             Q_EMIT sig_nodeState("node_monitor",_node_monitor_severity,state);
             last_state = state;
@@ -186,6 +194,7 @@ void QNode::handle_NiceInfo(gcs::NiceInfo msg){
 
     if(theDrone->uptime != msg.up_time){
         theDrone->uptime = msg.up_time;
+        theDrone->last_heard_from = std::time(NULL);
         Q_EMIT sig_uptime(theDrone->uptime);
     }
     if(theDrone->drone_handler_state != msg.drone_handler_state){

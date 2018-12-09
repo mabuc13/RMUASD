@@ -110,6 +110,7 @@ node = ROSserver()
 def sender(void):
     while True:
         try:
+            node.connectInternet("name=gcs")
             while True:
                 if node.Ready2Send:
                     node.sendPck()
@@ -125,6 +126,7 @@ def reciver(void):
     global RecErrNoLast
     while True:
         try:
+            node.connectInternet("name=gcs")
             while True:
                 if node.Ready2Send:
                     node.recvPck()

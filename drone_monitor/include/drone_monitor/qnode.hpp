@@ -34,6 +34,7 @@
 #include <QThread>
 #include <QString>
 #include <map>
+#include <ctime>
 
 
 /*****************************************************************************
@@ -52,6 +53,7 @@ struct aDrone{
 	double SOC;
 	double GPStime;
 	double uptime;
+	time_t last_heard_from;
 	vector<double> RPY;
 	double heading;
 	gcs::GPS position;

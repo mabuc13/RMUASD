@@ -304,7 +304,7 @@ class Visualization(object):
             self.finalMap = self.final_snfz_map + self.final_dnfz_map + self.final_currentPosition_map + self.final_path_map
             self.finalMap = np.clip(self.finalMap, 0.0, 1.0)
 
-            drawMapResized = cv2.resize(self.finalMap, (1500, 1500)) 
+            drawMapResized = cv2.resize(self.finalMap, (500, 500)) 
             #print("Updating Map")
             cv2.imshow("Map of SNFZ and DNFZ",drawMapResized)
 
