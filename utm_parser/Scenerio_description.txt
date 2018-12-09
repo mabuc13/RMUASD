@@ -5,4 +5,5 @@ Scenario
 	3. A fake dynamic zone is injected, but at aarslev
 	4. Take off blocked with a dynamic no flight zone
 	5. A fake drone is uploaded at the location which equals the second index of the path plan
+	6. A fake dynamic zone is injected at the landing spot
 
