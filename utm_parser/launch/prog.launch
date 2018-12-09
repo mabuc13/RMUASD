@@ -1,6 +1,6 @@
 <launch>
    <node name="utm_parser" pkg="utm_parser" type="utm_parser_node.py" output="screen">
-      <param name="scenario" value="3"/>
+   <param name="scenario" value="1"/>
    </node>
-   
+
 </launch>

@@ -34,20 +34,23 @@ def check_client():
     tt.latitude = 55.278524
     tt.longitude = 10.558190 #Coordinate in the middle of nowhere
     tt.altitude = 0
-    """
+
     tt = GPS()
     tt.latitude = 55.472016
     tt.longitude = 10.415694 #Coordinate within the fake dnfz at modelflyvepladsen
     tt.altitude = 0
-
-
-
+    """
+    tt = GPS()
+    tt.latitude = 55.472360 #Coordinate within the fake static no fy zone at modelflyvepladsen
+    tt.longitude = 10.415482
+    tt.altitude = 0
 
     rospy.wait_for_service('/utm_parser/is_coord_free')
     check_handle = rospy.ServiceProxy('/utm_parser/is_coord_free', is_coord_free)
 
     result = check_handle(tt)
-
+    # [[55.472360, 10.415482, 0], [55.471622, 10.415378, 0], [55.472364, 10.416210, 0],
+    #                     [55.471767, 10.416256, 0]]
     rospy.wait_for_service('/utm_parser/is_coord_free')
     rally_handle = rospy.ServiceProxy('/utm_parser/get_rally_points', get_rally_points)
 
