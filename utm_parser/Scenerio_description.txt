@@ -1,0 +1,8 @@
+Scenario
+	0. Is the default scenario where the utm parser works as intended.
+	1. A fake dynamic zone will be injected at modelflyve pladsen between clinic 2 and the usual start area
+	2. At mission index 2 (3rd waypoint i guess), a dynamic no fly zone will be posted on top of the drone.
+	3. A fake dynamic zone is injected, but at aarslev
+	4. Take off blocked with a dynamic no flight zone
+	5. A fake drone is uploaded at the location which equals the second index of the path plan
+
