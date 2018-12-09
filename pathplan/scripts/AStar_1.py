@@ -70,7 +70,6 @@ class AStar:
         self.safety_dist_to_dnfz = 13
 
     def string_to_dnfz(self, string):
-
         data = str(string.dnfz)
         try:
             all_json_objs = json.loads(data)
@@ -89,11 +88,7 @@ class AStar:
         Callback function
         Use "int_id" in the string as key in the dict of dnfz
         '''
-
         string_msg = str(msg.data)
-
-        # print(string_msg)
-
         try:
             all_json_objs = json.loads(string_msg)
             for json_obj in all_json_objs:
@@ -126,13 +121,9 @@ class AStar:
         self.dynamic_no_flight_zones[json_obj["int_id"]]["polygon"] = dnfz_polygon
 
     def plot_dnfz(self):
-
         np.random.seed(19680801)
-
         fig, ax = plt.subplots()
-
         patches = []
-
         """
         np.random.seed(19680801)
         print "Dynamic, no flight zones: ", self.dynamic_no_flight_zones
@@ -173,8 +164,6 @@ class AStar:
         fig.colorbar(p, ax=ax)
 
         plt.show()
-
-
 
     def heuristic(self, a, b):
         return sqrt(((b[0] - a[0]) ** 2) + ((b[1] - a[1]) ** 2))
@@ -218,6 +207,7 @@ class AStar:
         self.clear_dicts_and_lists(dynamic)
         #print(self.map_image.shape)
         #print(self.heuristic(self.start,self.goal))
+        t0 = time.time()
         while self.oheap:
             if dynamic:
                 current = heappop(self.oheap)[1]
@@ -269,6 +259,8 @@ class AStar:
                     self.gscore[neighbor] = tentative_g_score
                     self.fscore[neighbor] = tentative_g_score + self.heuristic(neighbor, self.goal)
                     heappush(self.oheap, (self.fscore[neighbor], neighbor))
+            if (time.time() - t0) >= 15:
+                return False
         #print "Astar closed set:", len(self.close_set)
         return False
 
