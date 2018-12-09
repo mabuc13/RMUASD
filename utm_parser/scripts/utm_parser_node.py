@@ -14,7 +14,6 @@ Descriptors: MB = Mark Buch (mabuc13@student.sdu.dk)
 """
 Description:
 This class will handle post and get to the UTM from the GCS.
-The idea is to have each request as a seperate method.
 
 License: BSD 3-Clause
 """
@@ -29,6 +28,9 @@ from gcs.msg import *
 from drone_decon.msg import *
 from node_monitor.msg import heartbeat
 from std_msgs.msg import String
+
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
 
 from utm_parser.srv import *
 from utm_parser.msg import *
@@ -118,6 +120,7 @@ class utm_parser(object):
         self.get_snfz_service = rospy.Service("/utm_parser/get_snfz", get_snfz, self.get_snfz_handler, buff_size=10)
         self.get_dnfz_service = rospy.Service("/utm_parser/get_dnfz", get_dnfz, self.get_dnfz_handler, buff_size=10)
         self.is_coord_free_service = rospy.Service("/utm_parser/is_coord_free", is_coord_free, self.check_coord_service, buff_size=10 )
+        self.get_rally_points = rospy.Service("/utm_parser/get_rally_points", get_rally_points, self.get_rally_points_handler, buff_size=10)
         #self.post_drone_service = rospy.Service("/utm_parser/post_drone_info", post_drone_info, self.post_drone_info_handler, buff_size=10) ##SUBSCRIBE
         self.drone_info_sub = rospy.Subscriber("/drone_handler/DroneInfo", DroneInfo, self.post_drone_info_handler)
         self.path_sub = rospy.Subscriber("/gcs/forwardPath", DronePath, self.save_path) #Activity when new path is calculated
@@ -132,7 +135,10 @@ class utm_parser(object):
 
         self.scenario = rospy.get_param("~scenario")
         self.posted = False
-        self.last_posted_dnfz = 0
+        self.last_posted_dnfz = self.get_dynamic_nfz()
+
+        self.dynamic_polys = []
+        self.dynamic_circles = []
 
     def shutdownHandler(self):
         # shutdown services
@@ -144,40 +150,102 @@ class utm_parser(object):
     fisk.longitude = 0
     fisk.latitude = 0
     fisk.altitude  = 9
-    
-     self.post_payload = {
-            'uav_id': 3012,
-            'uav_auth_key': '96ba4387cb37a2cbc5f05de53d5eab0c9583f1e102f8fe10ccab04c361234d6cd8cc47c0db4a46e569f03b61374745ebb433c84fac5f4bdfb8d89d2eb1d1ec0f',
-            'uav_op_status': 22,
-            'pos_cur_lat_dd': 0,
-            'pos_cur_lng_dd': 0,
-            'pos_cur_alt_m': 0,
-            'pos_cur_hdg_deg': 0,
-            'pos_cur_vel_mps': 0,
-            'pos_cur_gps_timestamp': 0,
-            'wp_next_lat_dd': 0,
-            'wp_next_lng_dd': 0,
-            'wp_next_alt_m': 0,
-            'wp_next_hdg_deg': 0,
-            'wp_next_vel_mps': 0,
-            'wp_next_eta_epoch': 0,
-            'uav_bat_soc': 0
-        }
-        
-        
+   
     """
 
+    def get_rally_points_handler(self, req):
+
+        """
+        rally_points = self.fetch_rally_points()
+        gps_list = []
+        print rally_points
+        for rally in rally_points:
+            coord = GPS()
+            coord.longitude = float(rally["lng_dd"])
+            coord.latitude = float(rally["lat_dd"])
+
+            coord.altitude = 0
+            gps_list.append([coord])
+        """
+        coord = GPS()
+        coord.longitude = 10.32222
+        coord.latitude = 55.47181
+
+        coord.altitude = 0
+        return coord
+
     def check_coord_service(self, req):
-        if self.last_posted_dnfz != 0:
-            for zone in self.last_posted_dnfz:
-                if zone["geometry"] == polygon:
-                    geo = zone["coordinates"]
-                    for data in geo:
-                        print '[UTM] data in geo: ', data
+        coord_to_check = req.coordinate
+        #coord_to_check.latitude = 55.472016
+        #coord_to_check.longitude = 10.415694  # Coordinate wipthin the fake dnfz at modelflyvepladsen
+        ctt_utm = self.coord_conv.geodetic_to_utm(float(coord_to_check.latitude), float(coord_to_check.longitude))
 
-                else:
-                    print '[UTM] data in circular object: ', data
+        for poly in self.dynamic_polys:
+            if not self.check_polygon(poly, ctt_utm):
+                #print "1 fail false"
+                return False
+        for circle in self.dynamic_circles:
+            if not self.check_circle(circle, ctt_utm):
+                #print "2 fail false"
+                return False
+        return True #Default case, coord is not obstructed
 
+    def update_dynamic_objects(self):
+        self.dynamic_polys = []
+        self.dynamic_circles = []
+
+        #j_object = json.loads(self.last_posted_dnfz)
+        #print self.last_posted_dnfz
+        for zone in self.last_posted_dnfz:
+            if zone["geometry"] == "polygon":
+                geo = zone["coordinates"]
+                self.string_to_polygon(geo) #Will also append the dynamic polygon to the dynamic_polys list
+                #print "Went into polygon"
+            if zone["geometry"] == "circle":
+                geo_circle = zone["coordinates"]
+                geo_circle = geo_circle.split(",")
+                utm_circle = self.coord_conv.geodetic_to_utm(float(geo_circle[1]), float(geo_circle[0]))
+                #self.coord_conv.geodetic_to_utm() #lat, long
+                complete_circle = [utm_circle[3], utm_circle[4], geo_circle[2]]
+                self.dynamic_circles.append(complete_circle)
+                #print "Went into circle"
+                #Distance to circle
+
+
+
+
+    def check_circle(self, utm_circle, ctt_utm):
+        dist = math.sqrt((utm_circle[0] - ctt_utm[3]) ** 2 + ((utm_circle[1] - ctt_utm[4]) ** 2))
+
+        if dist < float(utm_circle[2]):
+            #print "[UTM parser] coordinate is found within circular DNFZ"
+            return False
+        else:
+            #print "[UTM parser] coordinate is not within circular DNFZ"
+            return True
+
+    def string_to_polygon(self, coords):
+        coords = coords.split(' ')
+        utm_list = []
+
+        for coord in coords:
+            geo = coord.split(',')
+            utm_coord  = self.coord_conv.geodetic_to_utm(float(geo[1]), float(geo[0]))
+            utm_list.append(utm_coord)
+
+        polygon = Polygon([[float(int(data[3])), float(int(data[4]))] for data in utm_list])
+        self.dynamic_polys.append(polygon)
+
+
+    def check_polygon(self, polygon, tt_utm):
+        point = Point(tt_utm[3], tt_utm[4])
+        #print "Polygons:", self.dynamic_polys
+        #print polygon.contains(point), "<- polygon contains"
+        if (polygon.contains(point)):
+            #print "[UTM parser] coordinate is within dynamic poly"
+            return False
+        else:
+            return True
 
     def dummy_drone_handler(self):
         if self.path_flag:
@@ -236,7 +304,6 @@ class utm_parser(object):
         with open(path, 'r') as f:
             json_object = json.load(f)
 
-        print json_object
 
     def load_json_file(self, name):
         rospack = rospkg.RosPack()
@@ -264,6 +331,7 @@ class utm_parser(object):
         if self.scenario == 0:
             dnfz = self.get_dynamic_nfz()
             self.last_posted_dnfz = dnfz
+            self.update_dynamic_objects()
             message = json.dumps(dnfz)
             return message
         if self.scenario == 1:
@@ -271,22 +339,23 @@ class utm_parser(object):
             message = json.dumps(data)
             #print "Loaded dnfz", message
             self.last_posted_dnfz = data
+            self.update_dynamic_objects()
             return message
         if self.scenario == 3:
             data = self.load_json_file("aarslev")
             message = json.dumps(data)
             self.last_posted_dnfz = data
+            self.update_dynamic_objects()
             return message
         if self.scenario == 4:
             data = self.load_json_file("on_top")
-            data[0]['coordinates'] = str(self.post_payload['pos_cur_lat_dd']) + "," + str(self.post_payload['pos_cur_lng_dd']) + ',20'
+            data[0]['coordinates'] = str(self.post_payload['pos_cur_lat_dd']) + "," + str(self.post_payload['pos_cur_lng_dd']) + ',15'
             data[0]['valid_from_epoch'] = str(int(time.time()))
             data[0]['valid_to_epoch'] = str(int(time.time() + 30))
             message = json.dumps(data)
             self.last_posted_dnfz = data
-            print "[UTM parser] Added one dummy, at time: ", time.time()
-            print message
-            return message  
+            self.update_dynamic_objects()
+            return message
 
         dnfz = self.get_dynamic_nfz()
         self.last_posted_dnfz = dnfz
@@ -496,6 +565,75 @@ class utm_parser(object):
         if self.debug:
             print "Done creating KML \n"
 
+
+    def fetch_rally_points(self):
+        """
+                input: An lower left coord and an upper right cord bounding the area checked for SNFZ
+                output: TBD
+                """
+
+
+        payload = {
+            'data_type': 'rally_points'
+        }
+        r = ''
+        try:
+            if self.debug:
+                print "Sending requests to dynamic no fly zones utm"
+            r = requests.get(url='https://droneid.dk/rmuasd/utm/data.php', params=payload, timeout=2)
+            r.raise_for_status()
+        except requests.exceptions.Timeout:
+            # Maybe set up for a retry, or continue in a retry loop
+            if self.utm_trafic_debug:
+                print colored('Request has timed out', 'red')
+        except requests.exceptions.TooManyRedirects:
+            # Tell the user their URL was bad and try a different one
+            if self.utm_trafic_debug:
+                print colored('Request has too many redirects', 'red')
+        except requests.exceptions.HTTPError as err:
+
+            print colored('HTTP error', 'red')
+            print colored(err, 'yellow')
+            # sys.exit(1) # Consider the exit since it might be unintentional in some cases
+        except requests.exceptions.RequestException as err:
+            # Catastrophic error; bail.
+            print colored('Request error', 'red')
+            print colored(err, 'yellow')
+            sys.exit(1)
+        else:
+            if self.utm_trafic_debug:
+                print colored('Status code: %i' % r.status_code, 'yellow')
+                print colored('Content type: %s' % r.headers['content-type'], 'yellow')
+
+            data_dict = ''
+            try:
+                if self.debug:
+                    print "Entering the try section of get dynamic NFZ"
+                data_dict = json.loads(r.text)
+
+
+            except:
+                print colored('Try part og get dynamic NFZ failed', 'red')
+            else:
+                if self.debug:
+                    print
+                    "Succesfully downloaded dynamic NFZ"
+                #for entry in data_dict:
+                right_now = time.time()
+                try:
+
+                    dummy = 1
+                except Exception as e:
+                    print e
+                    rospy.logerr("Failed to retrieve DNFZ, maybe there is none")
+                    rospy.logerr(e)
+                else:
+                    #if self.utm_trafic_debug:
+                    #print "DNFZ data from the server: " , data_dict
+                    #self.last_posted_dnfz = data_dict
+
+                    return data_dict
+
     def get_dynamic_nfz(self):
         """
                 input: An lower left coord and an upper right cord bounding the area checked for SNFZ
@@ -561,6 +699,8 @@ class utm_parser(object):
                 else:
                     #if self.utm_trafic_debug:
                     #print "DNFZ data from the server: " , data_dict
+                    self.last_posted_dnfz = data_dict
+
                     return data_dict
 
     def get_static_nfz(self, coord_ll, coord_ur):
@@ -916,10 +1056,14 @@ class utm_parser(object):
                 print colored("Current dnfz: ", 'blue'), current_dnfz
                 print "Latest dnfz: ", self.latest_dynamic_data
             message = json.dumps(current_dnfz)
-            self.last_posted_dnfz = message
+            self.last_posted_dnfz = current_dnfz
+            self.update_dynamic_objects()
             self.dnfz_pub.publish(message)
             self.latest_dynamic_data = current_dnfz
             #self.dnfz_pub.publish(cur_string)
+            print "[UTM parser] posted new dynamic information"
+            #for i in current_dnfz:
+            #    print i
 
 
 
@@ -941,12 +1085,13 @@ def main():
     #par.print_zones()
     par.heart_msg.header.frame_id = 'utm_parser'
     par.heart_msg.rate = 1
-
-
+    par.update_dynamic_objects()
+    print "[UTM_parser] initialized with scenario", par.scenario
     while not rospy.is_shutdown():
         rospy.Rate(par.heart_msg.rate).sleep()
         par.heart_msg.header.stamp = rospy.Time.now()
         par.heartbeat_pub.publish(par.heart_msg)
+
         if par.scenario == 0:
             par.check_dynamic_data()
         if par.scenario == 5:
