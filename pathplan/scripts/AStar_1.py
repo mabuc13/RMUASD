@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 #from utm_parser.srv import *
 #from utm_parser.msg import *
 
+SEARCH_TIMEOUT = 30
 
 class AStar:
     def __init__(self, coord_start, coord_goal, static_map, map_padding, step_multiplier=1):
@@ -259,7 +260,8 @@ class AStar:
                     self.gscore[neighbor] = tentative_g_score
                     self.fscore[neighbor] = tentative_g_score + self.heuristic(neighbor, self.goal)
                     heappush(self.oheap, (self.fscore[neighbor], neighbor))
-            if (time.time() - t0) >= 15:
+            if (time.time() - t0) >= SEARCH_TIMEOUT:
+                print(["Pathplanner: Astar timed out. Took longer than {} seconds".format(SEARCH_TIMEOUT)])
                 return False
         #print "Astar closed set:", len(self.close_set)
         return False
