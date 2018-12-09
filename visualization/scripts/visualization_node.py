@@ -129,8 +129,6 @@ class Visualization(object):
                     self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
                 else:
                     self.dynamic_no_flight_zones[json_obj["int_id"]] = json_obj
-                    if json_obj["geometry"] == "polygon":
-                        self.make_polygon(json_obj)
         except ValueError:
             print("Visualization: Couldn't convert string from UTM server to json..")
 
@@ -199,34 +197,34 @@ class Visualization(object):
                 # coord[1] --> northing
                 #print(list(val["polygon"].exterior.coords))
 
+
+
+                coordinateString = val["coordinates"]
+                coordinateArray = coordinateString.split(' ')
+
                 first = True
 
-                try:
-                    polygon_coordinates = list(val["polygon"].exterior.coords)
-                except:
-                    polygon_coordinates = None
-                    print("Here was an Error!", val)
+                for coordinatePair in coordinateArray:
+                    coord = coordinatePair.split(',')
 
-                if polygon_coordinates is not None:
-                    for coord in polygon_coordinates:
 
-                        (east, north) = self.getPixelCoordinate(Coordinate(easting=coord[0], northing=coord[1]))
-                        
-                        toAppend = np.array([[north, east]])
+                    (east, north) = self.getPixelCoordinate(Coordinate(lat=coord[1], lon=coord[0]))
+                    
+                    toAppend = np.array([[north, east]])
 
-                        if first:
-                            pts = np.array(toAppend)
-                            print("Polygon here:", pts)
-                            first = False
-                        else:
-                            pts = np.concatenate([pts, toAppend])
+                    if first:
+                        pts = np.array(toAppend)
+                        print("Polygon here:", pts)
+                        first = False
+                    else:
+                        pts = np.concatenate([pts, toAppend])
 
                     
-                    pts = pts.reshape((-1,1,2))
-                    #print(pts)
+                pts = pts.reshape((-1,1,2))
+                #print(pts)
 
-                    with self.protection:
-                        cv2.polylines(self.final_dnfz_map,[pts],True,1.0,10)
+                with self.protection:
+                    cv2.polylines(self.final_dnfz_map,[pts],True,1.0,10)
 
             elif val["geometry"] == "circle":
                 #print("drawing a circle")
@@ -292,22 +290,6 @@ class Visualization(object):
         self.final_path_map = np.zeros((self.total_rows, self.total_cols))
 
 
-    def make_polygon(self, json_obj):
-        coords = json_obj["coordinates"]
-        coords = coords.split(" ")
-        i = 0
-        for a in coords:
-            coords[i] = a.split(',')
-            i += 1
-        list_of_points = []
-        for point in coords:
-            temp_coord = Coordinate(lat=float(point[1]), lon=float(point[0]))
-            list_of_points.append(geometry.Point(temp_coord.easting, temp_coord.northing))
-        # Taken from:
-        # https://stackoverflow.com/questions/30457089/how-to-create-a-polygon-given-its-point-vertices
-        dnfz_polygon = geometry.Polygon([[point.x, point.y] for point in list_of_points])
-        self.dynamic_no_flight_zones[json_obj["int_id"]]["polygon"] = dnfz_polygon
-
 
 
     def show_map(self):
@@ -316,7 +298,7 @@ class Visualization(object):
             self.finalMap = self.final_snfz_map + self.final_dnfz_map + self.final_currentPosition_map + self.final_currentPosition_map
             self.finalMap = np.clip(self.finalMap, 0.0, 1.0)
 
-            drawMapResized = cv2.resize(self.finalMap, (1000, 1000)) 
+            drawMapResized = cv2.resize(self.finalMap, (1500, 1500)) 
             #print("Updating Map")
             cv2.imshow("Map of SNFZ and DNFZ",drawMapResized)
 
