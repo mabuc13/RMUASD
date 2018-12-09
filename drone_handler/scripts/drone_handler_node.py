@@ -141,7 +141,7 @@ class DroneHandler(object):
                 drone.active_mission_len = msg.active_mission_len
                 # drone.active_sub_waypoint       = msg.current_item
             else:
-                print("Manual idx: {}".format(drone.manual_mission.mission_idx))
+                # print("Manual idx: {}".format(drone.manual_mission.mission_idx))
                 drone.active_mission_idx = drone.manual_mission.mission_idx     
                 drone.active_mission_len = len(drone.manual_mission.mission)  
 

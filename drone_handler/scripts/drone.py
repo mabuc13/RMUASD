@@ -17,6 +17,7 @@ WP_ACCEPTANCE_RADIUS = 10
 MAX_UPLOAD_RETRIES = 3
 UPLOAD_DELAY = 5
 HOLD_TIME = 15
+GOAL_DISTANCE = 10
 
 MAV_CMD_NAV_WAYPOINT = 16
 MAV_CMD_NAV_LOITER_UNLIM = 17
@@ -273,7 +274,7 @@ class Drone(object):
     def is_on_goal(self):
         if self.active_mission_idx == self.active_mission_len - 1: 
             if self.active_mission_ml.waypoints[-1].command == MAV_CMD_NAV_LAND:
-                if self.dist_to_goal < 3:
+                if self.dist_to_goal < GOAL_DISTANCE:
                     return True
 
         return False
@@ -428,12 +429,15 @@ class Drone(object):
             if self.is_on_goal():
                 # self.fsm_state = State.LANDING
 
+
+                lat_goal = self.active_mission_gps[-1].latitude
+                lon_goal = self.active_mission_gps[-1].longitude
                 # reposition to a lower altitude above the goal
                 request = GotoWaypointRequest(
                     relative_alt=True,
                     ground_speed=MISSION_SPEED,
-                    latitude=self.latitude,
-                    longitude=self.longitude,
+                    latitude=lat_goal,
+                    longitude=lon_goal,
                     altitude=10
                 )
                                 
@@ -511,11 +515,14 @@ class Drone(object):
 
             else:
                 if self.cmd_try_again:
+                    lat_goal = self.active_mission_gps[-1].latitude
+                    lon_goal = self.active_mission_gps[-1].longitude
+                    # reposition to a lower altitude above the goal
                     request = GotoWaypointRequest(
                         relative_alt=True,
                         ground_speed=MISSION_SPEED,
-                        latitude=self.latitude,
-                        longitude=self.longitude,
+                        latitude=lat_goal,
+                        longitude=lon_goal,
                         altitude=10
                     )
                                     

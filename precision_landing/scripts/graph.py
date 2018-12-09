@@ -25,12 +25,6 @@ import matplotlib.cm as cm
 # parameters
 update_interval = 15
 
-
-
-
-
-
-
 class Graph(object):
 
     def __init__(self):
@@ -42,6 +36,7 @@ class Graph(object):
 
 
         rospy.Subscriber("/landing/arduino_pos", precland_sensor_data, self.on_arduino_pos)
+        # rospy.Subscriber("/landing/kalman_pos", precland_sensor_data, self.on_arduino_pos)
         rospy.Subscriber("/telemetry/set_landing_target", telemetry_landing_target, self.on_set_landing_target)
 
         plt.axis([-5, 7, -5, 9])
