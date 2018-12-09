@@ -215,10 +215,10 @@ class CollisionDetector:
 
     def make_polygon(self, json_obj):
         coords = json_obj["coordinates"]
+        coords = coords.replace("  "," ")
         coords = coords.split(" ")
         i = 0
         for a in coords:
-            print a
             coords[i] = a.split(',')
             i += 1
         list_of_points = []

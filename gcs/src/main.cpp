@@ -540,6 +540,7 @@ void WebInfo_Handler(std_msgs::String msg_in){
                             Drones[i]->setAvailable(false);
                             job* aJob = new job(aDock);
                             aJob->setStatus(job::onhold);
+                            activeJobs.push_back(aJob);
                             WebInfo_Handler(msg_in);
                         }
                     }
