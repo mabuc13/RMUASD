@@ -153,6 +153,7 @@ public:
   static const uint8 emergency = 3;
   static const uint8 emergency_leave = 4;
 
+  int pathID;
 private:
   job* currentJob = (NULL);
   bool isFree;
