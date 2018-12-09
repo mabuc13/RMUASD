@@ -45,7 +45,7 @@
 using namespace std;
 
 #define DEBUG true
-#define DO_PREFLIGHT_CHECK false
+#define DO_PREFLIGHT_CHECK true
 #define MIN_FLIGHT_DISTANCE 15
 #define MAX_FLIGHT_DISTANCE 500
 
@@ -899,14 +899,14 @@ int main(int argc, char** argv){
                     bool allOkay = true;
 
                     // ######### Cheack that UTM is running ################
-                    if( !(utm_parser.ok == node_monitor::nodeOk::fine &&
+                    /*if( !(utm_parser.ok == node_monitor::nodeOk::fine &&
                         (utm_parser.nodeState == node_monitor::heartbeat::info ||
                         utm_parser.nodeState == node_monitor::heartbeat::nothing)))
                     {
                         allOkay = false;
                         heartbeat_msg.severity = node_monitor::heartbeat::info;
                         heartbeat_msg.text = "Prefligt Check Failed, UTM not Okay";
-                    }
+                    }*/
 
                     // ######### Cheack that we are not inside no flight zone #########
                     is_safe_for_takeoff safe = safeTakeOff(activeJobs[i]->getDrone());
@@ -993,9 +993,15 @@ int main(int argc, char** argv){
                         if(safePosition(activeJobs[i]->getDrone()->getPosition(),activeJobs[i]->getDrone())){
                             cout << header << "The drone is planning to goal and having trouble, finding emergancy landing spot" << endl;
                             dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
-                            cout << header << "Trying to land at: "<< EM->getName();
-                            activeJobs[i]->setGoal(EM);
-                            activeJobs[i]->terminateJobOnLand() = true;
+                            if(EM != NULL){
+                                cout << header << "Trying to land at: "<< EM->getName();
+                                activeJobs[i]->setGoal(EM);
+                                activeJobs[i]->terminateJobOnLand() = true;
+                            }else{
+                                cout << header << "Setting emergancy state and moving towards Emergency landing spot: " << EM->getName() << endl;
+                                UTMPriority(UTM_EMERGENCY,activeJobs[i]->getDrone());
+                                moveDroneTo(activeJobs[i]->getDrone(),EM->getPosition());
+                            }
                         }else{
                             cout << header << "We are currently inside a DNFZ and the planner can't find a path";
                             dock* EM = findEmergencyLand(activeJobs[i]->getDrone());
