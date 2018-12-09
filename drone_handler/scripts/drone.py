@@ -16,6 +16,7 @@ MISSION_SPEED = 5  # m/s
 WP_ACCEPTANCE_RADIUS = 10
 MAX_UPLOAD_RETRIES = 3
 UPLOAD_DELAY = 5
+HOLD_TIME = 10
 
 MAV_CMD_NAV_WAYPOINT = 16
 MAV_CMD_NAV_LOITER_UNLIM = 17
@@ -41,6 +42,7 @@ class State(Enum):
     REPOSITION = 12
     CLEARING_MISSION = 13
     WAITING = 14
+    HOLD = 15
 
 PAUSE_LIST_MAIN = ["Manual", "Stabilized", "Altitude Control", "Position Control", "Rattitude", "Acro"]
 PAUSE_LIST_SUB  = ["Return to Home", "Follow Me"]
@@ -63,6 +65,7 @@ class Drone(object):
         self.loiter = False
         self.active = False
         self.wait = False
+        self.hold = False
         self.upload_retries = 0
 
         self.mission_id = 0
@@ -71,7 +74,8 @@ class Drone(object):
         self.active_mission_gps = []
         self.active_mission_ml  = mavlink_lora_mission_list()
         self.active_mission_len = 0
-        self.active_mission_idx = 0             # index for the complete plan
+        self.active_mission_idx = 0 
+        self.dist_to_goal = -1
 
         self.holding_waypoint = GPS()
 
@@ -195,6 +199,16 @@ class Drone(object):
         self.cmd_try_again = True
         self.manual_mission.on_cmd_fail()
 
+    def calc_remaining_distance(self):
+        if self.active_mission_len > 0:
+            lat_goal = self.active_mission_gps[-1].latitude
+            lon_goal = self.active_mission_gps[-1].longitude
+
+            self.dist_to_goal = manual_mission.distGreatCircle(self.latitude, self.longitude, lat_goal, lon_goal)
+            print("Distance to goal: {}".format(self.dist_to_goal))
+        else:
+            self.dist_to_goal = -1
+
     def update_mission(self, path):
         self.pending_mission_gps = path
 
@@ -256,8 +270,19 @@ class Drone(object):
 
         return ml_list
 
+    def is_on_goal(self):
+        if self.active_mission_idx == self.active_mission_len - 1: 
+            if self.active_mission_ml.waypoints[-1].command == MAV_CMD_NAV_LAND:
+                if self.dist_to_goal < 3:
+                    return True
+
+        return False
+
     def wait_cb(self, event):
         self.wait = False
+
+    def hold_cb(self, event):
+        self.hold = False
 
     def reset(self):
         self.upload_done = False
@@ -401,8 +426,14 @@ class Drone(object):
                 self.clear_mission_pub.publish(Empty())
 
             if self.active_mission_idx == self.active_mission_len - 1: 
-                if self.relative_alt < 20:
+                if self.dist_to_goal < 3:
                     self.fsm_state = State.LANDING
+                    # response = self.set_mode(flight_modes.LOITER)
+                    # if response.success:
+                    #     rospy.Timer(rospy.Duration(HOLD_TIME), self.hold_cb, oneshot=True)
+                    #     self.hold = True
+                    #     self.fsm_state = State.HOLD
+
                 elif self.loiter and self.ground_speed < 0.5:
                     self.gcs_status = DroneInfo.holding
 
@@ -456,3 +487,10 @@ class Drone(object):
         elif self.fsm_state == State.WAITING:
             if not self.wait:
                 self.fsm_state = State.REQUESTING_UPLOAD
+
+        # ------------------------------------------------------------------------------ #
+        elif self.fsm_state == State.HOLD:
+            if not self.wait:
+                self.fsm_state = State.REQUESTING_UPLOAD
+
+
