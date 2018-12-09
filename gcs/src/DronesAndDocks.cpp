@@ -281,10 +281,11 @@ void drone::setHeading(double heading){
 gcs::GPS drone::forwardPosition(double meters){
     UTM pos = GPS2UTM(this->position);
     UTM next = GPS2UTM(this->getPath()[this->pathIndex]);
+    double dist = UTMdistance(pos,next);
     direction dir;
     dir.east = next.east-pos.east;
     dir.north = next.north-pos.north;
-    pos+= heading2direction(this->heading)*(meters/UTMdistance(pos,next));
+    pos+= heading2direction(this->heading)*(meters/dist);
     return UTM2GPS(pos);
 }
 
