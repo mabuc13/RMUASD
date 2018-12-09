@@ -273,7 +273,7 @@ class Visualization(object):
         # print("Done")
 
         #print("Length of the map: ", len(self.snfzMap.snfz_map))
-        print("Resolution: ", self.snfzMap.resolution)
+        #print("Resolution: ", self.snfzMap.resolution)
         #print("Coordinate_lower_left: ", self.snfzMap.coordinate_lower_left)
         #print("Coordinate_upper_right ", self.snfzMap.coordinate_upper_right)
 
@@ -284,9 +284,9 @@ class Visualization(object):
         print("Cols: ", self.total_cols)
         drawMap = np.zeros((self.total_rows, self.total_cols))
         
-        for row in range(len(self.snfzMap.snfz_map)):
+        for row in reversed(range(len(self.snfzMap.snfz_map))):
             for col in range(len(self.snfzMap.snfz_map[row].row)):
-                drawMap[row,col] = self.snfzMap.snfz_map[row].row[col]
+                drawMap[self.total_rows-row-1,col] = self.snfzMap.snfz_map[row].row[col]
                 # if int(drawMap[row,col]) is not int(0):
                 #     print(drawMap[row,col])
 
