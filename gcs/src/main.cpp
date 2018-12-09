@@ -223,7 +223,7 @@ dock* findEmergencyLand(drone* theDrone){
     for(size_t i = 0; i < Docks.size(); i++){
         if(Docks[i]->isEM() && (safePosition(Docks[i]->getPosition(),theDrone) || theDrone->OS() == drone::emergency)){
             double d = GPSdistance(Docks[i]->getPosition(),theDrone->getPosition());
-            if(d < distance){
+            if(d < distance && d < MAX_FLIGHT_DISTANCE){
                 distance = d;
                 EMLandingPAD = Docks[i];
             }
