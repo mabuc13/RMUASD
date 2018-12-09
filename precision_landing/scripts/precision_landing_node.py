@@ -23,6 +23,7 @@ from precision_landing.msg import precland_sensor_data
 # defines
 RECORDING_FLIGHT_MODE = "Altitude Control"
 TAG_ADDRESS = 13
+USE_KALMAN = False
 
 LANDING_TARGET_REF = 0
 
@@ -30,25 +31,7 @@ LANDING_TARGET_REF = 0
 LANDING_TARGET_SIZE = 12
 
 # parameters
-update_interval = 15
-
-# def rotation_matrix(sigma):
-#     """
-
-#     https://en.wikipedia.org/wiki/Rotation_matrix
-
-#     """
-
-#     radians = sigma * np.pi / 180.0
-
-#     r11 = np.cos(radians)
-#     r12 = -np.sin(radians)
-#     r21 = np.sin(radians)
-#     r22 = np.cos(radians)
-
-#     R = np.array([[r11, r12], [r21, r22]])
-
-#     return R
+update_interval = 20
 
 class PrecisionLanding(object):
 
@@ -73,7 +56,7 @@ class PrecisionLanding(object):
         self.unfiltered_msg = telemetry_landing_target()
         self.filtered_msg = telemetry_landing_target()
 
-        self.use_kalman = False
+        self.use_kalman = USE_KALMAN
         dt = 1/update_interval
         # self.state = np.zeros((4,1), float)
         # self.kalman = kalman.KalmanFilter(self.state, dt)
@@ -147,16 +130,18 @@ class PrecisionLanding(object):
             )
         )
 
-        # activate landing target
-        if self.sub_mode == "Mission":
-            if self.mission_len > 0:
-                if self.mission_idx == self.mission_len - 1:
-                    # if self.new_pos_reading:
-                    #     self.new_pos_reading = False
-                    self.landing_target_pub.publish(self.unfiltered_msg)
-        else:
+        #activate landing target
+        # if self.sub_mode == "Mission":
+        #     if self.mission_len > 0:
+        #         if self.mission_idx == self.mission_len - 1:
+        #             if self.new_pos_reading:
+        #                 self.new_pos_reading = False
+        #             self.landing_target_pub.publish(self.unfiltered_msg)
+        # else:
+
+        if not self.use_kalman:  
             self.landing_target_pub.publish(self.unfiltered_msg)
-            pass
+
         
         # print(self.relative_target)
 
@@ -221,6 +206,11 @@ class PrecisionLanding(object):
             )
         )
 
+        if self.use_kalman:
+            if self.sub_mode == "Mission":
+                if self.mission_len > 0:
+                    if self.mission_idx == self.mission_len - 1:
+                        self.landing_target_pub.publish(self.filtered_msg)
         # print(self.state[0,0], self.state[1,0])
 
     def run(self):
@@ -231,10 +221,10 @@ class PrecisionLanding(object):
 
         self.update_kalman()
 
-        if self.use_kalman:
-            msg = self.filtered_msg
-        else:
-            msg = self.unfiltered_msg
+        # if self.use_kalman:
+        #     msg = self.filtered_msg
+        # else:
+        #     msg = self.unfiltered_msg
 
 
 
