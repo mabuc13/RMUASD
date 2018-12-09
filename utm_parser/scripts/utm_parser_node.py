@@ -224,7 +224,7 @@ class utm_parser(object):
         point = Point(ctt_utm[3], ctt_utm[4])
         dis = poly.distance(point)
         if dis < 10:
-            print "[UTM parser] found point to be within static NFZ"
+            # print "[UTM parser] found point to be within static NFZ"
             return False
         else:
             return True
@@ -240,7 +240,7 @@ class utm_parser(object):
         dist = math.sqrt((utm_circle[0] - ctt_utm[3]) ** 2 + ((utm_circle[1] - ctt_utm[4]) ** 2))
 
         if dist < float(utm_circle[2]) + 10:
-            print "[UTM parser] coordinate is found within circular DNFZ"
+            # print "[UTM parser] coordinate is found within circular DNFZ"
             return False
         else:
             #print "[UTM parser] coordinate is not within circular DNFZ"
@@ -266,7 +266,7 @@ class utm_parser(object):
 
         dis = polygon.distance(point)
         if dis < 10:
-            print "[UTM parser] Found point to be within dynamic polygon"
+            # print "[UTM parser] Found point to be within dynamic polygin"
             return False
         else:
             return True
@@ -993,13 +993,13 @@ class utm_parser(object):
         utm_coords.append(fake_utm_list)
         """
 
-        fake_geo = [[55.472360, 10.415482, 0], [55.471622, 10.415378, 0], [55.472364, 10.416210, 0],
-                    [55.471767, 10.416256, 0]]
-        fake_utm_list = []
-        for w in fake_geo:
-            fake_utm = self.coord_conv.geodetic_to_utm(w[0], w[1])
-            fake_utm_list.append(fake_utm)
-        utm_coords.append(fake_utm_list)
+        # fake_geo = [[55.472360, 10.415482, 0], [55.471622, 10.415378, 0], [55.472364, 10.416210, 0],
+        #             [55.471767, 10.416256, 0]]
+        # fake_utm_list = []
+        # for w in fake_geo:
+        #     fake_utm = self.coord_conv.geodetic_to_utm(w[0], w[1])
+        #     fake_utm_list.append(fake_utm)
+        # utm_coords.append(fake_utm_list)
 
         for i in utm_coords:
             current_zone = []
