@@ -23,7 +23,7 @@ from precision_landing.msg import precland_sensor_data
 # defines
 RECORDING_FLIGHT_MODE = "Altitude Control"
 TAG_ADDRESS = 13
-USE_KALMAN = False
+USE_KALMAN = True
 
 LANDING_TARGET_REF = 0
 
@@ -106,6 +106,7 @@ class PrecisionLanding(object):
 
         self.sensor_data_pub    = rospy.Publisher("/landing/sensor_data", precland_sensor_data, queue_size=0)
         self.landing_target_pub = rospy.Publisher("/telemetry/set_landing_target", telemetry_landing_target, queue_size=0)
+        self.kalman_pub         = rospy.Publisher("/landing/kalman_pos", precland_sensor_data, queue_size=0)
 
     def on_drone_pos(self, msg):
         self.lat = msg.lat
@@ -198,6 +199,8 @@ class PrecisionLanding(object):
         )
 
         if self.use_kalman:
+            kalman_msg = precland_sensor_data(y,x,-z)
+            self.kalman_pub.publish(kalman_msg)
             self.landing_target_pub.publish(self.filtered_msg)
 
     def run(self):
