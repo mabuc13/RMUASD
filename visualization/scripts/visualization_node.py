@@ -161,7 +161,7 @@ class Visualization(object):
             # draw current position
             
             cv2.circle(self.final_currentPosition_map,(north, east), 20, 1.0,-1)
-            cv2.putText(self.final_currentPosition_map, "current position", (north - 100, east + 75), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
+            cv2.putText(self.final_currentPosition_map, "current position", (north - 500, east + 75), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
 
         #print(self.coordinate.str(), " :)")
         #print(self.snfzMap)
@@ -323,7 +323,7 @@ if __name__ == "__main__":
 
     heartbeat_pub = rospy.Publisher('/node_monitor/input/Heartbeat', heartbeat, queue_size = 10)
     heart_msg = heartbeat()
-    heart_msg.header.frame_id = 'precision_landing'
+    heart_msg.header.frame_id = 'visualization'
     heart_msg.rate = update_interval
 
     while not rospy.is_shutdown():
