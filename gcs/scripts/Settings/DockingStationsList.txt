@@ -3,3 +3,4 @@ name=Klinik2,latitude=55.4722694,longitude=10.4172541,altitude=0,Lab=False,EM=Tr
 name=Klinik3,latitude=55.472621,longitude=10.324193,altitude=0,Lab=False,EM=True
 name=Klinik4,latitude=55.310764,longitude=10.464508,altitude=0,Lab=True,EM=True
 name=Klinik5,latitude=55.311060,longitude=10.463609,altitude=0,Lab=False,EM=True
+name=Klinik6,latitude=55.472720,longitude=10.324376,altitude=0,Lab=False,EM=True

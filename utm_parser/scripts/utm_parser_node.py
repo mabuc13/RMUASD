@@ -265,7 +265,7 @@ class utm_parser(object):
 
         dis = polygon.distance(point)
         if dis < 10:
-            print "[UTM parser] Found point to be within dynamic polygin"
+            print "[UTM parser] Found point to be within dynamic polygon"
             return False
         else:
             return True
@@ -381,6 +381,7 @@ class utm_parser(object):
             self.update_dynamic_objects()
             return message
 
+
         dnfz = self.get_dynamic_nfz()
         self.last_posted_dnfz = dnfz
         message = json.dumps(dnfz)
@@ -425,8 +426,22 @@ class utm_parser(object):
             data[0]['valid_from_epoch'] = str(int(time.time()))
             data[0]['valid_to_epoch'] = str(int(time.time() + 25))
             message = json.dumps(data)
+            self.last_posted_dnfz = data
             self.dnfz_pub.publish(message)
             self.posted = True
+
+        if self.scenario == 5 and msg.mission_index == 1 and not self.posted:
+            data = self.load_json_file("on_top")
+            data[0]['coordinates'] = str(self.path[-1][0]) + "," + str(
+                self.path[-1][1]) + ',15'
+            data[0]['valid_from_epoch'] = str(int(time.time()))
+            data[0]['valid_to_epoch'] = str(int(time.time() + 90))
+            message = json.dumps(data)
+            self.last_posted_dnfz = data
+            self.update_dynamic_objects()
+            self.dnfz_pub.publish(message)
+            self.posted = True
+
 
         if now-self.last_info_pub > 1:
 
