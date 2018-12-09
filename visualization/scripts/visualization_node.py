@@ -97,6 +97,7 @@ class Visualization(object):
             with self.protection:
                 cv2.circle(self.final_path_map,(east, north), 10, 1.0, -1)
                 cv2.putText(self.final_path_map,"path"+str(i), (east - 75, north + 75), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), thickness=2)
+                i += 1
 
 
     def getPixelCoordinate(self, coord):
