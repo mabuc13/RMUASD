@@ -140,6 +140,8 @@ class utm_parser(object):
 
         self.dynamic_polys = []
         self.dynamic_circles = []
+        self.static_zones = []
+        self.static_polys = []
 
     def shutdownHandler(self):
         # shutdown services
@@ -189,6 +191,10 @@ class utm_parser(object):
             if not self.check_circle(circle, ctt_utm):
                 #print "2 fail false"
                 return False
+        if len(self.static_polys) != 0:
+            for poly in self.static_polys:
+                if not self.check_static_poly(poly, ctt_utm):
+                    return False
         return True #Default case, coord is not obstructed
 
     def update_dynamic_objects(self):
@@ -212,14 +218,28 @@ class utm_parser(object):
                 #print "Went into circle"
                 #Distance to circle
 
+    def check_static_poly(self, poly, ctt_utm):
+        #Safety distance of 5
+        point = Point(ctt_utm[3], ctt_utm[4])
+        dis = poly.distance(point)
+        if dis < 10:
+            print "[UTM parser] found point to be within static NFZ"
+            return False
+        else:
+            return True
+
+    def make_static_polys(self):
+        for zone in self.static_zones:
+            polygon = Polygon([[float(int(data[0])), float(int(data[1]))] for data in zone])
+            self.static_polys.append(polygon)
 
 
 
     def check_circle(self, utm_circle, ctt_utm):
         dist = math.sqrt((utm_circle[0] - ctt_utm[3]) ** 2 + ((utm_circle[1] - ctt_utm[4]) ** 2))
 
-        if dist < float(utm_circle[2]):
-            #print "[UTM parser] coordinate is found within circular DNFZ"
+        if dist < float(utm_circle[2]) + 10:
+            print "[UTM parser] coordinate is found within circular DNFZ"
             return False
         else:
             #print "[UTM parser] coordinate is not within circular DNFZ"
@@ -242,8 +262,10 @@ class utm_parser(object):
         point = Point(tt_utm[3], tt_utm[4])
         #print "Polygons:", self.dynamic_polys
         #print polygon.contains(point), "<- polygon contains"
-        if (polygon.contains(point)):
-            #print "[UTM parser] coordinate is within dynamic poly"
+
+        dis = polygon.distance(point)
+        if dis < 10:
+            print "[UTM parser] Found point to be within dynamic polygin"
             return False
         else:
             return True
@@ -965,9 +987,12 @@ class utm_parser(object):
 
         for i in utm_coords:
             current_zone = []
+            extra_zone = []
+            zone_flag = False
             for j in i:
 
                 if j[3] < upper_right[3] and j[3] > down_left[3] and j[4] < upper_right[4] and j[4] > down_left[4]:
+
                     if self.debug:
                         print "Found SNFZ within map!!"
                     index_width = int((j[3]- down_left[3])/self.map_res)
@@ -975,8 +1000,10 @@ class utm_parser(object):
                     #cv2.circle(snfz_map, (index_width, index_heigth), 30, (0, 0, 255), -1)
                     #current_zone_width.append(index_width)
                     current_zone.append([index_width, index_heigth])
+                    zone_flag = True
                     if self.debug:
                         print "Zone counter: ", zone_counter
+                    extra_zone.append([j[3], j[4]])
                     #if snfz_map[index_width][index_heigth][0] == 255:
                     #    snfz_map[index_width][index_heigth][0] = 255#snfz_map[index_width, index_heigth] = 1
                     if self.debug:
@@ -991,6 +1018,8 @@ class utm_parser(object):
                 dummy = np.array(([20, 20], [20, 100], [100, 100]), dtype='int32')
                 cv2.fillPoly(snfz_map, [numpy_zone], 1)
             zone_counter += 1
+            if zone_flag:
+                self.static_zones.append(extra_zone)
 
             #3 eastern 4 = northing
         #self.show_map(snfz_map)
@@ -998,12 +1027,13 @@ class utm_parser(object):
             print "Exited SNFZ into empty map, with map_res: ", self.map_res
             print "Map_res: ", self.map_res
         #self.show_map(snfz_map)
-        dilate_width = int(20/self.map_res)
+        dilate_width = int(5/self.map_res)
         if self.debug:
             print "Dilate_width: ", dilate_width
         kernel = np.ones((dilate_width, dilate_width), np.uint8)
         snfz_map = cv2.dilate(snfz_map, kernel, iterations=1)
         #self.show_map(snfz_map)
+        self.make_static_polys()
         return snfz_map
         #self.save_map(snfz_map)
 
