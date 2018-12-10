@@ -71,17 +71,11 @@ class Drone(object):
         self.active_mission_gps = []
         self.active_mission_ml  = mavlink_lora_mission_list()
         self.active_mission_len = 0
-        self.active_mission_idx = 0             # index for the complete plan
+        self.active_mission_idx = 0            
 
         self.holding_waypoint = GPS()
 
-        # the drone starts on the ground ( land means ground for now. Change later ) TODO
         self.gcs_status = DroneInfo.Land
-
-        # from mission info
-        # self.active_sub_waypoint_idx = 0
-        # self.active_sub_mission_len = 0
-        # self.active_sub_waypoint = mavlink_lora_mission_item_int()
 
         # from heartbeat status
         self.main_mode = ""
