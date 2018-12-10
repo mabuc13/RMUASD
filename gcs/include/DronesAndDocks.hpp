@@ -33,6 +33,19 @@ struct oldPlan{
     int index;
 };
 
+struct direction{
+  double north;
+  double east;
+};
+
+struct UTM{
+  double north;
+  double east;
+  double altitude;
+  std::string zone;
+  UTM& operator+=(const direction &b);
+};
+
 
 class dock{
 public:
@@ -89,7 +102,7 @@ public:
   static const uint8 noMission = 1;
   static const uint8 notAssigned = 0;
 
-
+  time_t last_PathPlan;
 private:
   dock* goal= NULL;
   dock* QuestGiver = (NULL);
@@ -120,6 +133,8 @@ public:
   double& getGroundHeight();
   double& getFlightHeight();
   uint8 OS();
+  void setOS(uint8 os);
+  gcs::GPS forwardPosition(double meters);
 
 
 
@@ -131,10 +146,14 @@ public:
   void setVelocitySetPoint(double v);
   void setMissionIndex(size_t i);
   void setStatus(int status);
+  void setHeading(double heading);
 
-  static const uint8 normal_operation;
-  static const uint8 emergency;
+  static const uint8 normal_operation = 1;
+  static const uint8 emergency_plan_with_fallback = 2;
+  static const uint8 emergency = 3;
+  static const uint8 emergency_leave = 4;
 
+  int pathID;
 private:
   job* currentJob = (NULL);
   bool isFree;
@@ -148,6 +167,7 @@ private:
 
   double groundHeight;
   double flightHeight;
+  double heading;
   uint8 operationStatus;
 
 };

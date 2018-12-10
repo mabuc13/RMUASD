@@ -141,7 +141,7 @@ class DroneHandler(object):
                 drone.active_mission_len = msg.active_mission_len
                 # drone.active_sub_waypoint       = msg.current_item
             else:
-                print("Manual idx: {}".format(drone.manual_mission.mission_idx))
+                # print("Manual idx: {}".format(drone.manual_mission.mission_idx))
                 drone.active_mission_idx = drone.manual_mission.mission_idx     
                 drone.active_mission_len = len(drone.manual_mission.mission)  
 
@@ -190,8 +190,8 @@ class DroneHandler(object):
             drone.heading = msg.heading
             # timestamp = datetime.utcfromtimestamp(msg.time_usec / 1e6).strftime('%Y-%m-%d %H:%M:%S')
             # print(timestamp)
+            drone.calc_remaining_distance()
             drone.manual_mission.update_position(msg)
-            # drone.last_heard = msg.header.stamp
 
     def on_mission_ack(self, msg):
         if msg.drone_id in self.drones:

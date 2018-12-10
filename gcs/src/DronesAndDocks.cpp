@@ -4,6 +4,58 @@
 #include <math.h>
 #include <cmath> 
 
+
+double UTMdistance(UTM pos1, UTM pos2){
+    if(pos1.zone == pos2.zone){
+        return std::sqrt(
+            std::pow(pos1.east-pos2.east,2)+
+            std::pow(pos1.north-pos2.north,2)
+        );
+    }else{
+        //TODO
+    }
+}
+
+gcs::GPS UTM2GPS(UTM &coord){
+    gcs::GPS ret;
+    Geo::UTMtoLL(coord.north,coord.east,coord.zone,ret.latitude,ret.longitude);
+    ret.altitude=coord.altitude;
+    return ret;
+
+}
+UTM GPS2UTM(gcs::GPS coord){
+  UTM ret;
+  Geo::LLtoUTM(coord.latitude,coord.longitude,ret.north,ret.east,ret.zone);
+  ret.altitude = coord.altitude;
+  return ret;
+}
+
+direction operator*(direction lhs, const double& rhs){
+    lhs.east*=rhs;
+    lhs.north*=rhs;
+    return lhs;
+}
+UTM operator+(UTM lhs, const direction& rhs){
+    lhs.east+=rhs.east;
+    lhs.north+=rhs.north;
+    return lhs;
+}
+
+UTM& UTM::operator +=(const direction& b){
+    this->east+=b.east;
+    this->north+=b.north;
+    return *this;
+}
+
+direction heading2direction(double heading){
+    heading = M_PI * heading/180;
+    direction ret;
+    ret.north = std::cos(heading);
+    ret.east = std::sin(heading);
+
+    return ret;
+}
+
 //################## Dock ###################
 dock::dock(string name,double latitude, double longitude, double altitude, bool isLab, bool isEM):
   name(name),isALab(isLab),isAEM(isEM){
@@ -26,7 +78,7 @@ bool dock::isEM(void){
 
 
 //################# Job #########################
-job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued),terminateOnLand(false){
+job::job(dock* station):worker(NULL),goal(NULL),QuestGiver(NULL),status(job::queued),terminateOnLand(false),last_PathPlan(0){
     goal = station;
     QuestGiver = station;
     this->injection.index_from = 0;
@@ -46,6 +98,7 @@ job::job(const job &ajob):worker(NULL){
     this->TheOldPlan = ajob.TheOldPlan;
     this->waitInAirTill = ajob.waitInAirTill;
     this->nextStatus = ajob.nextStatus;
+    this->last_PathPlan = ajob.last_PathPlan;
     this->setDrone(ajob.worker);
 }
 job::~job(){
@@ -138,7 +191,8 @@ drone::drone(ID_t ID, gcs::GPS position):
     ID(ID),
     position(position),
     isFree(true),
-    currentJob(NULL)
+    currentJob(NULL),
+    operationStatus(drone::normal_operation)
 {}
 ID_t drone::getID(void){
     return this->ID;
@@ -214,4 +268,27 @@ double& drone::getGroundHeight(){
 
 double& drone::getFlightHeight(){
     return this->flightHeight;
+}
+
+uint8 drone::OS(){
+    return this->operationStatus;
+}
+
+void drone::setHeading(double heading){
+    this->heading = heading;
+}
+
+gcs::GPS drone::forwardPosition(double meters){
+    UTM pos = GPS2UTM(this->position);
+    UTM next = GPS2UTM(this->getPath()[this->pathIndex]);
+    double dist = UTMdistance(pos,next);
+    direction dir;
+    dir.east = next.east-pos.east;
+    dir.north = next.north-pos.north;
+    pos+= heading2direction(this->heading)*(meters/dist);
+    return UTM2GPS(pos);
+}
+
+void drone::setOS(uint8 os){
+    this->operationStatus = os;
 }
