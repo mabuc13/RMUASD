@@ -247,9 +247,9 @@ double diff(double num1, double num2){
 }
 void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
     gcs::DronePath msg;
-    if(loiterAtEnd && theDrone->OS() == drone::emergency_leave){
+    /*if(loiterAtEnd && theDrone->OS() == drone::emergency_leave){
         return;
-    }
+    }*/
     msg.DroneID = theDrone->getID();
     msg.loiterAtEnd = loiterAtEnd;
     msg.PathID = pathPlanNum++;
@@ -273,18 +273,18 @@ void uploadFlightPlan(drone* theDrone,bool loiterAtEnd = false){
 void moveDroneTo(drone *theDrone, gcs::GPS pos, long waitTill = -1){
     job* theJob =  theDrone->getJob();
     if(theJob != NULL){
-        if(theDrone->OS() != drone::emergency_leave){
-            cout << "[Ground Control]: Asking for reposition" << endl;
-            theDrone->getPath()={pos};
-            uploadFlightPlan(theDrone,true);
-            if(waitTill == -1){
-                theJob->setStatus(job::rePathPlan);
-            }else{
-                theJob->setWaitInAirTo(waitTill);
-                theJob->setStatus(job::waitInAir);
-                theJob->setNextStatus(job::resumeFlight);
-            }
+        //if(theDrone->OS() != drone::emergency_leave){
+        cout << "[Ground Control]: Asking for reposition" << endl;
+        theDrone->getPath()={pos};
+        uploadFlightPlan(theDrone,true);
+        if(waitTill == -1){
+            theJob->setStatus(job::rePathPlan);
+        }else{
+            theJob->setWaitInAirTo(waitTill);
+            theJob->setStatus(job::waitInAir);
+            theJob->setNextStatus(job::resumeFlight);
         }
+        //}
     }else{
         ROS_ERROR("[Ground Control]: can't reposition a drone without a job");
     }
@@ -407,9 +407,9 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
             srv.request.useDNFZ = false;
             srv.request.velocity = theDrone->getVelocitySetPoint(); // TODO get the set value from somewhere
             srv.request.startTime = std::time(nullptr)+15; //TODO is 15 the right wait amount?
-            if(!isSafeSpot){
+            /*if(!isSafeSpot){
                 setEmegencyLeave = true;
-            }
+            }*/
         }else if(theDrone->getJob()->getStatus() == job::rePathPlan){
             cout << header << "DYNAMIC PATH PLAN" << endl;
             srv.request.useDNFZ = true;
@@ -440,10 +440,10 @@ std::vector<gcs::GPS> pathPlan(gcs::GPS start,gcs::GPS end,drone* theDrone){
     if(theDrone->OS() == drone::emergency_plan_with_fallback){
         theDrone->OS() == drone::normal_operation;
     }
-    if(setEmegencyLeave){
+    /*if(setEmegencyLeave){
         ROS_WARN(header.c_str(),"SETTING EMERGENCY LEAVE");
         theDrone->setOS(drone::emergency_leave);
-    }
+    }*/
     return srv.response.path;
 }
 
@@ -1045,9 +1045,9 @@ int main(int argc, char** argv){
                     if(activeJobs[i]->getDrone()->OS() != drone::emergency_leave){
                         try{
                             DNFZinject d = activeJobs[i]->getDNFZinjection();
-                            if(d.stillValid){
-                                if(d.valid_to-time(nullptr)>0){
-                                    /*cout << header << "DNFZ re pathplan" << endl;
+                            if(d.stillValid && false){
+                                /*if(d.valid_to-time(nullptr)>0){
+                                    cout << header << "DNFZ re pathplan" << endl;
                                     std::vector<gcs::GPS> path = pathPlan(d.start, d.to,activeJobs[i]->getDrone());
                                     std::vector<gcs::GPS> newPath;
                                     std::vector<gcs::GPS> currentPath = activeJobs[i]->getDrone()->getPath();
@@ -1067,7 +1067,7 @@ int main(int argc, char** argv){
                                     activeJobs[i]->getDrone()->setPath(newPath);
                                     uploadFlightPlan(activeJobs[i]->getDrone());
                                     activeJobs[i]->setStatus(job::ready4flightContinuation);
-                                    */
+                                    
                                 }else{
                                     cout << header << "Wait and Resume path" << endl;
                                     activeJobs[i]->setStatus(job::waitInAir);
@@ -1075,7 +1075,7 @@ int main(int argc, char** argv){
                                     activeJobs[i]->setNextStatus(job::resumeFlight);
                                 }
                                 d.stillValid = false;
-                                activeJobs[i]->DNFZinjection(d);
+                                activeJobs[i]->DNFZinjection(d);*/
                             }else{
                                 cout << header << "Normal rePathPlan" << endl;
                                 std::vector<gcs::GPS> path = pathPlan(activeJobs[i]->getDrone()->getPosition(), activeJobs[i]->getGoal()->getPosition(),activeJobs[i]->getDrone());
