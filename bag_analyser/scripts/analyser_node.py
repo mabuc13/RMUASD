@@ -49,9 +49,11 @@ class Analyser(object):
 
         self.local_position_ned = np.array([0,0,0])
         self.sensor_data = np.array([0,0,0]) 
+        self.kalman_data = np.array([0,0,0]) 
         self.landing_coords = np.array([1.5, 1.75, 0])
         self.new_pos_reading = False
         self.new_sensor_reading = False
+        self.new_kalman_reading = False
         self.vx = 0
         self.vy = 0
         self.vz = 0
@@ -84,12 +86,17 @@ class Analyser(object):
         
         rospy.Subscriber("/telemetry/local_position_ned", telemetry_local_position_ned, self.on_local_pos)
         rospy.Subscriber("/landing/arduino_pos", precland_sensor_data, self.on_sensor_data)
+        rospy.Subscriber("/landing/kalman_pos", precland_sensor_data, self.on_kalman_data)
 
 
     def on_sensor_data(self, msg):
         self.new_sensor_reading = True
         self.sensor_data = np.array([msg.y, msg.x, -msg.z])
-        print(self.sensor_data)
+        # print(self.sensor_data)
+
+    def on_kalman_data(self, msg):
+        self.new_kalman_reading = True
+        self.kalman_data = np.array([msg.y, msg.x, -msg.z])
 
     def on_local_pos(self, msg):
         self.new_pos_reading = True
@@ -107,70 +114,78 @@ class Analyser(object):
 
         last_activity = timestamp - self.activity_timestamp
 
-        if last_activity > 5:
-            self.stop = True
+        # if last_activity > 5:
+        #     self.stop = True
 
-        if self.stop:
-            plt.show()
-        else:
-            if self.new_pos_reading:
-                self.new_pos_reading = False
+        # if self.stop:
+        #     plt.show()
+        # else:
+        #     if self.new_pos_reading:
+        #         self.new_pos_reading = False
 
-                # compute something
+        #         # compute something
 
-                # plt.scatter(self.local_position_ned[1], self.local_position_ned[0], color='black', s=2) # plot something
-                self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
+        #         # plt.scatter(self.local_position_ned[1], self.local_position_ned[0], color='black', s=2) # plot something
+        #         self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
                 
-                if self.new_sensor_reading:
-                    # plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1)
-                    self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
-                    # update kalman filter with both position and velocity
-                    # measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.vx], [self.vy]])
-                    measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.sensor_data[2]], [self.vx], [self.vy], [self.vz]])
-                    self.state = self.kalman.update(measurement, kalman3.Measurement.BOTH)
-                else:
-                    # update kalman filter with velocity
-                    # measurement = np.array([[self.vx], [self.vy]])
-                    measurement = np.array([[self.vx], [self.vy], [self.vz]])
-                    self.state = self.kalman.update(measurement, kalman3.Measurement.VEL)
+        #         if self.new_sensor_reading:
+        #             # plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1)
+        #             self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
+        #             # update kalman filter with both position and velocity
+        #             # measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.vx], [self.vy]])
+        #             measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.sensor_data[2]], [self.vx], [self.vy], [self.vz]])
+        #             self.state = self.kalman.update(measurement, kalman3.Measurement.BOTH)
+        #         else:
+        #             # update kalman filter with velocity
+        #             # measurement = np.array([[self.vx], [self.vy]])
+        #             measurement = np.array([[self.vx], [self.vy], [self.vz]])
+        #             self.state = self.kalman.update(measurement, kalman3.Measurement.VEL)
 
                 
-            elif self.new_sensor_reading:
-                self.new_sensor_reading = False
-                # compute something
+        #     elif self.new_sensor_reading:
+        #         self.new_sensor_reading = False
+        #         # compute something
 
-                # update kalman filter with both position and velocity
-                # measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]]])
-                measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.sensor_data[2]]]) 
-                self.state = self.kalman.update(measurement, kalman3.Measurement.POS)
+        #         # update kalman filter with both position and velocity
+        #         # measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]]])
+        #         measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.sensor_data[2]]]) 
+        #         self.state = self.kalman.update(measurement, kalman3.Measurement.POS)
 
-                # plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1) # plot something
-                self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
+        #         # plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1) # plot something
+        #         self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
 
-                # relative_target = self.landing_coords - self.sensor_data
-                # added = relative_target + self.local_position_ned
-                # self.ax.scatter(relative_target[1], relative_target[0], -relative_target[2], color='blue', s=2) 
-                # self.ax.set_zlim(0, 10)
-            else:
-                self.state = self.kalman.update()
+        #         # relative_target = self.landing_coords - self.sensor_data
+        #         # added = relative_target + self.local_position_ned
+        #         # self.ax.scatter(relative_target[1], relative_target[0], -relative_target[2], color='blue', s=2) 
+        #         # self.ax.set_zlim(0, 10)
+        #     else:
+        #         self.state = self.kalman.update()
 
-            # update canvas immediately
-            plt.xlim([-10, 10])
-            plt.ylim([-10, 10])
-            self.ax.set_zlim(-10, 10)
+        #     # update canvas immediately
+        #     plt.xlim([-10, 10])
+        #     plt.ylim([-10, 10])
+        #     self.ax.set_zlim(-10, 10)
 
 
             # plt.scatter(self.state[1,0], self.state[0,0], color='orange', s=2)
-            self.ax.scatter(self.state[1,0], self.state[0,0], self.state[2,0], color='orange', s=2, linestyle='-')
+            # self.ax.scatter(self.state[1,0], self.state[0,0], self.state[2,0], color='orange', s=2, linestyle='-')
+        
+        if self.new_sensor_reading:
+            self.new_sensor_reading = False
+            self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
+            self.fig.canvas.draw()
+        elif self.new_kalman_reading:
+            self.new_kalman_reading = False
+            self.ax.scatter(self.kalman_data[1], self.kalman_data[0], self.kalman_data[2], color='orange', s=2)
             self.fig.canvas.draw()
 
-    def plot_covariance(self, event):
-        x = self.kalman.x_hat_plus
-        P = self.kalman.P_plus
+    # def plot_covariance(self, event):
+    #     x = self.kalman.x_hat_plus
+    #     P = self.kalman.P_plus
 
-        self.stop = True
-        plot_covariance_ellipse(x,P,edgecolor='r')
-        plt.show()
+    #     self.stop = True
+    #     plot_covariance_ellipse(x,P,edgecolor='r')
+    #     plt.show()
 
     def shutdownHandler(self):
         # shutdown services
