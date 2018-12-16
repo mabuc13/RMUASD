@@ -422,8 +422,6 @@ class Drone(object):
 
             if self.is_on_goal():
                 # self.fsm_state = State.LANDING
-
-
                 lat_goal = self.active_mission_gps[-1].latitude
                 lon_goal = self.active_mission_gps[-1].longitude
                 # reposition to a lower altitude above the goal

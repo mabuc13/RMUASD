@@ -70,8 +70,8 @@ class Analyser(object):
         self.rotation_matrix = np.array([[1,0],[0,1]])
 
         self.fig = plt.gcf()
-        self.ax = self.fig.add_subplot(111, projection='3d')
-        self.ax.scatter(self.landing_coords[1], self.landing_coords[0], 0, color='blue', s=10)
+        # self.ax = self.fig.add_subplot(111, projection='3d')
+        plt.scatter(self.landing_coords[1], self.landing_coords[0], color='blue', s=10)
         self.fig.show()
         self.fig.canvas.draw()
         # plt.show()
@@ -103,7 +103,7 @@ class Analyser(object):
         timestamp = rospy.get_time()
         dt = timestamp - self.last_timestamp
         self.last_timestamp = timestamp
-        print("dt: {}".format(dt))
+        # print("dt: {}".format(dt))
 
         last_activity = timestamp - self.activity_timestamp
 
@@ -118,12 +118,12 @@ class Analyser(object):
 
                 # compute something
 
-                # plt.scatter(self.local_position_ned[1], self.local_position_ned[0], color='black', s=2) # plot something
-                self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
+                plt.scatter(self.local_position_ned[1], self.local_position_ned[0], color='black', s=2) # plot something
+                # self.ax.scatter(self.local_position_ned[1], self.local_position_ned[0], -self.local_position_ned[2], color='black', s=2) # plot something
                 
                 if self.new_sensor_reading:
-                    # plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1)
-                    self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
+                    plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1)
+                    # self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
                     # update kalman filter with both position and velocity
                     # measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.vx], [self.vy]])
                     measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.sensor_data[2]], [self.vx], [self.vy], [self.vz]])
@@ -144,8 +144,8 @@ class Analyser(object):
                 measurement = np.array([[self.sensor_data[0]], [self.sensor_data[1]], [self.sensor_data[2]]]) 
                 self.state = self.kalman.update(measurement, kalman3.Measurement.POS)
 
-                # plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1) # plot something
-                self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
+                plt.scatter(self.sensor_data[1], self.sensor_data[0], color='red', s=1) # plot something
+                # self.ax.scatter(self.sensor_data[1], self.sensor_data[0], self.sensor_data[2], color='red', s=2)
 
                 # relative_target = self.landing_coords - self.sensor_data
                 # added = relative_target + self.local_position_ned
@@ -155,22 +155,23 @@ class Analyser(object):
                 self.state = self.kalman.update()
 
             # update canvas immediately
-            plt.xlim([-10, 10])
-            plt.ylim([-10, 10])
-            self.ax.set_zlim(-10, 10)
+            # plt.xlim([-10, 10])
+            # plt.ylim([-10, 10])
+            # self.ax.set_zlim(-10, 10)
 
 
-            # plt.scatter(self.state[1,0], self.state[0,0], color='orange', s=2)
-            self.ax.scatter(self.state[1,0], self.state[0,0], self.state[2,0], color='orange', s=2, linestyle='-')
+            plt.scatter(self.state[1,0], self.state[0,0], color='orange', s=2)
+            # self.ax.scatter(self.state[1,0], self.state[0,0], self.state[2,0], color='orange', s=2, linestyle='-')
+            plt.axis('equal')
             self.fig.canvas.draw()
 
-    def plot_covariance(self, event):
-        x = self.kalman.x_hat_plus
-        P = self.kalman.P_plus
+    # def plot_covariance(self, event):
+    #     x = self.kalman.x_hat_plus
+    #     P = self.kalman.P_plus
 
-        self.stop = True
-        plot_covariance_ellipse(x,P,edgecolor='r')
-        plt.show()
+    #     self.stop = True
+    #     plot_covariance_ellipse(x,P,edgecolor='r')
+    #     plt.show()
 
     def shutdownHandler(self):
         # shutdown services
