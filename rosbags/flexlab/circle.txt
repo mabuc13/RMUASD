@@ -1,0 +1,3 @@
+radius=164cm
+
+revolutions were not counted super accurately
